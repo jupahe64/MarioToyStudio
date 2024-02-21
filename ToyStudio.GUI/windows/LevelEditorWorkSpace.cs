@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using ImGuiNET;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,7 +39,25 @@ namespace ToyStudio.GUI.windows
 
         public void DrawUI(GL gl, double deltaSeconds)
         {
+            foreach (var subLevel in _level.SubLevels)
+            {
+                ImGui.Begin(subLevel.BcettName);
+                ImGui.InputText("LightingParam", ref subLevel.LightingParamName, 100);
+                ImGui.InputText("LevelParam", ref subLevel.LevelParamName, 100);
 
+                if (ImGui.CollapsingHeader("Actors"))
+                {
+                    foreach (var actor in subLevel.Actors)
+                        ImGui.Text(actor.Name);
+                }
+
+                if (ImGui.CollapsingHeader("Rails"))
+                {
+                    foreach (var rail in subLevel.Rails)
+                        ImGui.Text(rail.Points.Count + " points");
+                }
+                ImGui.End();
+            }
         }
 
         private LevelEditorWorkSpace(Level level, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)

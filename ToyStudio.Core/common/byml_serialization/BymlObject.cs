@@ -24,7 +24,7 @@ namespace ToyStudio.Core.common.byml_serialization
             return obj;
         }
 
-        protected abstract void Deserialize(Deserializer s);
+        protected abstract void Deserialize(Deserializer d);
 
         public Byml Serialize()
         {
@@ -73,6 +73,7 @@ namespace ToyStudio.Core.common.byml_serialization
         public static float ParseFloat(Byml byml) => byml.GetFloat();
         public static double ParseDouble(Byml byml) => byml.GetDouble();
         public static string ParseString(Byml byml) => byml.GetString();
+        public static bool ParseBool(Byml byml) => byml.GetBool();
 
         
 
@@ -171,6 +172,13 @@ namespace ToyStudio.Core.common.byml_serialization
 
                 value = ParseString(node);
             }
+            public void SetBool(ref bool value, string name)
+            {
+                if (!map!.TryGetValue(name, out var node))
+                    return;
+
+                value = ParseBool(node);
+            }
 
             #endregion
         }
@@ -206,6 +214,7 @@ namespace ToyStudio.Core.common.byml_serialization
         public static Byml SerializeFloat(float value) => new Byml(value);
         public static Byml SerializeDouble(double value) => new Byml(value);
         public static Byml SerializeString(string value) => new Byml(value);
+        public static Byml SerializeBool(bool value) => new Byml(value);
 
         public class Serializer(BymlMap map)
         {
@@ -271,6 +280,10 @@ namespace ToyStudio.Core.common.byml_serialization
             public void SetString(ref string value, string name)
             {
                 map[name] = SerializeString(value);
+            }
+            public void SetBool(ref bool value, string name)
+            {
+                map[name] = SerializeBool(value);
             }
             #endregion
         }

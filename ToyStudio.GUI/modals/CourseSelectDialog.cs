@@ -5,6 +5,7 @@ using Silk.NET.OpenGL;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using ToyStudio.Core;
+using ToyStudio.Core.byml_objects;
 using ToyStudio.GUI.common.modal;
 using ToyStudio.GUI.common.util;
 
@@ -16,7 +17,7 @@ namespace ToyStudio.GUI.modals
             string? selectedCourseName = null)
         {
             var result = await modalHost.ShowPopUp(
-                new CourseSelectDialog(romfs, selectedCourseName),
+                new CourseSelectDialog(romfs, modalHost, selectedCourseName),
                 "Select Course",
                 minWindowSize: thumbnailSize * 1.25f);
 
@@ -27,32 +28,44 @@ namespace ToyStudio.GUI.modals
         }
 
         private string? _selectedWorldName;
-        private BymlMap? _selectedWorld;
-        private readonly Byml? _worldSequence;
-        private string? selectedCourseScenePath;
+        private WorldSequence.World? _selectedWorld;
+        private readonly IPopupModalHost _modalHost;
+        private readonly WorldSequence? _worldSequence;
+        private readonly string? _selectedLevelName;
         private static readonly Vector2 thumbnailSize = new(200f, 112.5f);
-        private float worldNameSize = 12f;
+        private static readonly float worldNameSize = 12f;
 
-        public CourseSelectDialog(RomFS romfs, string? selectedCourseName = null)
+        private CourseSelectDialog(RomFS romfs, IPopupModalHost modalHost, string? selectedCourseName)
         {
-            this.selectedCourseScenePath = selectedCourseName;
+            _selectedLevelName = selectedCourseName;
+            _modalHost = modalHost;
 
             if(romfs.TryLoadFileFromBootupPackOrFS(
                 ["GameParameter", "WorldSequence", "Game.game__parameter__WorldSequence.bgyml"],
                 out byte[]? bytes))
             {
-                _worldSequence = Byml.FromBinary(bytes);
+                try
+                {
+                    var byml = Byml.FromBinary(bytes);
+                    _worldSequence = WorldSequence.Deserialize(byml);
+                }
+                catch(Exception ex)
+                {
+                    Console.Error.WriteLine(ex);
+                    _worldSequence = null;
+                }
             }
         }
 
         public void DrawModalContent(Promise<string> promise)
         {
             if (_worldSequence == null)
-                ImGui.Text("Couldn't find GameParameter/WorldSequence/Game.game__parameter__WorldSequence.bgyml");
+                ImGui.Text("Couldn't load GameParameter/WorldSequence/Game.game__parameter__WorldSequence.bgyml");
 
             DrawTabs();
 
-            DrawCourses(promise);
+            if (_selectedWorld != null)
+                DrawCourses(promise);
         }
 
         void DrawTabs()
@@ -62,20 +75,11 @@ namespace ToyStudio.GUI.modals
                 return;
             }
 
-            var root = _worldSequence!.GetMap();
-
-            var worldArray = root["Worlds"].GetArray();
-
             Dictionary<string, int> worldTypeMultiSet = [];
 
-            foreach (var worldNode in worldArray)
+            foreach (var world in _worldSequence!.Worlds)
             {
-                var world = worldNode.GetMap();
-
-                string worldType = "Main";
-
-                if (world.TryGetValue("Type", out var typeEntry))
-                    worldType = typeEntry.GetString();
+                string worldType = world.Type;
 
 
                 ref int count = ref CollectionsMarshal.GetValueRefOrAddDefault(
@@ -115,19 +119,13 @@ namespace ToyStudio.GUI.modals
             }
             ImGui.TableNextRow();
 
-            var levels = _selectedWorld!["Levels"].GetArray();
-
             float em = ImGui.GetFrameHeight();
 
             int idx = 0;
-            foreach (var level in levels!.Select(x=>x.GetMap()))
+            foreach (var level in _selectedWorld!.Levels)
             {
-                var levelScenePath = level["Scene"].GetString();
-                var levelType = "CombinedLevel";
-                {
-                    if (level.TryGetValue("Type", out var type))
-                        levelType = type.GetString();
-                }
+                var levelScenePath = level.Scene;
+                var levelType = level.Type;
 
 
                 ImGui.PushID(idx);
@@ -149,10 +147,13 @@ namespace ToyStudio.GUI.modals
                 if (text[^1] == '\0')
                     text = text[..^1];
 
+                ImGui.BeginDisabled(string.IsNullOrEmpty(levelScenePath));
+
                 ImGui.PushStyleVar(ImGuiStyleVar.SelectableTextAlign, new Vector2(0.5f));
                 ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 10);
 
-                bool clicked = ImGui.Selectable(text, levelScenePath == selectedCourseScenePath,
+                bool clicked = ImGui.Selectable(text, 
+                    _selectedLevelName is not null && levelScenePath!.Contains(_selectedLevelName!),
                     ImGuiSelectableFlags.None, new Vector2(thumbnailSize.X, thumbnailSize.Y + em * 1.8f));
 
                 ImGui.PopStyleVar(2);
@@ -166,8 +167,17 @@ namespace ToyStudio.GUI.modals
 
                 if (clicked)
                 {
-                    promise.SetResult(levelScenePath);
+                    var m = Level.Regex().Match(levelScenePath!);
+
+                    if (m.Success)
+                        promise.SetResult(m.Groups[1].Value);
+                    else
+                    {
+                        Task.Run(async () => await InvalidSceneStringInfo.ShowDialog(_modalHost, levelScenePath!));
+                    }
                 }
+
+                ImGui.EndDisabled();
 
                 ImGui.Dummy(new Vector2(0, 2 * ImGui.GetStyle().ItemSpacing.Y));
 
@@ -176,6 +186,29 @@ namespace ToyStudio.GUI.modals
             }
 
             ImGui.EndTable();
+        }
+
+        class InvalidSceneStringInfo : OkDialog
+        {
+            private readonly string _sceneString;
+
+            public static Task ShowDialog(IPopupModalHost modalHost, string sceneString) =>
+                ShowDialog(modalHost, new InvalidSceneStringInfo(sceneString));
+
+            protected override string Title => "Invalid scene string";
+
+            protected override void DrawBody()
+            {
+                ImGui.Text($"""
+                        {_sceneString} 
+                        is not a valid scene string, level cannot be opened.
+                        """);
+            }
+
+            private InvalidSceneStringInfo(string sceneString)
+            {
+                _sceneString = sceneString;
+            }
         }
     }
 }

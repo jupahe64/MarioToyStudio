@@ -170,15 +170,22 @@ namespace ToyStudio.GUI.windows
                     $"Loading {name}",
                     async (p) =>
                     {
-                        p.Report(("Loading course files", null));
-                        await _modalHost.WaitTick();
-                        var course = Level.Load(name, _romfs!);
-                        p.Report(("Loading other resources (this temporarily freezes the app)", null));
-                        await _modalHost.WaitTick();
+                        try
+                        {
+                            p.Report(("Loading course files", null));
+                            await _modalHost.WaitTick();
+                            var course = Level.Load(name, _romfs!);
+                            p.Report(("Loading other resources (this temporarily freezes the app)", null));
+                            await _modalHost.WaitTick();
 
-                        _activeLevelWorkSpace?.PreventFurtherRendering();
-                        _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, _glTaskScheduler, _modalHost, p);
-                        _currentCourseName = name;
+                            _activeLevelWorkSpace?.PreventFurtherRendering();
+                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, _glTaskScheduler, _modalHost, p);
+                            _currentCourseName = name;
+                        }
+                        catch (Exception ex)
+                        {
+                            await LoadingErrorDialog.ShowDialog(_modalHost, $"Level {name}", ex);
+                        }
                     });
         }
 
@@ -377,7 +384,7 @@ namespace ToyStudio.GUI.windows
                 catch (Exception ex)
                 {
                     _isShowPreferenceWindow = true;
-                    await RomFSLoadingError.ShowDialog(_modalHost, ex);
+                    await LoadingErrorDialog.ShowDialog(_modalHost, "The RomFS", ex);
                 }
             });
         }
@@ -431,30 +438,32 @@ namespace ToyStudio.GUI.windows
             private RomFSChangeWarning() { }
         }
 
-        class RomFSLoadingError : OkDialog
+        class LoadingErrorDialog : OkDialog
         {
-            public static Task ShowDialog(IPopupModalHost modalHost, Exception exception) =>
-                ShowDialog(modalHost, new RomFSLoadingError(exception));
+            public static Task ShowDialog(IPopupModalHost modalHost, string subject, Exception exception) =>
+                ShowDialog(modalHost, new LoadingErrorDialog(exception, subject));
 
-            protected override string Title => "Error while loading RomFS";
+            protected override string Title => $"Error while loading {_subject}";
 
             protected override void DrawBody()
             {
-                ImGui.Text("An error occured while loading the RomFS");
+                ImGui.Text($"An error occured while loading {_subject}");
 
                 string message = _exception.Message + "\n\n" + _exception.StackTrace;
 
                 ImGui.InputTextMultiline("##error message", ref message, 
                     (uint)message.Length,
-                    new Vector2(400, ImGui.GetFrameHeight() * 6));
+                    new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, 400), ImGui.GetFrameHeight() * 6));
             }
 
-            private RomFSLoadingError(Exception exception)
+            private LoadingErrorDialog(Exception exception, string subject)
             {
                 _exception = exception;
+                _subject = subject;
             }
 
             private Exception _exception;
+            private readonly string _subject;
         }
     }
 }
