@@ -1,0 +1,101 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<AssemblyName>MarioTOYStudio</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+  	<PackageReference Include="fasterflect" Version="3.0.0" />
+  	<PackageReference Include="FuzzySharp" Version="2.0.2" />
+  	<PackageReference Include="ImGui.NET" Version="1.90.0.1" />
+  	<PackageReference Include="NativeFileDialogSharp" Version="0.6.0-alpha" />
+  	<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  	<PackageReference Include="Silk.NET.Core" Version="2.19.0" />
+  	<PackageReference Include="Silk.NET.GLFW" Version="2.19.0" />
+  	<PackageReference Include="Silk.NET.OpenGL" Version="2.19.0" />
+  	<PackageReference Include="Silk.NET.Input" Version="2.19.0" />
+  	<PackageReference Include="Silk.NET.Input.Extensions" Version="2.19.0" />
+  	<PackageReference Include="StbImageSharp" Version="2.27.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="widgets\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ToyStudio.Core\ToyStudio.Core.csproj" />
+  </ItemGroup>
+	<ItemGroup>
+	<None Update="res\bfres\CubemapHDR.dds">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\bfres\CubemapLightmap.dds">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\bfres\CubemapLightmapShadow.dds">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\bfres\gradient.dds">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\bfres\normals.dds">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\DefaultTexture.png">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\Font.ttf">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\imgui.ini">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\la-brands-400.ttf">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\la-regular-400.ttf">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\la-solid-900.ttf">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\NotoSansCJKjp-Medium.otf">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\Lightmap.frag">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\Lightmap.vert">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\screen.frag">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\screen.vert">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\Basic.frag">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\Basic.vert">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\Bfres.frag">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\Bfres.vert">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\imgui-default.ini">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	</ItemGroup>
+
+</Project>
