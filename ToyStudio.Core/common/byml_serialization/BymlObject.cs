@@ -79,7 +79,7 @@ namespace ToyStudio.Core.common.byml_serialization
 
         public class Deserializer(BymlMap map)
         {
-            public BymlMap Map => map;
+            public IReadOnlyDictionary<string, Byml> Map => map;
 
             #region generated code
 
@@ -181,6 +181,15 @@ namespace ToyStudio.Core.common.byml_serialization
             }
 
             #endregion
+
+            public void SetObject<TObject>(ref TObject value, string name)
+                where TObject : IBymlObject<TObject>
+            {
+                if (!map!.TryGetValue(name, out var node))
+                    return;
+
+                value = TObject.Deserialize(node);
+            }
         }
 
         public static Byml SerializeArray<TItem>(List<TItem> list, Func<TItem, Byml> mapper)
@@ -286,14 +295,18 @@ namespace ToyStudio.Core.common.byml_serialization
                 map[name] = SerializeBool(value);
             }
             #endregion
+
+            public void SetObject<TObject>(ref TObject value, string name)
+                where TObject : IBymlObject
+            {
+                map[name] = value.Serialize();
+            }
         }
     }
 
-    public interface IBymlObject<T> where T : new()
+    public interface IBymlObject<T> : IBymlObject
     {
         public static abstract T Deserialize(Byml byml);
-
-        public Byml Serialize();
     }
 
     public interface IBymlObject

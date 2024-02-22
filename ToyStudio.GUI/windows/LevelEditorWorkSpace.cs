@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core;
+using ToyStudio.Core.level;
 using ToyStudio.GUI.common.gl;
 using ToyStudio.GUI.common.modal;
 
@@ -39,22 +40,30 @@ namespace ToyStudio.GUI.windows
 
         public void DrawUI(GL gl, double deltaSeconds)
         {
-            foreach (var subLevel in _level.SubLevels)
+            for (int iSubLevel = 0; iSubLevel < _level.SubLevels.Count; iSubLevel++)
             {
-                ImGui.Begin(subLevel.BcettName);
+                SubLevel? subLevel = _level.SubLevels[iSubLevel];
+
+                ImGui.Begin($"Sublevel {iSubLevel+1} ({subLevel.BcettName})###Sublevel {iSubLevel+1}");
                 ImGui.InputText("LightingParam", ref subLevel.LightingParamName, 100);
                 ImGui.InputText("LevelParam", ref subLevel.LevelParamName, 100);
 
                 if (ImGui.CollapsingHeader("Actors"))
                 {
                     foreach (var actor in subLevel.Actors)
-                        ImGui.Text(actor.Name);
+                        ImGui.Text($"{actor.Name} at {actor.Translate}");
                 }
 
                 if (ImGui.CollapsingHeader("Rails"))
                 {
                     foreach (var rail in subLevel.Rails)
-                        ImGui.Text(rail.Points.Count + " points");
+                    {
+                        if (ImGui.TreeNode(rail.Points.Count + " points"))
+                        {
+                            for (int i = 0; i < rail.Points.Count; i++)
+                                ImGui.Text($"[{i}] {rail.Points[i].Translate}");
+                        }
+                    }
                 }
                 ImGui.End();
             }

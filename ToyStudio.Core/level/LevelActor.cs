@@ -5,39 +5,41 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.common.byml_serialization;
+using ToyStudio.Core.common.util;
+using ToyStudio.GUI.common.util;
 
 namespace ToyStudio.Core.level
 {
     public class LevelActor : BymlObject<LevelActor>
     {
+        public PropertyDict Dynamic = PropertyDict.Empty;
         public string? Gyaml;
-        public string? Name;
         public ulong Hash;
+        public string? Name;
         public PhiveParameter? Phive;
-
-        public Vector3 Translate;
         public Vector3 Rotate;
+        public Vector3 Translate;
 
         protected override void Deserialize(Deserializer d)
         {
-            d.SetString(ref Name!, "Name");
+            d.SetPropertyDict(ref Dynamic!, "Dynamic");
             d.SetString(ref Gyaml!, "Gyaml");
             d.SetUInt64(ref Hash!, "Hash");
-            //TODO Phive
-            //TODO Dynamic
-            //TODO Translate
-            //TODO Rotate
+            d.SetString(ref Name!, "Name");
+            d.SetObject(ref Phive!, "Phive");
+            d.SetFloat3(ref Rotate!, "Rotate");
+            d.SetFloat3(ref Translate!, "Translate");
         }
 
         protected override void Serialize(Serializer s)
         {
-            s.SetString(ref Name!, "Name");
+            s.SetPropertyDict(ref Dynamic!, "Dynamic");
             s.SetString(ref Gyaml!, "Gyaml");
             s.SetUInt64(ref Hash!, "Hash");
-            //TODO Phive
-            //TODO Dynamic
-            //TODO Translate
-            //TODO Rotate
+            s.SetString(ref Name!, "Name");
+            s.SetObject(ref Phive!, "Phive");
+            s.SetFloat3(ref Rotate!, "Rotate");
+            s.SetFloat3(ref Translate!, "Translate");
         }
 
         public class PhiveParameter : BymlObject<PhiveParameter>

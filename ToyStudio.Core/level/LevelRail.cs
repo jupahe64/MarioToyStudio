@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.common.byml_serialization;
+using ToyStudio.Core.common.util;
 
 namespace ToyStudio.Core.level
 {
@@ -29,17 +31,18 @@ namespace ToyStudio.Core.level
         public class Point : BymlObject<Point>
         {
             public ulong Hash;
+            public Vector3 Translate;
 
             protected override void Deserialize(Deserializer d)
             {
                 d.SetUInt64(ref Hash!, "Hash");
-                //TODO Translate
+                d.SetFloat3(ref Translate!, "Translate");
             }
 
             protected override void Serialize(Serializer s)
             {
                 s.SetUInt64(ref Hash!, "Hash");
-                //TODO Translate
+                s.SetFloat3(ref Translate!, "Translate");
             }
         }
     }
