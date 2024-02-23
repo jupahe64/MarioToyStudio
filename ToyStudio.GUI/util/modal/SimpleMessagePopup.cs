@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToyStudio.GUI.common.modal
+namespace ToyStudio.GUI.util.modal
 {
     internal class SimpleMessagePopup : OkDialog
     {

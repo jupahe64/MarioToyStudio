@@ -5,7 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToyStudio.GUI.common.util
+namespace ToyStudio.GUI.util
 {
     public static class Matrix4x4Extension
     {

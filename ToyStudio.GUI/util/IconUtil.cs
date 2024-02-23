@@ -1,4 +1,4 @@
-﻿namespace ToyStudio.GUI.common.util
+﻿namespace ToyStudio.GUI.util
 {
     public class IconUtil
     {

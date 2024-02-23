@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="common\gl\Readme.md" />
+    <None Remove="util\gl\Readme.md" />
   </ItemGroup>
 
   <ItemGroup>

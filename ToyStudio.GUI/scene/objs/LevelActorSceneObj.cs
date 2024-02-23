@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
-using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.scene.objs

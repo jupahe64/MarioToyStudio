@@ -7,10 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core;
 using ToyStudio.Core.level;
-using ToyStudio.GUI.common.gl;
-using ToyStudio.GUI.common.modal;
-using ToyStudio.GUI.common.util;
 using ToyStudio.GUI.scene;
+using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.gl;
+using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.windows

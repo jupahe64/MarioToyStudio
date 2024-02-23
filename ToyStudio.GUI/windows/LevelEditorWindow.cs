@@ -5,11 +5,11 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using ToyStudio.GUI.modals;
 using NativeFileDialogSharp;
-using ToyStudio.GUI.common.gl;
 using ToyStudio.Core;
-using ToyStudio.GUI.common.util;
-using ToyStudio.GUI.common.modal;
-using ToyStudio.GUI.common.windowing;
+using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.gl;
+using ToyStudio.GUI.util.modal;
+using ToyStudio.GUI.util.windowing;
 
 namespace ToyStudio.GUI.windows
 {

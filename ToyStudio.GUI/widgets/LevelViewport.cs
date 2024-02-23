@@ -7,10 +7,10 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
-using ToyStudio.GUI.common.gl;
-using ToyStudio.GUI.common.util;
 using ToyStudio.GUI.gl;
 using ToyStudio.GUI.scene;
+using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.gl;
 
 namespace ToyStudio.GUI.widgets
 {

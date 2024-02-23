@@ -16,7 +16,7 @@ using PixelFormat = Silk.NET.OpenGL.PixelFormat;
 using PixelType = Silk.NET.OpenGL.PixelType;
 
 
-namespace ToyStudio.GUI.common.windowing;
+namespace ToyStudio.GUI.util.windowing;
 
 public class ImGuiController : IDisposable
 {

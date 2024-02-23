@@ -6,8 +6,8 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using ToyStudio.Core;
 using ToyStudio.Core.byml_objects;
-using ToyStudio.GUI.common.modal;
-using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.modal;
 
 namespace ToyStudio.GUI.modals
 {

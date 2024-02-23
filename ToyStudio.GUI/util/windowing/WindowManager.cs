@@ -3,9 +3,9 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
 
-namespace ToyStudio.GUI.common.windowing
+namespace ToyStudio.GUI.util.windowing
 {
     internal static class WindowManager
     {

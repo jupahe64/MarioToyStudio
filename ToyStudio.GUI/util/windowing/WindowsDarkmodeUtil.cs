@@ -1,7 +1,7 @@
 ﻿using Microsoft.Win32;
 using System.Runtime.InteropServices;
 
-namespace ToyStudio.GUI.common.windowing
+namespace ToyStudio.GUI.util.windowing
 {
     internal static class WindowsDarkmodeUtil
     {

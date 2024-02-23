@@ -2,9 +2,6 @@
 using Silk.NET.OpenGL;
 using System.Numerics;
 using ToyStudio.Core;
-using ToyStudio.GUI;
-using ToyStudio.GUI.common.gl;
-using ToyStudio.GUI.common.modal;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.windows

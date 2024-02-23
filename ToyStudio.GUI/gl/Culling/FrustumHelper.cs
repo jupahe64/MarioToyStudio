@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Numerics;
-using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
 
 namespace ToyStudio.GUI.gl.Culling
 {

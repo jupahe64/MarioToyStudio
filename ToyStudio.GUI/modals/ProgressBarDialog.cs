@@ -1,7 +1,7 @@
 ﻿using ImGuiNET;
 using System.Numerics;
-using ToyStudio.GUI.common.modal;
-using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.modal;
 
 namespace ToyStudio.GUI.modals
 {

@@ -1,8 +1,9 @@
 ﻿using ImGuiNET;
 using System.Numerics;
 using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
 
-namespace ToyStudio.GUI.common.modal
+namespace ToyStudio.GUI.util.modal
 {
     public interface IPopupModalHost
     {

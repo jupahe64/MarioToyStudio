@@ -1,7 +1,7 @@
 ﻿using ImGuiNET;
-using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.util;
 
-namespace ToyStudio.GUI.common.modal
+namespace ToyStudio.GUI.util.modal
 {
     public abstract class OkDialog : IPopupModal<OkDialog.Void>
     {
