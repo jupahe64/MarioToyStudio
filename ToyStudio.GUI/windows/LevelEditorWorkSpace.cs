@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using ToyStudio.Core;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.scene;
-using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.gl;
 using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
@@ -33,6 +33,8 @@ namespace ToyStudio.GUI.windows
                     new SubLevelSceneContext(subLevel), 
                     new SubLevelSceneRoot(subLevel)
                 );
+
+                ws._scenes[subLevel] = scene;
 
                 var viewport = await LevelViewport.Create(scene, glScheduler);
                 ws._viewports[subLevel] = viewport;
@@ -140,6 +142,7 @@ namespace ToyStudio.GUI.windows
 
 
         private readonly Dictionary<SubLevel, LevelViewport> _viewports = [];
+        private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
         private Level _level;
         private GLTaskScheduler _glScheduler;
         private IPopupModalHost _popupModalHost;

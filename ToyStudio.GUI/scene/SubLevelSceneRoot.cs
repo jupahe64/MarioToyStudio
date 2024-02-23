@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.scene.objs;
-using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.edit;
 
 namespace ToyStudio.GUI.scene
 {

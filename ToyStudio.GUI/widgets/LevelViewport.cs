@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.gl;
 using ToyStudio.GUI.scene;
-using ToyStudio.GUI.util;
+using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.gl;
 
 namespace ToyStudio.GUI.widgets
@@ -17,6 +17,30 @@ namespace ToyStudio.GUI.widgets
     interface IViewportDrawable
     {
         void Draw2D(LevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj);
+    }
+
+    interface IViewportSelectable
+    {
+        void OnSelect(bool isMultiSelect);
+        public static void DefaultSelect(SubLevelSceneContext ctx, object selectable, bool isMultiSelect)
+        {
+            if (isMultiSelect)
+            {
+                if (ctx.IsSelected(selectable))
+                    ctx.Deselect(selectable);
+                else
+                    ctx.Select(selectable);
+            }
+            else if (!ctx.IsSelected(selectable))
+            {
+                ctx.WithSuspendUpdateDo(() =>
+                {
+                    ctx.DeselectAll();
+                    if (!ctx.IsSelected(selectable))
+                        ctx.Select(selectable);
+                });
+            }
+        }
     }
 
     internal class LevelViewport
@@ -32,13 +56,7 @@ namespace ToyStudio.GUI.widgets
             return new LevelViewport(subLevelScene, glScheduler);
         }
 
-        public Matrix4x4 GetCameraMatrix() => _camera.ViewProjectionMatrix;
-
-        public Vector2 GetCameraSizeIn2DWorldSpace()
-        {
-            var cameraBoundsSize = ScreenToWorld(_size) - ScreenToWorld(new Vector2(0));
-            return new Vector2(cameraBoundsSize.X, Math.Abs(cameraBoundsSize.Y));
-        }
+        public IViewportDrawable? HoveredObject { get; private set; }
 
         public Vector2 WorldToScreen(Vector3 pos) => WorldToScreen(pos, out _);
         public Vector2 WorldToScreen(Vector3 pos, out float ndcDepth)
@@ -72,7 +90,7 @@ namespace ToyStudio.GUI.widgets
 
         public void Draw(Vector2 size, GL gl, double deltaSeconds)
         {
-            bool clicked = ImGui.InvisibleButton("Viewport", size,
+            ImGui.InvisibleButton("Viewport", size,
                 ImGuiButtonFlags.MouseButtonLeft | 
                 ImGuiButtonFlags.MouseButtonRight | 
                 ImGuiButtonFlags.MouseButtonMiddle);
@@ -82,6 +100,9 @@ namespace ToyStudio.GUI.widgets
 
             bool isViewportActive = ImGui.IsItemActive();
             bool isViewportHovered = ImGui.IsItemHovered();
+            bool isLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
+                ImGui.GetMouseDragDelta().Length() < 5;
+            bool isMultiSelect = ImGui.GetIO().KeyShift || ImGui.GetIO().KeyCtrl;
 
             if (_camera.Width != _size.X || _camera.Height != _size.Y)
             {
@@ -96,7 +117,7 @@ namespace ToyStudio.GUI.widgets
 
             var dl = ImGui.GetWindowDrawList();
 
-            object? newHoveredObject = null;
+            IViewportDrawable? newHoveredObject = null;
 
             _subLevelScene.ForEach<IViewportDrawable>(obj =>
             {
@@ -105,6 +126,21 @@ namespace ToyStudio.GUI.widgets
                 if (isNewHoveredObj)
                     newHoveredObject = obj;
             });
+
+            HoveredObject = newHoveredObject;
+
+            if (isLeftClicked)
+            {
+                if (HoveredObject is IViewportSelectable selectable)
+                {
+                    selectable.OnSelect(isMultiSelect);
+                }
+                else if (!isMultiSelect)
+                {
+                    _subLevelScene.Context.DeselectAll();
+                }
+            }
+            
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)

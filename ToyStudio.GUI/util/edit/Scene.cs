@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToyStudio.GUI.util
+namespace ToyStudio.GUI.util.edit
 {
     interface ISceneRoot<TSceneContext>
     {
