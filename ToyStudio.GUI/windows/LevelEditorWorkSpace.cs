@@ -9,30 +9,41 @@ using ToyStudio.Core;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.common.gl;
 using ToyStudio.GUI.common.modal;
+using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.scene;
+using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.windows
 {
     internal class LevelEditorWorkSpace
     {
-        private Level _level;
-        private GLTaskScheduler _glScheduler;
-        private IPopupModalHost _popupModalHost;
+        const int ViewportsHostDockspace = 0x100;
+        public SubLevel _activeSubLevel;
 
         public static async Task<LevelEditorWorkSpace> Create(Level level,
             GLTaskScheduler glScheduler,
             IPopupModalHost popupModalHost,
             IProgress<(string operationName, float? progress)> progress)
         {
-            var cs = new LevelEditorWorkSpace(level, glScheduler, popupModalHost);
+            var ws = new LevelEditorWorkSpace(level, glScheduler, popupModalHost);
 
-            //do gl resource loading here
+            foreach (var subLevel in level.SubLevels)
+            {
+                var scene = new Scene<SubLevelSceneContext>(
+                    new SubLevelSceneContext(subLevel), 
+                    new SubLevelSceneRoot(subLevel)
+                );
 
-            return cs;
+                var viewport = await LevelViewport.Create(scene, glScheduler);
+                ws._viewports[subLevel] = viewport;
+            }
+
+            return ws;
         }
 
         //for now
         public bool HasUnsavedChanges() => false;
-        public void Save() { }
+        public void Save() => SimpleMessagePopup.ShowDialog(_popupModalHost, "Not implemented yet...sorry");
 
         public void Undo() { }
         public void Redo() { }
@@ -40,40 +51,106 @@ namespace ToyStudio.GUI.windows
 
         public void DrawUI(GL gl, double deltaSeconds)
         {
-            for (int iSubLevel = 0; iSubLevel < _level.SubLevels.Count; iSubLevel++)
+            //for (int iSubLevel = 0; iSubLevel < _level.SubLevels.Count; iSubLevel++)
+            //{
+            //    SubLevel? subLevel = _level.SubLevels[iSubLevel];
+
+            //    ImGui.Begin($"Sublevel {iSubLevel+1} ({subLevel.BcettName})###Sublevel {iSubLevel+1}");
+            //    ImGui.InputText("LightingParam", ref subLevel.LightingParamName, 100);
+            //    ImGui.InputText("LevelParam", ref subLevel.LevelParamName, 100);
+
+            //    if (ImGui.CollapsingHeader("Actors"))
+            //    {
+            //        foreach (var actor in subLevel.Actors)
+            //            ImGui.Text($"{actor.Name} at {actor.Translate}");
+            //    }
+
+            //    if (ImGui.CollapsingHeader("Rails"))
+            //    {
+            //        foreach (var rail in subLevel.Rails)
+            //        {
+            //            if (ImGui.TreeNode(rail.Points.Count + " points"))
+            //            {
+            //                for (int i = 0; i < rail.Points.Count; i++)
+            //                    ImGui.Text($"[{i}] {rail.Points[i].Translate}");
+            //            }
+            //        }
+            //    }
+            //    ImGui.End();
+            //}
+
+            ViewportsHostPanel(gl, deltaSeconds);
+        }
+
+        private void ViewportsHostPanel(GL gl, double deltaSeconds)
+        {
+            if (!ImGui.Begin("Viewports", ImGuiWindowFlags.NoNav))
             {
-                SubLevel? subLevel = _level.SubLevels[iSubLevel];
+                ImGui.End();
+                return;
+            }
 
-                ImGui.Begin($"Sublevel {iSubLevel+1} ({subLevel.BcettName})###Sublevel {iSubLevel+1}");
-                ImGui.InputText("LightingParam", ref subLevel.LightingParamName, 100);
-                ImGui.InputText("LevelParam", ref subLevel.LevelParamName, 100);
+            ImGui.DockSpace(ViewportsHostDockspace, ImGui.GetContentRegionAvail());
 
-                if (ImGui.CollapsingHeader("Actors"))
+            var activeViewport = _viewports[_activeSubLevel];
+
+            foreach (var subLevel in _level.SubLevels)
+            {
+                var viewport = _viewports[subLevel];
+
+                ImGui.SetNextWindowDockID(ViewportsHostDockspace, ImGuiCond.Once);
+
+                if (ImGui.Begin(subLevel.BcettName, ImGuiWindowFlags.NoNav))
                 {
-                    foreach (var actor in subLevel.Actors)
-                        ImGui.Text($"{actor.Name} at {actor.Translate}");
-                }
-
-                if (ImGui.CollapsingHeader("Rails"))
-                {
-                    foreach (var rail in subLevel.Rails)
+                    if (ImGui.IsWindowFocused())
                     {
-                        if (ImGui.TreeNode(rail.Points.Count + " points"))
+                        if (_activeSubLevel != subLevel)
                         {
-                            for (int i = 0; i < rail.Points.Count; i++)
-                                ImGui.Text($"[{i}] {rail.Points[i].Translate}");
+                            _activeSubLevel = subLevel;
                         }
                     }
+
+                    var topLeft = ImGui.GetCursorScreenPos();
+                    var size = ImGui.GetContentRegionAvail();
+
+                    ImGui.SetNextItemAllowOverlap();
+                    ImGui.SetCursorScreenPos(topLeft);
+
+                    ImGui.SetNextItemAllowOverlap();
+                    viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds);
+                    if (activeViewport != viewport)
+                        ImGui.GetWindowDrawList().AddRectFilled(topLeft, topLeft + size, 0x44000000);
+
+                    //align to top of the viewport
+                    ImGui.SetCursorScreenPos(topLeft);
+
+                    //Display Mouse Position  
+                    if (ImGui.IsMouseHoveringRect(topLeft, topLeft + size))
+                    {
+                        var _mousePos = activeViewport.ScreenToWorld(ImGui.GetMousePos());
+                        ImGui.Text("X: " + Math.Round(_mousePos.X, 3) + "\nY: " + Math.Round(_mousePos.Y, 3));
+                    }
+                    else
+                        ImGui.Text("X:\nY:");
                 }
-                ImGui.End();
             }
+            
+            ImGui.End();
         }
+
+
+        private readonly Dictionary<SubLevel, LevelViewport> _viewports = [];
+        private Level _level;
+        private GLTaskScheduler _glScheduler;
+        private IPopupModalHost _popupModalHost;
 
         private LevelEditorWorkSpace(Level level, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)
         {
             _level = level;
             _glScheduler = glScheduler;
             _popupModalHost = popupModalHost;
+
+            _activeSubLevel = level.SubLevels[0];
         }
     }
 }

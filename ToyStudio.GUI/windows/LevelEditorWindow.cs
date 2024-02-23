@@ -4,12 +4,12 @@ using Silk.NET.Windowing;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using ToyStudio.GUI.modals;
-using ToyStudio.GUI.common.windowing;
-using ToyStudio.GUI.common.modal;
-using ToyStudio.GUI.common.util;
 using NativeFileDialogSharp;
 using ToyStudio.GUI.common.gl;
 using ToyStudio.Core;
+using ToyStudio.GUI.common.util;
+using ToyStudio.GUI.common.modal;
+using ToyStudio.GUI.common.windowing;
 
 namespace ToyStudio.GUI.windows
 {
