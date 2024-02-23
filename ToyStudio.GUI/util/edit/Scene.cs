@@ -118,9 +118,9 @@ namespace ToyStudio.GUI.util.edit
         /// "Collection was modified" exception</para>
         /// </summary>
         /// <returns></returns>
-        private IEnumerable<ISceneObject<TSceneContext>> GetObjects<T>()
+        public IEnumerable<T> GetObjects<T>()
             where T : class
-            => _orderedSceneObjects.Where(x => x is T);
+            => _orderedSceneObjects.OfType<T>();
 
         /// <summary>
         /// Objects that have a direct mapping to an actual data object

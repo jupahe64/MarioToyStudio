@@ -10,6 +10,8 @@ using ToyStudio.Core.level;
 using ToyStudio.GUI.gl;
 using ToyStudio.GUI.scene;
 using ToyStudio.GUI.util.edit;
+using ToyStudio.GUI.util.edit.transform;
+using ToyStudio.GUI.util.edit.transform.actions;
 using ToyStudio.GUI.util.gl;
 
 namespace ToyStudio.GUI.widgets
@@ -22,6 +24,7 @@ namespace ToyStudio.GUI.widgets
     interface IViewportSelectable
     {
         void OnSelect(bool isMultiSelect);
+        bool IsSelected();
         public static void DefaultSelect(SubLevelSceneContext ctx, object selectable, bool isMultiSelect)
         {
             if (isMultiSelect)
@@ -100,7 +103,7 @@ namespace ToyStudio.GUI.widgets
 
             bool isViewportActive = ImGui.IsItemActive();
             bool isViewportHovered = ImGui.IsItemHovered();
-            bool isLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
+            bool isViewportLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
                 ImGui.GetMouseDragDelta().Length() < 5;
             bool isMultiSelect = ImGui.GetIO().KeyShift || ImGui.GetIO().KeyCtrl;
 
@@ -129,7 +132,7 @@ namespace ToyStudio.GUI.widgets
 
             HoveredObject = newHoveredObject;
 
-            if (isLeftClicked)
+            if (isViewportLeftClicked)
             {
                 if (HoveredObject is IViewportSelectable selectable)
                 {
@@ -140,7 +143,8 @@ namespace ToyStudio.GUI.widgets
                     _subLevelScene.Context.DeselectAll();
                 }
             }
-            
+
+            HandleTransformAction(isViewportActive);
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
@@ -187,10 +191,80 @@ namespace ToyStudio.GUI.widgets
             }
         }
 
+        private void HandleTransformAction(bool isActive)
+        {
+            var mouseRayBegin = ScreenToWorld(ImGui.GetMousePos(), -1);
+            var mouseRayEnd = ScreenToWorld(ImGui.GetMousePos(), 1);
+            var viewDirection = Vector3.Transform(Vector3.UnitZ, _camera.Rotation);
+            var camInfo = new ITransformAction.CameraInfo(
+                ViewDirection: viewDirection,
+                MouseRayOrigin: mouseRayBegin,
+                MouseRayDirection: mouseRayEnd - mouseRayBegin
+            );
+
+            if (_activeTransformAction is not null)
+            {
+                bool isPlane = ImGui.GetIO().KeyShift;
+
+                if (ImGui.IsKeyPressed(ImGuiKey.X))
+                {
+                    _activeTransformAction.ToggleAxisRestriction(
+                        isPlane ? AxisRestriction.PlaneYZ : AxisRestriction.AxisX);
+                }
+                else if (ImGui.IsKeyPressed(ImGuiKey.Y))
+                {
+                    _activeTransformAction.ToggleAxisRestriction(
+                        isPlane ? AxisRestriction.PlaneXZ : AxisRestriction.AxisY);
+                }
+                else if (ImGui.IsKeyPressed(ImGuiKey.Z))
+                {
+                    _activeTransformAction.ToggleAxisRestriction(
+                        isPlane ? AxisRestriction.PlaneXY : AxisRestriction.AxisZ);
+                }
+
+                bool isSnapping = ImGui.GetIO().KeyCtrl;
+
+                _activeTransformAction.Update(camInfo, isSnapping);
+
+                if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+                {
+                    _activeTransformAction.Apply();
+                    _activeTransformAction = null;
+                }
+                else if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+                {
+                    _activeTransformAction.Cancel();
+                    _activeTransformAction = null;
+                }
+
+                return;
+            }
+
+            if (isActive && ImGui.GetMouseDragDelta(ImGuiMouseButton.Left).Length() > 5)
+            {
+                if (HoveredObject is null || 
+                    HoveredObject is not ITransformable transformable ||
+                    HoveredObject is not IViewportSelectable selectable ||
+                    !selectable.IsSelected())
+                    return;
+
+                var objects = _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected())
+                    .OfType<ITransformable>();
+
+                _activeTransformAction = new MoveAction(camInfo,
+                    objects,
+                    pivot: transformable.Position)
+                {
+                    SnapIncrement = 0.5f
+                };
+            }
+        }
+
 
         private readonly Scene<SubLevelSceneContext> _subLevelScene;
         private readonly GLTaskScheduler _glScheduler;
         private readonly Camera _camera;
+        private ITransformAction? _activeTransformAction = null;
         private Vector2 _topLeft;
         private Vector2 _size;
 

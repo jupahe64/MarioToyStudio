@@ -113,12 +113,31 @@ namespace ToyStudio.GUI.util
             return false;
         }
 
-        static bool HitTestPointLine(Vector2 p, Vector2 a, Vector2 b, float thickness)
+        private static bool HitTestPointLine(Vector2 p, Vector2 a, Vector2 b, float thickness)
         {
             Vector2 pa = p - a, ba = b - a;
             float h = Math.Clamp(Vector2.Dot(pa, ba) /
                       Vector2.Dot(ba, ba), 0, 1);
             return (pa - ba * h).Length() < thickness / 2;
+        }
+
+        /// <summary>
+        /// Calculates the intersection of a Plane and a Ray
+        /// </summary>
+        /// <param name="rayVector">The direction vector of the ray, should be normalized</param>
+        /// <param name="rayPoint">The origin of the ray, can be any point along the ray</param>
+        /// <param name="planeNormal">The normal vector of the plane, should be normalized</param>
+        /// <param name="planePoint">The origin of the ray, can be any point on the plane</param>
+        /// <returns>The point of intersection</returns>
+
+        public static Vector3 IntersectPlaneRay(Vector3 rayVector, Vector3 rayPoint, Vector3 planeNormal, Vector3 planePoint)
+        {
+            //code from: https://rosettacode.org/wiki/Find_the_intersection_of_a_line_with_a_plane
+            var diff = rayPoint - planePoint;
+            var prod1 = Vector3.Dot(diff, planeNormal);
+            var prod2 = Vector3.Dot(rayVector, planeNormal);
+            var prod3 = prod1 / prod2;
+            return rayPoint - rayVector * prod3;
         }
     }
 

@@ -8,13 +8,16 @@ using System.Threading.Tasks;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
+using ToyStudio.GUI.util.edit.transform;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.scene.objs
 {
     internal class LevelActorSceneObj(LevelActor actor, SubLevelSceneContext sceneContext) : 
-        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable
+        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, ITransformable
     {
+        public Vector3 Position => actor.Translate;
+
         public void Draw2D(LevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj)
         {
             Span<Vector2> points =
@@ -49,12 +52,41 @@ namespace ToyStudio.GUI.scene.objs
             dl.AddCircleFilled(points[3], 4, colorU32);
         }
 
+        public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)
+        {
+            if (newPosition != null)
+                actor.Translate = newPosition.Value;
+        }
+
+        public ITransformable.InitialTransform OnBeginTransform()
+        {
+            _preTransformPosition = actor.Translate;
+            return new(actor.Translate, Quaternion.Identity /*for now*/, Vector3.One);
+        }
+
+        public void OnEndTransform(bool isCancel)
+        {
+            if (isCancel)
+            {
+                actor.Translate = _preTransformPosition;
+                return;
+            }
+
+            //TODO commit change
+        }
+
         public void OnSelect(bool isMultiSelect)
         {
             IViewportSelectable.DefaultSelect(sceneContext, actor, isMultiSelect);
         }
 
-        public void Update(ISceneUpdateContext<SubLevelSceneContext> updateContext, SubLevelSceneContext sceneContext)
+        public bool IsSelected() => sceneContext.IsSelected(actor);
+
+        private Vector3 _preTransformPosition;
+
+        void ISceneObject<SubLevelSceneContext>.Update(
+            ISceneUpdateContext<SubLevelSceneContext> updateContext, 
+            SubLevelSceneContext sceneContext)
         {
             
         }
