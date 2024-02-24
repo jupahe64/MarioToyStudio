@@ -50,10 +50,13 @@ namespace ToyStudio.Core.common.util
         }
 
         public static void SetFloat3<T>(this BymlObject<T>.Serializer s,
-            ref Vector3 value, string name)
+            ref Vector3 value, string name, Vector3? defaultValue = null)
             where T : BymlObject<T>, new()
         {
-            s.Map[name] = SerializeFloat3(value);
+            if (value == defaultValue)
+                s.Map.Remove(name);
+            else
+                s.Map[name] = SerializeFloat3(value);
         }
         #endregion
 
@@ -89,10 +92,13 @@ namespace ToyStudio.Core.common.util
         }
 
         public static void SetVector3D<T>(this BymlObject<T>.Serializer s,
-            ref Vector3 value, string name)
+            ref Vector3 value, string name, Vector3? defaultValue = null)
             where T : BymlObject<T>, new()
         {
-            s.Map[name] = SerializeVector3D(value);
+            if (value == defaultValue)
+                s.Map.Remove(name);
+            else
+                s.Map[name] = SerializeVector3D(value);
         }
         #endregion
 
@@ -166,7 +172,10 @@ namespace ToyStudio.Core.common.util
             ref PropertyDict value, string name)
             where T : BymlObject<T>, new()
         {
-            s.Map[name] = SerializePropertyDict(value);
+            if (value.Count > 0)
+                s.Map[name] = SerializePropertyDict(value);
+            else
+                s.Map.Remove(name);
         }
 
         #endregion

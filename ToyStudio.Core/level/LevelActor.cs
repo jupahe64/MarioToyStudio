@@ -38,7 +38,7 @@ namespace ToyStudio.Core.level
             s.SetUInt64(ref Hash!, "Hash");
             s.SetString(ref Name!, "Name");
             s.SetObject(ref Phive!, "Phive");
-            s.SetFloat3(ref Rotate!, "Rotate");
+            s.SetFloat3(ref Rotate!, "Rotate", defaultValue: Vector3.Zero);
             s.SetFloat3(ref Translate!, "Translate");
         }
 

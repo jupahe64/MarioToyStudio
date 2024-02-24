@@ -16,6 +16,7 @@ namespace ToyStudio.Core.level
 
         public List<LevelActor> Actors = [];
         public List<LevelRail> Rails = [];
+        public List<KeyValuePair<string, Byml>> OtherBymlEntries = [];
 
         public void LoadFromBcett(BymlMap bcett)
         {
@@ -39,6 +40,34 @@ namespace ToyStudio.Core.level
                     Rails.Add(rail);
                 }
             }
+
+            OtherBymlEntries = bcett.Where(x=>x.Key is not ("Actors" or "Rails")).ToList();
+        }
+
+        public Byml Save()
+        {
+            var map = new BymlMap();
+
+            if (Actors.Count > 0)
+            {
+                var actors = new BymlArray();
+                foreach (var actor in Actors)
+                    actors.Add(actor.Serialize());
+                map["Actors"] = actors;
+            }
+
+            if (Rails.Count > 0)
+            {
+                var rails = new BymlArray();
+                foreach (var rail in Rails)
+                    rails.Add(rail.Serialize());
+                map["Rails"] = rails;
+            }
+
+            foreach (var (key, value) in OtherBymlEntries)
+                map[key] = value;
+
+            return new Byml(map);
         }
     }
 }

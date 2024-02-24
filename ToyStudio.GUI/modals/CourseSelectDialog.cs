@@ -167,13 +167,16 @@ namespace ToyStudio.GUI.modals
 
                 if (clicked)
                 {
-                    var m = Level.Regex().Match(levelScenePath!);
 
-                    if (m.Success)
-                        promise.SetResult(m.Groups[1].Value);
+                    if (Level.TryGetNameFromRefFilePath(levelScenePath!, out string? name))
+                        promise.SetResult(name);
                     else
                     {
-                        Task.Run(async () => await InvalidSceneStringInfo.ShowDialog(_modalHost, levelScenePath!));
+                        Task.Run(async () => await SimpleMessagePopup.ShowDialog(_modalHost, 
+                            $"""
+                        {levelScenePath} 
+                        is not a valid scene string, level cannot be opened.
+                        """, "Invalid scene string"));
                     }
                 }
 
@@ -186,29 +189,6 @@ namespace ToyStudio.GUI.modals
             }
 
             ImGui.EndTable();
-        }
-
-        class InvalidSceneStringInfo : OkDialog
-        {
-            private readonly string _sceneString;
-
-            public static Task ShowDialog(IPopupModalHost modalHost, string sceneString) =>
-                ShowDialog(modalHost, new InvalidSceneStringInfo(sceneString));
-
-            protected override string Title => "Invalid scene string";
-
-            protected override void DrawBody()
-            {
-                ImGui.Text($"""
-                        {_sceneString} 
-                        is not a valid scene string, level cannot be opened.
-                        """);
-            }
-
-            private InvalidSceneStringInfo(string sceneString)
-            {
-                _sceneString = sceneString;
-            }
         }
     }
 }

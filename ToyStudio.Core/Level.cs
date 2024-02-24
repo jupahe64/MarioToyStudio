@@ -1,6 +1,7 @@
 ﻿using BymlLibrary;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -20,6 +21,20 @@ namespace ToyStudio.Core
 
         public IReadOnlyList<SubLevel> SubLevels => _subLevels;
 
+        public static bool TryGetNameFromRefFilePath(string filePath, [NotNullWhen(true)] out string? name)
+        {
+            var m = PathHelper.SceneRegex().Match(filePath);
+
+            if (m.Success)
+            {
+                name = m.Groups[1].Value;
+                return true;
+            }
+
+            name = null;
+            return false;
+        }
+
         public static Level Load(string sceneName, RomFS romfs)
         {
             var level = new Level(sceneName, romfs);
@@ -37,11 +52,11 @@ namespace ToyStudio.Core
             {
                 case "Level":
                     {
-                        var bcettName = BcettRegex().Match(
+                        var bcettName = PathHelper.BcettRegex().Match(
                             components["StartupMap"].GetString()).Groups[1].Value;
-                        var levelParamName = LevelSettingsRegex().Match(
+                        var levelParamName = PathHelper.LevelSettingsRegex().Match(
                             components["LevelSettingsRef"].GetString()).Groups[1].Value;
-                        var lightingName = LightingSettingsRegex().Match(
+                        var lightingName = PathHelper.LightingSettingsRegex().Match(
                             components["LightingSettingsRef"].GetString()).Groups[1].Value;
 
                         var subLevel = new SubLevel(level, bcettName, levelParamName, lightingName);
@@ -59,11 +74,11 @@ namespace ToyStudio.Core
                     {
                         var part = partNode.GetMap();
 
-                        var bcettName = BcettRegex().Match(
+                        var bcettName = PathHelper.BcettRegex().Match(
                             part["Banc"].GetString()).Groups[1].Value;
-                        var levelParamName = LevelSettingsRegex().Match(
+                        var levelParamName = PathHelper.LevelSettingsRegex().Match(
                             part["Level"].GetString()).Groups[1].Value;
-                        var lightingName = LightingSettingsRegex().Match(
+                        var lightingName = PathHelper.LightingSettingsRegex().Match(
                             part["Lighting"].GetString()).Groups[1].Value;
 
                         var subLevel = new SubLevel(level, bcettName, levelParamName, lightingName);
@@ -79,16 +94,24 @@ namespace ToyStudio.Core
 
             level.ClickMenu = components["ClickMenu"].GetString();
 
-            level.GraphicsSettingsName = GraphicsSettingsRefRegex().Match(
+            level.GraphicsSettingsName = PathHelper.GraphicsSettingsRefRegex().Match(
                             components["GraphicsSettingsRef"].GetString()).Groups[1].Value;
 
-            level.LayoutSettingsName = LayoutSettingsRefRegex().Match(
+            level.LayoutSettingsName = PathHelper.LayoutSettingsRefRegex().Match(
                             components["LayoutSettingsRef"].GetString()).Groups[1].Value;
 
-            level.SequenceName = SequenceRegex().Match(
+            level.SequenceName = PathHelper.SequenceRegex().Match(
                             components["SequenceRef"].GetString()).Groups[1].Value;
 
             return level;
+        }
+
+        public void Save(RomFS romfs)
+        {
+            foreach (var level in _subLevels)
+            {
+                romfs.SaveByml(PathHelper.Bcett(level.BcettName), level.Save(), isCompressed: true);
+            }
         }
 
         private Level(string sceneName, RomFS romfs) 
@@ -103,36 +126,63 @@ namespace ToyStudio.Core
         private List<SubLevel> _subLevels = [];
 
 
-        //imagine Nintedo being consistent...this is so stupid
+        private static partial class PathHelper
+        {
+            public static string[] GraphicsSettingsRef(string name) =>
+            ["Sequence", "GraphicsParam", $"{name}.game__scene__GraphicsSettingsParam.bgyml"];
 
-        [GeneratedRegex("(?:\\?|Work/)Sequence/GraphicsParam/([^/]*)\\.game__scene__GraphicsSettingsParam\\.b?gyml")]
-        private static partial Regex GraphicsSettingsRefRegex();
+            [GeneratedRegex("(?:\\?|Work/)Sequence/GraphicsParam/([^/]*)\\.game__scene__GraphicsSettingsParam\\.b?gyml")]
+            public static partial Regex GraphicsSettingsRefRegex();
 
+
+            public static string[] LayoutSettingsRef(string name) =>
+                ["Sequence", "LayoutParam", $"{name}.game__scene__LayoutSettingsParam.bgyml"];
+
+            [GeneratedRegex("(?:\\?|Work/)Sequence/LayoutParam/([^/]*)\\.game__scene__LayoutSettingsParam\\.b?gyml")]
+            public static partial Regex LayoutSettingsRefRegex();
+
+
+            public static string[] Sequence(string name) =>
+                ["Sequence", "SequenceParam", $"{name}.engine__component__SequenceRef.bgyml"];
+
+            [GeneratedRegex("(?:\\?|Work/)Sequence/SequenceParam/([^/]*)\\.engine__component__SequenceRef\\.b?gyml")]
+            public static partial Regex SequenceRegex();
+
+
+            public static string[] LevelSettings(string name) =>
+                ["Sequence", "LevelParam", $"{name}.game__scene__LevelSettingsParam.bgyml"];
+
+            [GeneratedRegex("(?:\\?|Work/)Sequence/LevelParam/([^/]*)\\.game__scene__LevelSettingsParam\\.b?gyml")]
+            public static partial Regex LevelSettingsRegex();
+
+
+            public static string[] CombinedLevelSettings(string name) =>
+                ["Sequence", "CombinedLevelParam", $"{name}.game__scene__CombinedLevelSettingsParam.bgyml"];
+
+            [GeneratedRegex("(?:\\?|Work/)Sequence/CombinedLevelParam/([^/]*)\\.game__scene__CombinedLevelSettingsParam\\.b?gyml")]
+            public static partial Regex CombinedLevelSettingsRegex();
+
+
+            public static string[] LightingSettings(string name) =>
+                ["Sequence", "LightingParam", $"{name}.game__scene__LightingSettingsParam.bgyml"];
+
+            [GeneratedRegex("(?:\\?|Work/)Sequence/LightingParam/([^/]*)\\.game__scene__LightingSettingsParam\\.b?gyml")]
+            public static partial Regex LightingSettingsRegex();
+
+
+            public static string[] Bcett(string name) =>
+                ["Banc", $"{name}.bcett.byml.zs"];
+
+            [GeneratedRegex("Work/Banc/Scene/([^/]*)\\.bcett\\.json")]
+            public static partial Regex BcettRegex();
+
+
+            public static string[] Scene(string name) =>
+                ["Scene", $"{name}.engine__scene__SceneParam.bgyml"];
+
+            [GeneratedRegex("Work/Scene/([^/]*)\\.engine__scene__SceneParam.gyml")]
+            public static partial Regex SceneRegex();
+        }
         
-        [GeneratedRegex("(?:\\?|Work/)Sequence/LayoutParam/([^/]*)\\.game__scene__LayoutSettingsParam\\.b?gyml")]
-        private static partial Regex LayoutSettingsRefRegex();
-
-        
-        [GeneratedRegex("(?:\\?|Work/)Sequence/SequenceParam/([^/]*)\\.engine__component__SequenceRef\\.b?gyml")]
-        private static partial Regex SequenceRegex();
-
-
-        [GeneratedRegex("(?:\\?|Work/)Sequence/LevelParam/([^/]*)\\.game__scene__LevelSettingsParam\\.b?gyml")]
-        private static partial Regex LevelSettingsRegex();
-
-
-        [GeneratedRegex("(?:\\?|Work/)Sequence/CombinedLevelParam/([^/]*)\\.game__scene__CombinedLevelSettingsParam\\.b?gyml")]
-        private static partial Regex CombinedLevelSettingsRegex();
-
-
-        [GeneratedRegex("(?:\\?|Work/)Sequence/LightingParam/([^/]*)\\.game__scene__LightingSettingsParam\\.b?gyml")]
-        private static partial Regex LightingSettingsRegex();
-
-
-        [GeneratedRegex("Work/Banc/Scene/([^/]*)\\.bcett\\.json")]
-        private static partial Regex BcettRegex();
-
-        [GeneratedRegex("Work/Scene/([^/]*)\\.engine__scene__SceneParam.gyml")]
-        public static partial Regex Regex();
     }
 }

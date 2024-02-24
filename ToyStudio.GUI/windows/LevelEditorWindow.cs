@@ -224,7 +224,7 @@ namespace ToyStudio.GUI.windows
                     {
                         //Ensure the romfs path is set for saving
                         if (!string.IsNullOrEmpty(UserSettings.GetModRomFSPath()))
-                            _activeLevelWorkSpace!.Save();
+                            _activeLevelWorkSpace!.Save(_romfs!);
                         else //Else configure the mod path
                         {
                             Task.Run(async () =>
@@ -239,7 +239,7 @@ namespace ToyStudio.GUI.windows
 
                                 if (result == OperationWarningDialog.DialogResult.OK)
                                 {
-                                    _activeLevelWorkSpace!.Save();
+                                    _activeLevelWorkSpace!.Save(_romfs!);
                                 }
                             });
                         }

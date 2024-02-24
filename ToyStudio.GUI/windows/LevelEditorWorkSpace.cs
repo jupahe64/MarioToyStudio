@@ -47,7 +47,10 @@ namespace ToyStudio.GUI.windows
 
         //for now
         public bool HasUnsavedChanges() => false;
-        public void Save() => SimpleMessagePopup.ShowDialog(_popupModalHost, "Not implemented yet...sorry");
+        public void Save(RomFS romFS)
+        {
+            _level.Save(romFS);
+        }
 
         public void Undo() { }
         public void Redo() { }

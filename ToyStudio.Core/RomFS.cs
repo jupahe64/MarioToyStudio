@@ -57,7 +57,7 @@ namespace ToyStudio.Core
 
             //load Bootup pack
             {
-                var fileInfo = _baseGameDirectory.GetRelativeFileInfo("Pack", "Bootup.Nin_NX_NVN.pack.zs");
+                var fileInfo = _baseGameDirectory.GetRelativeFileInfo(s_bootupFilePath);
                 
                 if (!fileInfo.Exists)
                     throw new FileNotFoundException("Couldn't find Bootup Pack in Base Game Directory");
@@ -81,7 +81,7 @@ namespace ToyStudio.Core
 
             //load Bootup pack
             {
-                var fileInfo = modDirectory.GetRelativeFileInfo("Pack", "Bootup.Nin_NX_NVN.pack.zs");
+                var fileInfo = modDirectory.GetRelativeFileInfo(s_bootupFilePath);
 
                 if (fileInfo.Exists)
                 {
@@ -191,7 +191,35 @@ namespace ToyStudio.Core
 
         public static Span<byte> Decompress(byte[] data) => s_zsDecompressor.Unwrap(data);
 
-        //TODO saving
+        public void SaveFile(string[] filePath,
+            byte[] bytes,
+            bool saveToBootupPack = false)
+        {
+            if (saveToBootupPack)
+            {
+                var bootupPack = _bootupPacks.mod ?? _bootupPacks.baseGame;
+
+                bootupPack[string.Join('/', filePath)] = bytes;
+
+                var stream = new MemoryStream();
+                bootupPack.Write(stream);
+                SaveFromMemStreamCompressed(s_bootupFilePath, stream);
+                return;
+            }
+
+            FileInfo fileInfo = ResloveFilePath(_modDirectory ?? _baseGameDirectory, filePath);
+
+            File.WriteAllBytes(fileInfo.FullName, bytes);
+        }
+
+        public void SaveFromMemStreamCompressed(string[] filePath, MemoryStream stream)
+        {
+            FileInfo fileInfo = ResloveFilePath(_modDirectory ?? _baseGameDirectory, filePath);
+
+            fileInfo.Directory?.Create();
+            using var output = fileInfo.OpenWrite();
+            output.Write(s_zsCompressor.Wrap(stream.GetBuffer().AsSpan()[..(int)stream.Length]));
+        }
 
         private FileInfo ResloveFilePath(DirectoryInfo root, string[] filePath)
         {
@@ -233,6 +261,8 @@ namespace ToyStudio.Core
         private Dictionary<string, string> _addressTable = [];
         private DirectoryInfo? _modDirectory = null;
         private readonly static Decompressor s_zsDecompressor = new();
+        private readonly static Compressor s_zsCompressor = new(level: 17);
+        private readonly static string[] s_bootupFilePath = ["Pack", "Bootup.Nin_NX_NVN.pack.zs"];
 
         private RomFS()
         {
