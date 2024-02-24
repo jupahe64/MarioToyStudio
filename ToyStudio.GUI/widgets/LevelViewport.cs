@@ -48,6 +48,7 @@ namespace ToyStudio.GUI.widgets
 
     internal class LevelViewport
     {
+        public Action? DeleteSelectedObjectsHandler { private get; set; }
         public static async Task<LevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             GLTaskScheduler glScheduler)
         {
@@ -91,7 +92,7 @@ namespace ToyStudio.GUI.widgets
             return new(world.X, world.Y, world.Z);
         }
 
-        public void Draw(Vector2 size, GL gl, double deltaSeconds)
+        public void Draw(Vector2 size, GL gl, double deltaSeconds, bool hasFocus)
         {
             ImGui.InvisibleButton("Viewport", size,
                 ImGuiButtonFlags.MouseButtonLeft | 
@@ -145,6 +146,12 @@ namespace ToyStudio.GUI.widgets
             }
 
             HandleTransformAction(isViewportActive);
+
+            if (hasFocus && isViewportHovered)
+            {
+                if (ImGui.IsKeyPressed(ImGuiKey.Delete))
+                    DeleteSelectedObjectsHandler?.Invoke();
+            }
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)

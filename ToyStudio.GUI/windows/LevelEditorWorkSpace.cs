@@ -37,6 +37,8 @@ namespace ToyStudio.GUI.windows
                 ws._scenes[subLevel] = scene;
 
                 var viewport = await LevelViewport.Create(scene, glScheduler);
+                viewport.DeleteSelectedObjectsHandler = () => ws.DeleteSelectedObjects(scene, subLevel);
+
                 ws._viewports[subLevel] = viewport;
             }
 
@@ -119,7 +121,7 @@ namespace ToyStudio.GUI.windows
                     ImGui.SetCursorScreenPos(topLeft);
 
                     ImGui.SetNextItemAllowOverlap();
-                    viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds);
+                    viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds, ImGui.IsWindowFocused());
                     if (activeViewport != viewport)
                         ImGui.GetWindowDrawList().AddRectFilled(topLeft, topLeft + size, 0x44000000);
 
@@ -138,6 +140,16 @@ namespace ToyStudio.GUI.windows
             }
             
             ImGui.End();
+        }
+
+        private void DeleteSelectedObjects(Scene<SubLevelSceneContext> scene, SubLevel subLevel)
+        {
+            for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
+            {
+                if (scene.Context.IsSelected(subLevel.Actors[i]))
+                    subLevel.Actors.RemoveAt(i);
+            }
+            scene.Update(); //for now
         }
 
 
