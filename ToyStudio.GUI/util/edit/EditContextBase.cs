@@ -52,10 +52,11 @@ namespace ToyStudio.GUI.util.edit
 
         public void DeselectAll()
         {
-            if (_selectedObjects.Count > 0)
-                SelectionChanged();
+            if (_selectedObjects.Count == 0)
+                return;
 
             _selectedObjects.Clear();
+            SelectionChanged();
         }
 
         public void DeselectAllOfType<T>()
