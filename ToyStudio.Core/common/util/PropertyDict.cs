@@ -1,7 +1,7 @@
 ﻿using System.Collections;
-using static ToyStudio.GUI.common.util.PropertyDict;
+using static ToyStudio.Core.common.util.PropertyDict;
 
-namespace ToyStudio.GUI.common.util
+namespace ToyStudio.Core.common.util
 {
     /// <summary>
     /// A sorted list of entries similar to a dictionary, with 0 memory overhead, that prevents it's key set from ever changing
@@ -17,6 +17,12 @@ namespace ToyStudio.GUI.common.util
                 => new(pair.Key, pair.Value);
             public static implicit operator KeyValuePair<string, object>(Entry entry)
                 => new(entry.Key, entry.Value);
+
+            public void Deconstruct(out string key, out object value)
+            {
+                key = Key;
+                value = Value;
+            }
         }
 
         public static readonly PropertyDict Empty = new PropertyDict([]);

@@ -25,6 +25,7 @@ namespace ToyStudio.GUI.widgets
     {
         void OnSelect(bool isMultiSelect);
         bool IsSelected();
+        bool IsActive();
         public static void DefaultSelect(SubLevelSceneContext ctx, object selectable, bool isMultiSelect)
         {
             if (isMultiSelect)
@@ -48,6 +49,8 @@ namespace ToyStudio.GUI.widgets
 
     internal class LevelViewport
     {
+        public record struct SelectionChangedArgs(IEnumerable<IViewportSelectable> SelectedObjects, IViewportSelectable? ActiveObject);
+        public event Action<SelectionChangedArgs>? SelectionChanged;
         public Action? DeleteSelectedObjectsHandler { private get; set; }
         public static async Task<LevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             GLTaskScheduler glScheduler)
@@ -151,6 +154,19 @@ namespace ToyStudio.GUI.widgets
             {
                 if (ImGui.IsKeyPressed(ImGuiKey.Delete))
                     DeleteSelectedObjectsHandler?.Invoke();
+            }
+
+            if (_lastSelectionVersion != _subLevelScene.Context.SelectionVersion)
+            {
+                _lastSelectionVersion = _subLevelScene.Context.SelectionVersion;
+                if (SelectionChanged is not null)
+                {
+                    var args = new SelectionChangedArgs(
+                        _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected()),
+                        _subLevelScene.GetObjects<IViewportSelectable>().FirstOrDefault(x => x.IsActive())
+                    );
+                    SelectionChanged.Invoke(args);
+                }
             }
         }
 
@@ -274,6 +290,7 @@ namespace ToyStudio.GUI.widgets
         private ITransformAction? _activeTransformAction = null;
         private Vector2 _topLeft;
         private Vector2 _size;
+        private ulong _lastSelectionVersion = 0;
 
         private LevelViewport(Scene<SubLevelSceneContext> subLevelScene, GLTaskScheduler glScheduler)
         {

@@ -38,6 +38,13 @@ namespace ToyStudio.GUI.windows
 
                 var viewport = await LevelViewport.Create(scene, glScheduler);
                 viewport.DeleteSelectedObjectsHandler = () => ws.DeleteSelectedObjects(scene, subLevel);
+                viewport.SelectionChanged += args =>
+                {
+                    if (args.ActiveObject is IInspectable active)
+                        ws._inspector.Setup(args.SelectedObjects.OfType<IInspectable>(), active);
+                    else
+                        ws._inspector.SetEmpty();
+                };
 
                 ws._viewports[subLevel] = viewport;
             }
@@ -87,6 +94,7 @@ namespace ToyStudio.GUI.windows
             //}
 
             ViewportsHostPanel(gl, deltaSeconds);
+            InspectorPanel();
         }
 
         private void ViewportsHostPanel(GL gl, double deltaSeconds)
@@ -145,6 +153,19 @@ namespace ToyStudio.GUI.windows
             ImGui.End();
         }
 
+        private void InspectorPanel()
+        {
+            if (!ImGui.Begin("Inspector"))
+            {
+                ImGui.End();
+                return;
+            }
+
+            _inspector.Draw();
+
+            ImGui.End();
+        }
+
         private void DeleteSelectedObjects(Scene<SubLevelSceneContext> scene, SubLevel subLevel)
         {
             for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
@@ -161,6 +182,7 @@ namespace ToyStudio.GUI.windows
         private Level _level;
         private GLTaskScheduler _glScheduler;
         private IPopupModalHost _popupModalHost;
+        private ObjectInspector _inspector = new();
 
         private LevelEditorWorkSpace(Level level, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)
         {

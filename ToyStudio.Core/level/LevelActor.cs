@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.common.byml_serialization;
 using ToyStudio.Core.common.util;
-using ToyStudio.GUI.common.util;
 
 namespace ToyStudio.Core.level
 {

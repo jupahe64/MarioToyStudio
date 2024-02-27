@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using ToyStudio.Core.common.byml_serialization;
-using ToyStudio.GUI.common.util;
 using YamlDotNet.Core.Tokens;
 
 namespace ToyStudio.Core.common.util

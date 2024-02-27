@@ -15,6 +15,7 @@ namespace ToyStudio.GUI.util.edit
 
     internal class EditContextBase
     {
+        public object? ActiveObject => _activeObject;
 
         public ulong SelectionVersion { get; private set; } = 0;
 
@@ -121,9 +122,12 @@ namespace ToyStudio.GUI.util.edit
         public void Select(object obj)
         {
             int countBefore = _selectedObjects.Count;
+            var activeBefore = _activeObject;
+            _activeObject = obj;
             _selectedObjects.Add(obj);
 
-            if (_selectedObjects.Count != countBefore)
+            if (_selectedObjects.Count != countBefore ||
+                _activeObject != activeBefore)
                 SelectionChanged();
         }
 
@@ -141,7 +145,8 @@ namespace ToyStudio.GUI.util.edit
                 return;
             }
 
-            List<object> prevSelection = _selectedObjects.ToList();
+            List<object> prevSelection = [.. _selectedObjects];
+            object? prevActive = _activeObject;
 
             _isSuspendUpdate = true;
             action.Invoke();
@@ -149,7 +154,8 @@ namespace ToyStudio.GUI.util.edit
 
             if (_isRequireSelectionCheck)
             {
-                if (prevSelection.Count != _selectedObjects.Count ||
+                if (prevActive != _activeObject ||
+                    prevSelection.Count != _selectedObjects.Count ||
                     !_selectedObjects.SetEquals(prevSelection))
                 {
                     SelectionChanged();
@@ -194,6 +200,9 @@ namespace ToyStudio.GUI.util.edit
 
         private void SelectionChanged()
         {
+            if (_activeObject != null && !_selectedObjects.Contains(_activeObject))
+                _activeObject = null;
+
             if (_isSuspendUpdate)
             {
                 _isRequireSelectionCheck = true;
@@ -205,6 +214,7 @@ namespace ToyStudio.GUI.util.edit
 
         private readonly Stack<BatchAction> _nestedBatchActions = [];
         private readonly HashSet<object> _selectedObjects = [];
+        private object? _activeObject = null;
 
         private readonly UndoHandler _undoHandler = new();
 
