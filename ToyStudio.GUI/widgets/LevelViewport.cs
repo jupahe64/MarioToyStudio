@@ -30,20 +30,20 @@ namespace ToyStudio.GUI.widgets
         {
             if (isMultiSelect)
             {
-                if (ctx.IsSelected(selectable))
+                if (ctx.IsSelected(selectable) && ctx.ActiveObject == selectable)
                     ctx.Deselect(selectable);
                 else
                     ctx.Select(selectable);
+
+                return;
             }
-            else if (!ctx.IsSelected(selectable))
+
+            ctx.WithSuspendUpdateDo(() =>
             {
-                ctx.WithSuspendUpdateDo(() =>
-                {
-                    ctx.DeselectAll();
-                    if (!ctx.IsSelected(selectable))
-                        ctx.Select(selectable);
-                });
-            }
+                ctx.DeselectAll();
+                if (!ctx.IsSelected(selectable))
+                    ctx.Select(selectable);
+            });
         }
     }
 
