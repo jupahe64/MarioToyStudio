@@ -32,10 +32,12 @@ namespace ToyStudio.GUI.scene.objs
 
             isNewHoveredObj = MathUtil.HitTestConvexPolygonPoint(points, ImGui.GetMousePos());
 
-            var color = new Vector4(0.5f, 1, 0, 1);
+            var color = new Vector4(0.4f, 0.8f, 0, 1);
 
-            if (sceneContext.IsSelected(actor))
-                color = new Vector4(0.84f, .437f, .437f, 1);
+            if (sceneContext.ActiveObject == actor)
+                color = new Vector4(1.0f, .95f, .7f, 1);
+            else if (sceneContext.IsSelected(actor))
+                color = new Vector4(1.0f, .65f, .4f, 1);
 
             if (viewport.HoveredObject == this)
             {
