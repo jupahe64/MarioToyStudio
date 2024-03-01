@@ -28,11 +28,11 @@ namespace ToyStudio.Core.common.util
                 );
         }
 
-        public static void SetFloat3<T>(this BymlObject<T>.Deserializer s,
+        public static void SetFloat3<T>(this BymlObject<T>.Deserializer d,
             ref Vector3 value, string name)
             where T : BymlObject<T>, new()
         {
-            if (!s.Map!.TryGetValue(name, out var node))
+            if (!d.Map!.TryGetValue(name, out var node))
                 return;
 
             value = ParseFloat3(node);
@@ -70,11 +70,11 @@ namespace ToyStudio.Core.common.util
                 );
         }
 
-        public static void SetVector3D<T>(this BymlObject<T>.Deserializer s,
+        public static void SetVector3D<T>(this BymlObject<T>.Deserializer d,
             ref Vector3 value, string name)
             where T : BymlObject<T>, new()
         {
-            if (!s.Map!.TryGetValue(name, out var node))
+            if (!d.Map!.TryGetValue(name, out var node))
                 return;
 
             value = ParseVector3D(node);
@@ -130,11 +130,11 @@ namespace ToyStudio.Core.common.util
             return new PropertyDict(entries);
         }
 
-        public static void SetPropertyDict<T>(this BymlObject<T>.Deserializer s,
+        public static void SetPropertyDict<T>(this BymlObject<T>.Deserializer d,
             ref PropertyDict value, string name)
             where T : BymlObject<T>, new()
         {
-            if (!s.Map!.TryGetValue(name, out var node))
+            if (!d.Map!.TryGetValue(name, out var node))
                 return;
 
             value = ParsePropertyDict(node);
@@ -177,6 +177,25 @@ namespace ToyStudio.Core.common.util
                 s.Map.Remove(name);
         }
 
+        #endregion
+
+        #region FileRef
+        public static void SetBgymlRefName<T>(this BymlObject<T>.Deserializer d,
+            ref string value, string name, BgymlTypeInfo bgymlTypeInfo)
+            where T : BymlObject<T>, new()
+        {
+            if (!d.Map!.TryGetValue(name, out var node))
+                return;
+
+            value = bgymlTypeInfo.ExtractNameFromRefString(node.GetString());
+        }
+
+        public static void SetBgymlRefName<T>(this BymlObject<T>.Serializer s,
+            ref string value, string name, BgymlTypeInfo bgymlTypeInfo)
+            where T : BymlObject<T>, new()
+        {
+            s.Map[name] = new Byml(bgymlTypeInfo.GenerateRefString(value));
+        }
         #endregion
     }
 }
