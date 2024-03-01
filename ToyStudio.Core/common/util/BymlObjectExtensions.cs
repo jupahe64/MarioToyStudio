@@ -179,7 +179,7 @@ namespace ToyStudio.Core.common.util
 
         #endregion
 
-        #region FileRef
+        #region BgymlRefName
         public static void SetBgymlRefName<T>(this BymlObject<T>.Deserializer d,
             ref string value, string name, BgymlTypeInfo bgymlTypeInfo)
             where T : BymlObject<T>, new()
@@ -195,6 +195,27 @@ namespace ToyStudio.Core.common.util
             where T : BymlObject<T>, new()
         {
             s.Map[name] = new Byml(bgymlTypeInfo.GenerateRefString(value));
+        }
+        #endregion
+
+        #region FileRef
+        public static void SetFileRef<T, TValue>(this BymlObject<T>.Deserializer d,
+            ref TValue value, string name)
+            where T : BymlObject<T>, new()
+            where TValue: IFileRef<TValue>
+        {
+            if (!d.Map!.TryGetValue(name, out var node))
+                return;
+
+            value = TValue.FromRefString(node.GetString());
+        }
+
+        public static void SetFileRef<T, TValue>(this BymlObject<T>.Serializer s,
+            ref TValue value, string name)
+            where T : BymlObject<T>, new()
+            where TValue : IFileRef<TValue>
+        {
+            s.Map[name] = new Byml(value.GenerateRefString());
         }
         #endregion
     }

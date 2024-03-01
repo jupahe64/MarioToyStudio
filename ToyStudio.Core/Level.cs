@@ -29,7 +29,7 @@ namespace ToyStudio.Core
         {
             var level = new Level(sceneName, romfs);
 
-            var sceneByml = romfs.LoadByml(["Scene", sceneName + ".engine__scene__SceneParam.bgyml"]).GetMap();
+            var sceneByml = romfs.LoadByml(BgymlTypeInfos.SceneParam.GetPath(sceneName)).GetMap();
 
             if (sceneByml.TryGetValue("Category", out var value))
                 level.Category = value.GetString();
@@ -42,16 +42,16 @@ namespace ToyStudio.Core
             {
                 case "Level":
                     {
-                        var bcettName = PathHelper.BcettRegex().Match(
-                            components["StartupMap"].GetString()).Groups[1].Value;
+                        var bcettRef = BcettRef
+                            .FromRefString(components["StartupMap"].GetString());
                         var levelParamName = BgymlTypeInfos.LevelSettingsParam
                             .ExtractNameFromRefString(components["LevelSettingsRef"].GetString(), isWork: false);
                         var lightingName = BgymlTypeInfos.LightingSettingsParam
                             .ExtractNameFromRefString(components["LightingSettingsRef"].GetString(), isWork: false);
 
-                        var subLevel = new SubLevel(level, bcettName, levelParamName, lightingName);
+                        var subLevel = new SubLevel(level, bcettRef.Name, levelParamName, lightingName);
                         subLevel.LoadFromBcett(
-                            romfs.LoadByml(["Banc", bcettName + ".bcett.byml.zs"], isCompressed: true).GetMap()
+                            romfs.LoadByml(bcettRef.GetPath(), isCompressed: true).GetMap()
                         );
                         level._subLevels.Add(subLevel);
                     }
@@ -65,16 +65,16 @@ namespace ToyStudio.Core
                     {
                         var part = partNode.GetMap();
 
-                        var bcettName = PathHelper.BcettRegex().Match(
-                            part["Banc"].GetString()).Groups[1].Value;
+                        var bcettRef = BcettRef
+                            .FromRefString(part["Banc"].GetString());
                         var levelParamName = BgymlTypeInfos.LevelSettingsParam
                             .ExtractNameFromRefString(part["Level"].GetString());
                         var lightingName = BgymlTypeInfos.LightingSettingsParam
                             .ExtractNameFromRefString(part["Lighting"].GetString());
 
-                        var subLevel = new SubLevel(level, bcettName, levelParamName, lightingName);
+                        var subLevel = new SubLevel(level, bcettRef.Name, levelParamName, lightingName);
                         subLevel.LoadFromBcett(
-                            romfs.LoadByml(["Banc", bcettName + ".bcett.byml.zs"], isCompressed: true).GetMap()
+                            romfs.LoadByml(bcettRef.GetPath(), isCompressed: true).GetMap()
                         );
                         level._subLevels.Add(subLevel);
                     }
@@ -101,7 +101,8 @@ namespace ToyStudio.Core
         {
             foreach (var level in _subLevels)
             {
-                romfs.SaveByml(PathHelper.Bcett(level.BcettName), level.Save(), isCompressed: true);
+                var bcettRef = new BcettRef(level.BcettName).GetPath();
+                romfs.SaveByml(bcettRef, level.Save(), isCompressed: true);
             }
         }
 
@@ -115,16 +116,6 @@ namespace ToyStudio.Core
         private RomFS _romfs;
 
         private List<SubLevel> _subLevels = [];
-
-
-        private static partial class PathHelper
-        {
-            public static string[] Bcett(string name) =>
-                ["Banc", $"{name}.bcett.byml.zs"];
-
-            [GeneratedRegex("Work/Banc/Scene/([^/]*)\\.bcett\\.json")]
-            public static partial Regex BcettRegex();
-        }
         
     }
 }
