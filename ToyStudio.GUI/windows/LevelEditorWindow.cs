@@ -179,7 +179,8 @@ namespace ToyStudio.GUI.windows
                             await _modalHost.WaitTick();
 
                             _activeLevelWorkSpace?.PreventFurtherRendering();
-                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, _glTaskScheduler, _modalHost, p);
+                            var actorPackCache = new ActorPackCache(_romfs!);
+                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, _glTaskScheduler, actorPackCache, _modalHost, p);
                             _currentCourseName = name;
                         }
                         catch (Exception ex)

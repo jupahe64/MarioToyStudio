@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using ToyStudio.Core;
 using ToyStudio.Core.common.util;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.util;
@@ -161,7 +162,14 @@ namespace ToyStudio.GUI.scene.objs
 
                 if (ImGui.GetCursorPosY() == cursorYBefore)
                     ImGui.TextDisabled("Empty");
+
+                if (_actorPack.BlackboardRefName is string blackboardName)
+                    ImGui.Text($"Actor has a blackboard");
+                else
+                    ImGui.Text($"Actor has no blackboard");
             });
         }
+
+        private ActorPack _actorPack = sceneContext.LoadActorPack(actor.Gyaml!);
     }
 }

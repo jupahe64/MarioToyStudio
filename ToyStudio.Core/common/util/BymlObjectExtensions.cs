@@ -181,20 +181,20 @@ namespace ToyStudio.Core.common.util
 
         #region BgymlRefName
         public static void SetBgymlRefName<T>(this BymlObject<T>.Deserializer d,
-            ref string value, string name, BgymlTypeInfo bgymlTypeInfo)
+            ref string value, string name, BgymlTypeInfo bgymlTypeInfo, bool isWork = true)
             where T : BymlObject<T>, new()
         {
             if (!d.Map!.TryGetValue(name, out var node))
                 return;
 
-            value = bgymlTypeInfo.ExtractNameFromRefString(node.GetString());
+            value = bgymlTypeInfo.ExtractNameFromRefString(node.GetString(), isWork);
         }
 
         public static void SetBgymlRefName<T>(this BymlObject<T>.Serializer s,
-            ref string value, string name, BgymlTypeInfo bgymlTypeInfo)
+            ref string value, string name, BgymlTypeInfo bgymlTypeInfo, bool isWork = true)
             where T : BymlObject<T>, new()
         {
-            s.Map[name] = new Byml(bgymlTypeInfo.GenerateRefString(value));
+            s.Map[name] = new Byml(bgymlTypeInfo.GenerateRefString(value, isWork));
         }
         #endregion
 

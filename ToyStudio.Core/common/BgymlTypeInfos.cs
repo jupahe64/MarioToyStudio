@@ -76,5 +76,73 @@
         public readonly static BgymlTypeInfo SceneParam =
             new(["Scene"], "engine__scene__SceneParam");
         #endregion
+
+        #region Actor
+        public readonly static BgymlTypeInfo ActorParam =
+            new(["Actor"], "engine__actor__ActorParam");
+
+        public readonly static BgymlTypeInfo AIInfo =
+            new(["AI", "AIInfo"], "engine__actor__AIInfo");
+
+        public readonly static BgymlTypeInfo ASInfo =
+            new(["Component", "ASInfo"], "engine__component__ASInfo");
+
+        public readonly static BgymlTypeInfo ASOptimize =
+            new(["ASOptimize"], "engine__component__ASOptimize");
+
+        public readonly static BgymlTypeInfo AnimationParam =
+            new(["Component", "AnimationParam"], "engine__component__AnimationParam");
+
+        public readonly static BgymlTypeInfo BlackboardInfo =
+            new(["Component", "Blackboard", "BlackboardInfo"], "engine__component__BlackboardInfo");
+
+        public readonly static BgymlTypeInfo Collision2DParam =
+            new(["Component", "2D", "Collision2D"], "engine__component__Collision2DParam");
+
+        public readonly static BgymlTypeInfo DropShadowParam =
+            new(["Component", "DropShadowParam"], "game__component__DropShadowParam");
+
+        public readonly static BgymlTypeInfo ELinkParam =
+            new(["Component", "ELink"], "engine__component__ELinkParam");
+
+        public readonly static BgymlTypeInfo GameParameterTable =
+            new(["GameParameter", "GameParameterTable"], "engine__actor__GameParameterTable");
+
+        public readonly static BgymlTypeInfo LookAtParam =
+            new(["Component", "LookAtParam"], "game__component__LookAtParam");
+
+        public readonly static BgymlTypeInfo ModelBindParam =
+            new(["Component", "ModelBindParam"], "engine__component__ModelBindParam");
+
+        public readonly static BgymlTypeInfo ModelInfo =
+            new(["Component", "ModelInfo"], "engine__component__ModelInfo");
+
+        public readonly static BgymlTypeInfo Movement2DParam =
+            new(["Component", "2D", "Movement2D"], "engine__component__Movement2DParam");
+
+        public readonly static BgymlTypeInfo ObjStateInfoParam =
+            new(["ObjStateInfoParam"], "game__component__ObjStateInfoParam");
+
+        public readonly static BgymlTypeInfo PauseExemptParam =
+            new(["Component", "PauseExemptParam"], "game__component__PauseExemptParam");
+
+        public readonly static BgymlTypeInfo PlayerMovement2dParam =
+            new(["Component", "2D", "Movement2D"], "game__component__PlayerMovement2dParam");
+
+        public readonly static BgymlTypeInfo PlayerStateInfoParam =
+            new(["PlayerStateInfoParam"], "game__component__PlayerStateInfoParam");
+
+        public readonly static BgymlTypeInfo RespawnParam =
+            new(["Component", "RespawnParam"], "game__component__RespawnParam");
+
+        public readonly static BgymlTypeInfo SLinkParam =
+            new(["Component", "SLink"], "engine__component__SLinkParam");
+
+        public readonly static BgymlTypeInfo ActorSystemSetting =
+            new(["ActorSystem", "ActorSystemSetting"], "engine__actor__ActorSystemSetting");
+
+        public readonly static BgymlTypeInfo XLinkParam =
+            new(["Component", "XLink"], "engine__component__XLinkParam");
+        #endregion
     }
 }

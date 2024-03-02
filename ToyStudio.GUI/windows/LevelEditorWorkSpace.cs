@@ -22,6 +22,7 @@ namespace ToyStudio.GUI.windows
 
         public static async Task<LevelEditorWorkSpace> Create(Level level,
             GLTaskScheduler glScheduler,
+            ActorPackCache actorPackCache,
             IPopupModalHost popupModalHost,
             IProgress<(string operationName, float? progress)> progress)
         {
@@ -30,7 +31,7 @@ namespace ToyStudio.GUI.windows
             foreach (var subLevel in level.SubLevels)
             {
                 var scene = new Scene<SubLevelSceneContext>(
-                    new SubLevelSceneContext(subLevel), 
+                    new SubLevelSceneContext(actorPackCache), 
                     new SubLevelSceneRoot(subLevel)
                 );
 

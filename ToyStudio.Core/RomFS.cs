@@ -43,14 +43,14 @@ namespace ToyStudio.Core
                     throw new FileNotFoundException("Couldn't find Address Table in Base Game Directory");
 
                 var fileInfo = dir
-                    .EnumerateFiles("Product.*.Nin_NX_NVN.atbl.byml.zs").FirstOrDefault() 
+                    .EnumerateFiles("Product.*.Nin_NX_NVN.atbl.byml.zs").FirstOrDefault()
                     ?? throw new FileNotFoundException("Couldn't find Address Table in Base Game Directory");
 
                 var addressTableByml = Byml.FromBinary(s_zsDecompressor.Unwrap(
                     File.ReadAllBytes(fileInfo.FullName)
                 ));
 
-                foreach((string key, Byml value) in addressTableByml.GetMap())
+                foreach ((string key, Byml value) in addressTableByml.GetMap())
                     _addressTable[key] = value.GetString();
             }
 
@@ -58,7 +58,7 @@ namespace ToyStudio.Core
             //load Bootup pack
             {
                 var fileInfo = _baseGameDirectory.GetRelativeFileInfo(s_bootupFilePath);
-                
+
                 if (!fileInfo.Exists)
                     throw new FileNotFoundException("Couldn't find Bootup Pack in Base Game Directory");
 
@@ -111,8 +111,8 @@ namespace ToyStudio.Core
                 searchInModpath);
         }
 
-        public bool TryLoadFile(string[] filePath, 
-            [NotNullWhen(true)] out byte[]? bytes, 
+        public bool TryLoadFile(string[] filePath,
+            [NotNullWhen(true)] out byte[]? bytes,
             bool loadFromBootupPack = false, bool searchInModpath = true)
         {
             Sarc? bootupPack = null;
@@ -126,7 +126,7 @@ namespace ToyStudio.Core
                     bootupPack = _bootupPacks.baseGame;
             }
 
-            bool TryLoadFrom(DirectoryInfo root, 
+            bool TryLoadFrom(DirectoryInfo root,
                 [NotNullWhen(true)] out byte[]? bytes)
             {
                 if (loadFromBootupPack)
@@ -149,7 +149,7 @@ namespace ToyStudio.Core
                 return true;
             }
 
-            
+
             if (searchInModpath && ModDirectory is not null &&
                 TryLoadFrom(ModDirectory, out bytes))
                 return true;
@@ -161,12 +161,12 @@ namespace ToyStudio.Core
             return false;
         }
 
-        public bool TryLoadActorPack(string packName, out Sarc? pack,
+        public bool TryLoadActorPack(string packName, [NotNullWhen(true)] out Sarc? pack,
             bool searchInModpath = true)
         {
             bool TryLoadFrom(DirectoryInfo root, out Sarc? pack)
             {
-                var fileInfo = root.GetRelativeFileInfo("Pack", packName);
+                var fileInfo = root.GetRelativeFileInfo("Pack", "Actor", packName+".pack.zs");
                 if (!fileInfo.Exists)
                 {
                     pack = null;

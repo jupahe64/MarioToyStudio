@@ -1,0 +1,206 @@
+﻿using BymlLibrary;
+using SarcLibrary;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using ToyStudio.Core.common;
+using ToyStudio.Core.common.byml_serialization;
+using ToyStudio.Core.common.util;
+
+namespace ToyStudio.Core
+{
+    public partial class ActorPack
+    {
+        public ActorPack(string name, Dictionary<string, byte[]> entries)
+        {
+            _name = name;
+            _entries = entries;
+
+            var actorInfo = LoadBymlObject<ActorInfo>(BgymlTypeInfos.ActorParam.GetPath(name));
+            _actorInfoHierarchy.Add(actorInfo);
+
+            while(actorInfo.ParentName != null)
+            {
+                name = actorInfo.ParentName;
+                actorInfo = LoadBymlObject<ActorInfo>(BgymlTypeInfos.ActorParam.GetPath(name));
+                _actorInfoHierarchy.Add(actorInfo);
+            }
+        }
+
+        public string? BlackboardRefName => GetActorInfoValue(x=>x.Components!.BlackboardRefName);
+
+        private T? GetActorInfoValue<T>(Func<ActorInfo, T?> getter)
+        {
+            foreach (var item in _actorInfoHierarchy)
+            {
+                T? value = getter(item);
+                if (value is not null)
+                    return value;
+            }
+
+            return default;
+        }
+
+        private T LoadBymlObject<T>(string[] filePath)
+            where T : IBymlObject<T>
+        {
+            var byml = Byml.FromBinary(_entries[string.Join('/', filePath)]);
+            return T.Deserialize(byml);
+        }
+
+        private void SaveBymlObject<T>(string[] filePath, T bymlObject)
+            where T : IBymlObject<T>
+        {
+            var byml = bymlObject.Serialize();
+            _entries[string.Join('/', filePath)] = byml.ToBinary(Revrs.Endianness.Little);
+        }
+
+        private readonly string _name;
+        private readonly Dictionary<string, byte[]> _entries;
+        private readonly List<ActorInfo> _actorInfoHierarchy = [];
+
+        
+
+        private partial class ActorInfo : BymlObject<ActorInfo>
+        {
+            public string? ParentName = null;
+
+            public ComponentsObject? Components => _components;
+            
+            protected override void Deserialize(Deserializer d)
+            {
+                d.SetBgymlRefName(ref ParentName!, "$parent", BgymlTypeInfos.ActorParam);
+                d.SetObject(ref _components!, "Components");
+            }
+
+            protected override void Serialize(Serializer s)
+            {
+                s.SetBgymlRefName(ref ParentName!, "$parent", BgymlTypeInfos.ActorParam);
+                s.SetObject(ref _components!, "Components");
+            }
+
+            public class ComponentsObject : BymlObject<ComponentsObject>
+            {
+                public string? AIInfoRefName;
+                public string? ASInfoRefName;
+                public string? ASOptimizeName;
+                //TODO ASRef
+                public string? AnimationRefName;
+                public string? BlackboardRefName;
+                public string? Collision2DRefName;
+                public string? DropShadowRefName;
+                public string? ELinkRefName;
+                public string? GameParameterTableRefName;
+                public string? LookAtRefName;
+                public string? ModelBindRefName;
+                public string? ModelInfoRefName;
+                public string? Movement2DRefName;
+                public string? ObjStateInfoRefName;
+                public string? PauseExemptRefName;
+                public string? PlayerMovement2dParamRefName;
+                public string? PlayerStateInfoRefName;
+                public string? RespawnRefName;
+                public string? SLinkRefName;
+                public string? SystemSettingName;
+                public string? XLinkRefName;
+
+                protected override void Deserialize(Deserializer d)
+                {
+                    d.SetBgymlRefName(ref AIInfoRefName!, "AIInfoRef", 
+                        BgymlTypeInfos.AIInfo, isWork: false);
+                    d.SetBgymlRefName(ref ASInfoRefName!, "ASInfoRef", 
+                        BgymlTypeInfos.ASInfo, isWork: false);
+                    d.SetBgymlRefName(ref ASOptimizeName!, "ASOptimize", 
+                        BgymlTypeInfos.ASOptimize, isWork: false);
+                    d.SetBgymlRefName(ref AnimationRefName!, "AnimationRef", 
+                        BgymlTypeInfos.AnimationParam, isWork: false);
+                    d.SetBgymlRefName(ref BlackboardRefName!, "BlackboardRef", 
+                        BgymlTypeInfos.BlackboardInfo, isWork: false);
+                    d.SetBgymlRefName(ref Collision2DRefName!, "Collision2DRef", 
+                        BgymlTypeInfos.Collision2DParam, isWork: false);
+                    d.SetBgymlRefName(ref DropShadowRefName!, "DropShadowRef", 
+                        BgymlTypeInfos.DropShadowParam, isWork: false);
+                    d.SetBgymlRefName(ref ELinkRefName!, "ELinkRef", 
+                        BgymlTypeInfos.ELinkParam, isWork: false);
+                    d.SetBgymlRefName(ref GameParameterTableRefName!, "GameParameterTableRef", 
+                        BgymlTypeInfos.GameParameterTable, isWork: false);
+                    d.SetBgymlRefName(ref LookAtRefName!, "LookAtRef", 
+                        BgymlTypeInfos.LookAtParam, isWork: false);
+                    d.SetBgymlRefName(ref ModelBindRefName!, "ModelBindRef", 
+                        BgymlTypeInfos.ModelBindParam, isWork: false);
+                    d.SetBgymlRefName(ref ModelInfoRefName!, "ModelInfoRef", 
+                        BgymlTypeInfos.ModelInfo, isWork: false);
+                    d.SetBgymlRefName(ref Movement2DRefName!, "Movement2DRef", 
+                        BgymlTypeInfos.Movement2DParam, isWork: false);
+                    d.SetBgymlRefName(ref ObjStateInfoRefName!, "ObjStateInfoRef", 
+                        BgymlTypeInfos.ObjStateInfoParam, isWork: false);
+                    d.SetBgymlRefName(ref PauseExemptRefName!, "PauseExemptRef", 
+                        BgymlTypeInfos.PauseExemptParam, isWork: false);
+                    d.SetBgymlRefName(ref PlayerMovement2dParamRefName!, "PlayerMovement2dParamRef", 
+                        BgymlTypeInfos.PlayerMovement2dParam, isWork: false);
+                    d.SetBgymlRefName(ref PlayerStateInfoRefName!, "PlayerStateInfoRef", 
+                        BgymlTypeInfos.PlayerStateInfoParam, isWork: false);
+                    d.SetBgymlRefName(ref RespawnRefName!, "RespawnRef", 
+                        BgymlTypeInfos.RespawnParam, isWork: false);
+                    d.SetBgymlRefName(ref SLinkRefName!, "SLinkRef", 
+                        BgymlTypeInfos.SLinkParam, isWork: false);
+                    d.SetBgymlRefName(ref SystemSettingName!, "SystemSetting", 
+                        BgymlTypeInfos.ActorSystemSetting, isWork: false);
+                    d.SetBgymlRefName(ref XLinkRefName!, "XLinkRef", 
+                        BgymlTypeInfos.XLinkParam, isWork: false);
+                }
+
+                protected override void Serialize(Serializer s)
+                {
+                    s.SetBgymlRefName(ref AIInfoRefName!, "AIInfoRef",
+                        BgymlTypeInfos.AIInfo, isWork: false);
+                    s.SetBgymlRefName(ref ASInfoRefName!, "ASInfoRef",
+                        BgymlTypeInfos.ASInfo, isWork: false);
+                    s.SetBgymlRefName(ref ASOptimizeName!, "ASOptimize",
+                        BgymlTypeInfos.ASOptimize, isWork: false);
+                    s.SetBgymlRefName(ref AnimationRefName!, "AnimationRef",
+                        BgymlTypeInfos.AnimationParam, isWork: false);
+                    s.SetBgymlRefName(ref BlackboardRefName!, "BlackboardRef",
+                        BgymlTypeInfos.BlackboardInfo, isWork: false);
+                    s.SetBgymlRefName(ref Collision2DRefName!, "Collision2DRef",
+                        BgymlTypeInfos.Collision2DParam, isWork: false);
+                    s.SetBgymlRefName(ref DropShadowRefName!, "DropShadowRef",
+                        BgymlTypeInfos.DropShadowParam, isWork: false);
+                    s.SetBgymlRefName(ref ELinkRefName!, "ELinkRef",
+                        BgymlTypeInfos.ELinkParam, isWork: false);
+                    s.SetBgymlRefName(ref GameParameterTableRefName!, "GameParameterTableRef",
+                        BgymlTypeInfos.GameParameterTable, isWork: false);
+                    s.SetBgymlRefName(ref LookAtRefName!, "LookAtRef",
+                        BgymlTypeInfos.LookAtParam, isWork: false);
+                    s.SetBgymlRefName(ref ModelBindRefName!, "ModelBindRef",
+                        BgymlTypeInfos.ModelBindParam, isWork: false);
+                    s.SetBgymlRefName(ref ModelInfoRefName!, "ModelInfoRef",
+                        BgymlTypeInfos.ModelInfo, isWork: false);
+                    s.SetBgymlRefName(ref Movement2DRefName!, "Movement2DRef",
+                        BgymlTypeInfos.Movement2DParam, isWork: false);
+                    s.SetBgymlRefName(ref ObjStateInfoRefName!, "ObjStateInfoRef",
+                        BgymlTypeInfos.ObjStateInfoParam, isWork: false);
+                    s.SetBgymlRefName(ref PauseExemptRefName!, "PauseExemptRef",
+                        BgymlTypeInfos.PauseExemptParam, isWork: false);
+                    s.SetBgymlRefName(ref PlayerMovement2dParamRefName!, "PlayerMovement2dParamRef",
+                        BgymlTypeInfos.PlayerMovement2dParam, isWork: false);
+                    s.SetBgymlRefName(ref PlayerStateInfoRefName!, "PlayerStateInfoRef",
+                        BgymlTypeInfos.PlayerStateInfoParam, isWork: false);
+                    s.SetBgymlRefName(ref RespawnRefName!, "RespawnRef",
+                        BgymlTypeInfos.RespawnParam, isWork: false);
+                    s.SetBgymlRefName(ref SLinkRefName!, "SLinkRef",
+                        BgymlTypeInfos.SLinkParam, isWork: false);
+                    s.SetBgymlRefName(ref SystemSettingName!, "SystemSetting",
+                        BgymlTypeInfos.ActorSystemSetting, isWork: false);
+                    s.SetBgymlRefName(ref XLinkRefName!, "XLinkRef",
+                        BgymlTypeInfos.XLinkParam, isWork: false);
+                }
+            }
+
+            ComponentsObject? _components;
+        }
+    }
+}
