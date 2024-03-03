@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.GUI.util.edit.undo_redo;
+using static System.Collections.Specialized.BitVector32;
 
 namespace ToyStudio.GUI.util.edit
 {
@@ -21,15 +23,26 @@ namespace ToyStudio.GUI.util.edit
 
         public event Action? Update;
 
-        public ICommittable BeginBatchAction()
+        public void BatchAction(Func<string> actionReturningName)
+            => WithSuspendUpdateDo(() =>
         {
-            _currentActionBatch = [];
-            var batchAction = new BatchAction(this);
-            _nestedBatchActions.Push(batchAction);
-            return batchAction;
-        }
+            if (_batchActionNestingLevel == 0)
+                _currentActionBatch = [];
 
-        public void CommitAction(IRevertable action)
+            _batchActionNestingLevel++;
+            var actionName = actionReturningName.Invoke();
+            _batchActionNestingLevel--;
+
+            if (_batchActionNestingLevel > 0)
+                return;
+
+            Debug.Assert(_currentActionBatch is not null);
+            _undoHandler.AddToUndo(_currentActionBatch, actionName);
+            _currentActionBatch = null;
+            DoUpdate();
+        });
+
+        public void Commit(IRevertable action)
         {
             if (_currentActionBatch is not null)
             {
@@ -38,7 +51,7 @@ namespace ToyStudio.GUI.util.edit
             }
 
             _undoHandler.AddToUndo(action);
-            Update?.Invoke();
+            DoUpdate();
         }
 
         public void Deselect(object obj)
@@ -108,7 +121,7 @@ namespace ToyStudio.GUI.util.edit
         public void Redo()
         {
             _undoHandler.Redo();
-            Update?.Invoke();
+            DoUpdate();
         }
 
         public void SelectMany<T>(ICollection<T> objects)
@@ -135,7 +148,7 @@ namespace ToyStudio.GUI.util.edit
         public void Undo()
         {
             _undoHandler.Undo();
-            Update?.Invoke();
+            DoUpdate();
         }
 
         public void WithSuspendUpdateDo(Action action)
@@ -182,22 +195,6 @@ namespace ToyStudio.GUI.util.edit
             }
             Update?.Invoke();
         }
-        private void EndBatchAction(BatchAction action)
-        {
-            if (action != _nestedBatchActions.Pop())
-                throw new InvalidOperationException($"Nested batch action {action.Name} committed in incorrect order");
-
-            if (_nestedBatchActions.Count > 0)
-                //we're still nested
-                return;
-
-            if (_currentActionBatch is null || _currentActionBatch.Count == 0)
-                return;
-
-            _undoHandler.AddToUndo(_currentActionBatch, action.Name);
-            _currentActionBatch = null;
-            Update?.Invoke();
-        }
 
         private void SelectionChanged()
         {
@@ -210,10 +207,10 @@ namespace ToyStudio.GUI.util.edit
                 return;
             }
             SelectionVersion++;
-            Update?.Invoke();
+            DoUpdate();
         }
 
-        private readonly Stack<BatchAction> _nestedBatchActions = [];
+        private int _batchActionNestingLevel = 0;
         private readonly HashSet<object> _selectedObjects = [];
         private object? _activeObject = null;
 
@@ -224,16 +221,5 @@ namespace ToyStudio.GUI.util.edit
         private bool _isRequireUpdate = false;
 
         private bool _isSuspendUpdate = false;
-
-
-        private class BatchAction(EditContextBase context) : ICommittable
-        {
-            public string Name { get; private set; } = "Unfinished Batch Action";
-            public void Commit(string name)
-            {
-                Name = name;
-                context.EndBatchAction(this);
-            }
-        }
     }
 }

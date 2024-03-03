@@ -210,6 +210,12 @@ namespace ToyStudio.GUI.widgets
                 if (IsHotkeyPressed(CtrlCmd, ImGuiKey.D))
                     _editContext.DuplicateSelectedObjects();
 
+                if (IsHotkeyPressed(CtrlCmd, ImGuiKey.Z))
+                    _editContext.Undo();
+                if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.Z) ||
+                    IsHotkeyPressed(CtrlCmd, ImGuiKey.Y))
+                    _editContext.Redo();
+
             }
 
             if (_lastSelectionVersion != _editContext.SelectionVersion)
@@ -309,7 +315,7 @@ namespace ToyStudio.GUI.widgets
 
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
                 {
-                    _activeTransformAction.Apply();
+                    ApplyTransformAction(_activeTransformAction);
                     _activeTransformAction = null;
                 }
                 else if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
@@ -339,6 +345,20 @@ namespace ToyStudio.GUI.widgets
                     SnapIncrement = 0.5f
                 };
             }
+        }
+
+        private void ApplyTransformAction(ITransformAction action)
+        {
+            _editContext.BatchAction(() =>
+            {
+                action.Apply();
+                int count = action.Transformables.Count();
+                return action switch
+                {
+                    MoveAction => $"Moved {count} objects",
+                    _ => $"Transformed {count} objects",
+                };
+            });
         }
 
 

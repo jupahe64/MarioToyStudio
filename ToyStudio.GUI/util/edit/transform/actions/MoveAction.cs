@@ -14,6 +14,8 @@ namespace ToyStudio.GUI.util.edit.transform.actions
         public float SnapIncrement { get; set; } = 1f;
         public Vector3 Translation { get; private set; }
 
+        public IEnumerable<ITransformable> Transformables => _transformables.Select(x => x.transformable);
+
         public MoveAction(CameraInfo cameraInfo, IEnumerable<ITransformable> transformables, Vector3 pivot,
         AxisRestriction axisRestriction = AxisRestriction.None)
         {

@@ -11,6 +11,8 @@ namespace ToyStudio.GUI.util.edit.transform
     {
         public record struct CameraInfo(Vector3 ViewDirection, Vector3 MouseRayOrigin, Vector3 MouseRayDirection);
 
+        IEnumerable<ITransformable> Transformables { get; }
+
         void Update(CameraInfo cameraInfo, bool isSnapping);
         void ToggleAxisRestriction(AxisRestriction axisRestriction);
         AxisRestriction AxisRestriction { get; }

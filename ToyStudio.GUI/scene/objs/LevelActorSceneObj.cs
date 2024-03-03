@@ -15,6 +15,7 @@ using ToyStudio.Core.level;
 using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.transform;
+using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.scene.objs
@@ -77,6 +78,7 @@ namespace ToyStudio.GUI.scene.objs
         public ITransformable.InitialTransform OnBeginTransform()
         {
             _preTransformPosition = _actor.Translate;
+            _preTransformRotation = _actor.Rotate;
             return new(_actor.Translate, Quaternion.Identity /*for now*/, Vector3.One);
         }
 
@@ -88,7 +90,7 @@ namespace ToyStudio.GUI.scene.objs
                 return;
             }
 
-            //TODO commit change
+            _sceneContext.Commit(new RevertableTransformation(_actor, _preTransformPosition, _preTransformRotation));
         }
 
         public void OnSelect(bool isMultiSelect)
@@ -100,6 +102,7 @@ namespace ToyStudio.GUI.scene.objs
         public bool IsActive() => _sceneContext.ActiveObject == _actor;
 
         private Vector3 _preTransformPosition;
+        private Vector3 _preTransformRotation;
 
         void ISceneObject<SubLevelSceneContext>.Update(
             ISceneUpdateContext<SubLevelSceneContext> updateContext,
@@ -234,5 +237,18 @@ namespace ToyStudio.GUI.scene.objs
             ImmutableSortedDictionary<string, (object initialValue, string tableName)> BlackboardProperties,
             PropertyDict PropertyDict
             );
+
+        private class RevertableTransformation(LevelActor actor, Vector3 prevPos, Vector3 prevRot) : IRevertable
+        {
+            public string Name => $"Transform {nameof(LevelActor)} {actor.Hash}";
+
+            public IRevertable Revert()
+            {
+                var revertable = new RevertableTransformation(actor, actor.Translate, actor.Rotate);
+                actor.Translate = prevPos; 
+                actor.Rotate = prevRot;
+                return revertable;
+            }
+        }
     }
 }

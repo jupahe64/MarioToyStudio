@@ -21,17 +21,22 @@ namespace ToyStudio.GUI.level_editing
         }
 
         public void DeleteSelectedObjects()
-        {
-            for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
+            => BatchAction(() =>
             {
-                if (IsSelected(subLevel.Actors[i]))
-                    subLevel.Actors.RemoveAt(i);
-            }
-            CommitAction(new DummyAction()); //for now
-        }
+                int count = 0;
+                for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
+                {
+                    if (IsSelected(subLevel.Actors[i]))
+                    {
+                        Commit(subLevel.Actors.RevertableRemoveAt(i));
+                        count++;
+                    }
+                }
+                return $"Deleting {count} objects";
+            });
 
         public void DuplicateSelectedObjects() 
-            => WithSuspendUpdateDo(() =>
+            => BatchAction(() =>
             {
                 var usedHashes = subLevel.Actors.Select(x => x.Hash).ToHashSet();
                 var duplicates = new List<LevelActor>();
@@ -46,11 +51,11 @@ namespace ToyStudio.GUI.level_editing
 
                 foreach (LevelActor actor in duplicates)
                 {
-                    subLevel.Actors.Add(actor);
+                    Commit(subLevel.Actors.RevertableAdd(actor));
                 }
                 SelectMany(duplicates);
 
-                CommitAction(new DummyAction()); //for now
+                return $"Duplicating {duplicates.Count} objects"; 
             });
 
         private ulong GenerateUniqueHash(HashSet<ulong> usedHashes)
