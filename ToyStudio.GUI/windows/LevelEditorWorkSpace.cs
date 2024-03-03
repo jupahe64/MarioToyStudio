@@ -31,13 +31,13 @@ namespace ToyStudio.GUI.windows
             foreach (var subLevel in level.SubLevels)
             {
                 var scene = new Scene<SubLevelSceneContext>(
-                    new SubLevelSceneContext(actorPackCache), 
+                    new SubLevelSceneContext(actorPackCache),
                     new SubLevelSceneRoot(subLevel)
                 );
 
                 ws._scenes[subLevel] = scene;
 
-                var viewport = await LevelViewport.Create(scene, glScheduler);
+                var viewport = await SubLevelViewport.Create(scene, glScheduler);
                 viewport.DeleteSelectedObjectsHandler = () => ws.DeleteSelectedObjects(scene, subLevel);
                 viewport.SelectionChanged += args =>
                 {
@@ -66,34 +66,6 @@ namespace ToyStudio.GUI.windows
 
         public void DrawUI(GL gl, double deltaSeconds)
         {
-            //for (int iSubLevel = 0; iSubLevel < _level.SubLevels.Count; iSubLevel++)
-            //{
-            //    SubLevel? subLevel = _level.SubLevels[iSubLevel];
-
-            //    ImGui.Begin($"Sublevel {iSubLevel+1} ({subLevel.BcettName})###Sublevel {iSubLevel+1}");
-            //    ImGui.InputText("LightingParam", ref subLevel.LightingParamName, 100);
-            //    ImGui.InputText("LevelParam", ref subLevel.LevelParamName, 100);
-
-            //    if (ImGui.CollapsingHeader("Actors"))
-            //    {
-            //        foreach (var actor in subLevel.Actors)
-            //            ImGui.Text($"{actor.Name} at {actor.Translate}");
-            //    }
-
-            //    if (ImGui.CollapsingHeader("Rails"))
-            //    {
-            //        foreach (var rail in subLevel.Rails)
-            //        {
-            //            if (ImGui.TreeNode(rail.Points.Count + " points"))
-            //            {
-            //                for (int i = 0; i < rail.Points.Count; i++)
-            //                    ImGui.Text($"[{i}] {rail.Points[i].Translate}");
-            //            }
-            //        }
-            //    }
-            //    ImGui.End();
-            //}
-
             ViewportsHostPanel(gl, deltaSeconds);
             InspectorPanel();
         }
@@ -108,8 +80,6 @@ namespace ToyStudio.GUI.windows
 
             ImGui.DockSpace(ViewportsHostDockspace, ImGui.GetContentRegionAvail());
 
-            var activeViewport = _viewports[_activeSubLevel];
-
             foreach (var subLevel in _level.SubLevels)
             {
                 var viewport = _viewports[subLevel];
@@ -118,39 +88,15 @@ namespace ToyStudio.GUI.windows
 
                 if (ImGui.Begin(subLevel.BcettName, ImGuiWindowFlags.NoNav))
                 {
-                    if (ImGui.IsWindowFocused())
+                    if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
                     {
-                        if (_activeSubLevel != subLevel)
-                        {
-                            _activeSubLevel = subLevel;
-                        }
+                        _activeSubLevel = subLevel;
                     }
 
-                    var topLeft = ImGui.GetCursorScreenPos();
-                    var size = ImGui.GetContentRegionAvail();
-
-                    ImGui.SetNextItemAllowOverlap();
-                    ImGui.SetCursorScreenPos(topLeft);
-
-                    ImGui.SetNextItemAllowOverlap();
-                    viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds, ImGui.IsWindowFocused());
-                    if (activeViewport != viewport)
-                        ImGui.GetWindowDrawList().AddRectFilled(topLeft, topLeft + size, 0x44000000);
-
-                    //align to top of the viewport
-                    ImGui.SetCursorScreenPos(topLeft);
-
-                    //Display Mouse Position  
-                    if (ImGui.IsMouseHoveringRect(topLeft, topLeft + size))
-                    {
-                        var _mousePos = activeViewport.ScreenToWorld(ImGui.GetMousePos());
-                        ImGui.Text("X: " + Math.Round(_mousePos.X, 3) + "\nY: " + Math.Round(_mousePos.Y, 3));
-                    }
-                    else
-                        ImGui.Text("X:\nY:");
+                    viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds, _activeSubLevel == subLevel);
                 }
             }
-            
+
             ImGui.End();
         }
 
@@ -178,7 +124,7 @@ namespace ToyStudio.GUI.windows
         }
 
 
-        private readonly Dictionary<SubLevel, LevelViewport> _viewports = [];
+        private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
         private Level _level;
         private GLTaskScheduler _glScheduler;

@@ -32,7 +32,7 @@ namespace ToyStudio.GUI.scene.objs
 
         public Vector3 Position => _actor.Translate;
 
-        public void Draw2D(LevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj)
+        public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj)
         {
             Span<Vector2> points =
             [

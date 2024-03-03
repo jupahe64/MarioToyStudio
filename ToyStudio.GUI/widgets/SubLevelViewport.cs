@@ -18,7 +18,7 @@ namespace ToyStudio.GUI.widgets
 {
     interface IViewportDrawable
     {
-        void Draw2D(LevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj);
+        void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj);
     }
 
     interface IViewportSelectable
@@ -47,12 +47,12 @@ namespace ToyStudio.GUI.widgets
         }
     }
 
-    internal class LevelViewport
+    internal class SubLevelViewport
     {
         public record struct SelectionChangedArgs(IEnumerable<IViewportSelectable> SelectedObjects, IViewportSelectable? ActiveObject);
         public event Action<SelectionChangedArgs>? SelectionChanged;
         public Action? DeleteSelectedObjectsHandler { private get; set; }
-        public static async Task<LevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
+        public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             GLTaskScheduler glScheduler)
         {
             //prepare glstuff here
@@ -60,7 +60,7 @@ namespace ToyStudio.GUI.widgets
             //dummy remove asap
             await Task.Delay(20); 
 
-            return new LevelViewport(subLevelScene, glScheduler);
+            return new SubLevelViewport(subLevelScene, glScheduler);
         }
 
         public IViewportDrawable? HoveredObject { get; private set; }
@@ -97,10 +97,37 @@ namespace ToyStudio.GUI.widgets
 
         public void Draw(Vector2 size, GL gl, double deltaSeconds, bool hasFocus)
         {
-            ImGui.InvisibleButton("Viewport", size,
-                ImGuiButtonFlags.MouseButtonLeft | 
-                ImGuiButtonFlags.MouseButtonRight | 
+            if (!ImGui.BeginChild("LevelViewport", size))
+            {
+                ImGui.EndChild();
+                return;
+            }
+            ImGui.BeginDisabled();
+            ImGui.Button("Select All");
+            ImGui.SameLine();
+            ImGui.Button("Deselect");
+            ImGui.SameLine();
+            ImGui.Button("Delete");
+            ImGui.SameLine();
+            ImGui.Button("Duplicate");
+            ImGui.EndDisabled();
+
+            DrawViewport(gl, deltaSeconds, hasFocus);
+
+            if (!hasFocus)
+                ImGui.GetWindowDrawList().AddRectFilled(_topLeft, _topLeft + _size, 0x44000000);
+
+            ImGui.EndChild();
+        }
+
+        private void DrawViewport(GL gl, double deltaSeconds, bool hasFocus)
+        {
+            ImGui.InvisibleButton("Viewport", ImGui.GetContentRegionAvail(),
+                ImGuiButtonFlags.MouseButtonLeft |
+                ImGuiButtonFlags.MouseButtonRight |
                 ImGuiButtonFlags.MouseButtonMiddle);
+
+            ImGui.PushClipRect(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), false);
 
             _topLeft = ImGui.GetItemRectMin();
             _size = ImGui.GetItemRectSize();
@@ -110,6 +137,14 @@ namespace ToyStudio.GUI.widgets
             bool isViewportLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
                 ImGui.GetMouseDragDelta().Length() < 5;
             bool isMultiSelect = ImGui.GetIO().KeyShift || ImGui.GetIO().KeyCtrl;
+
+            //draw mouse coordinates
+            {
+                var mouseCoords = ScreenToWorld(ImGui.GetMousePos());
+                var text = isViewportHovered ? $"x: {mouseCoords.X:F3}\ny: {mouseCoords.Y:F3}" : "x:\ny: ";
+                ImGui.GetWindowDrawList().AddText(_topLeft + ImGui.GetStyle().WindowPadding,
+                    ImGui.GetColorU32(ImGuiCol.Text), text);
+            }
 
             if (_camera.Width != _size.X || _camera.Height != _size.Y)
             {
@@ -136,6 +171,9 @@ namespace ToyStudio.GUI.widgets
 
             HoveredObject = newHoveredObject;
 
+            if (!isViewportHovered)
+                HoveredObject = null;
+
             if (isViewportLeftClicked)
             {
                 if (HoveredObject is IViewportSelectable selectable)
@@ -150,10 +188,24 @@ namespace ToyStudio.GUI.widgets
 
             HandleTransformAction(isViewportActive);
 
+            KeyboardModifiers modifiers = KeyboardModifiers.None;
+
+            if (ImGui.GetIO().KeyShift)
+                modifiers |= KeyboardModifiers.Shift;
+            if (ImGui.GetIO().KeyAlt)
+                modifiers |= KeyboardModifiers.Alt;
+            if (OperatingSystem.IsMacOS() ? ImGui.GetIO().KeySuper : ImGui.GetIO().KeyCtrl)
+                modifiers |= KeyboardModifiers.CtrlCmd;
+
             if (hasFocus && isViewportHovered)
             {
                 if (ImGui.IsKeyPressed(ImGuiKey.Delete))
                     DeleteSelectedObjectsHandler?.Invoke();
+                if (modifiers == KeyboardModifiers.CtrlCmd && ImGui.IsKeyPressed(ImGuiKey.D))
+                {
+
+                }
+
             }
 
             if (_lastSelectionVersion != _subLevelScene.Context.SelectionVersion)
@@ -168,6 +220,8 @@ namespace ToyStudio.GUI.widgets
                     SelectionChanged.Invoke(args);
                 }
             }
+
+            ImGui.PopClipRect();
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
@@ -292,7 +346,7 @@ namespace ToyStudio.GUI.widgets
         private Vector2 _size;
         private ulong _lastSelectionVersion = 0;
 
-        private LevelViewport(Scene<SubLevelSceneContext> subLevelScene, GLTaskScheduler glScheduler)
+        private SubLevelViewport(Scene<SubLevelSceneContext> subLevelScene, GLTaskScheduler glScheduler)
         {
             _subLevelScene = subLevelScene;
             _glScheduler = glScheduler;
