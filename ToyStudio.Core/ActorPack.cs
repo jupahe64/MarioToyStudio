@@ -2,6 +2,7 @@
 using SarcLibrary;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using ToyStudio.Core.common;
 using ToyStudio.Core.common.byml_serialization;
 using ToyStudio.Core.common.util;
+using static ToyStudio.Core.ActorPack;
 
 namespace ToyStudio.Core
 {
@@ -30,13 +32,11 @@ namespace ToyStudio.Core
             }
         }
 
-        public string? BlackboardRefName => GetActorInfoValue(x=>x.Components!.BlackboardRefName);
-
-        private T? GetActorInfoValue<T>(Func<ActorInfo, T?> getter)
+        internal T? GetActorInfoValue<T>(Func<ActorInfo, T?> getter)
         {
-            foreach (var item in _actorInfoHierarchy)
+            foreach (var actorInfo in _actorInfoHierarchy)
             {
-                T? value = getter(item);
+                T? value = getter(actorInfo);
                 if (value is not null)
                     return value;
             }
@@ -44,14 +44,37 @@ namespace ToyStudio.Core
             return default;
         }
 
-        private T LoadBymlObject<T>(string[] filePath)
+        internal void SetActorInfoValue<T>(Action<ActorInfo> setter)
+        {
+            setter.Invoke(_actorInfoHierarchy[0]);
+        }
+
+        internal bool TryLoadBymlObject<T>(string[] filePath, [NotNullWhen(true)] out T? bymlObject)
             where T : IBymlObject<T>
         {
+            if (!_entries.TryGetValue(string.Join('/', filePath), out byte[]? bytes))
+            {
+                bymlObject = default;
+                return false;
+            }
+
             var byml = Byml.FromBinary(_entries[string.Join('/', filePath)]);
+            bymlObject = T.Deserialize(byml);
+            return true;
+        }
+
+        internal T LoadBymlObject<T>(string[] filePath)
+            where T : IBymlObject<T>
+        {
+            if (!_entries.TryGetValue(string.Join('/', filePath), out byte[]? bytes))
+                throw new FileNotFoundException("Couldn't find " +
+                    $"{string.Join('/', filePath)} in Pack: {_name}");
+
+            var byml = Byml.FromBinary(bytes);
             return T.Deserialize(byml);
         }
 
-        private void SaveBymlObject<T>(string[] filePath, T bymlObject)
+        internal void SaveBymlObject<T>(string[] filePath, T bymlObject)
             where T : IBymlObject<T>
         {
             var byml = bymlObject.Serialize();
@@ -64,7 +87,7 @@ namespace ToyStudio.Core
 
         
 
-        private partial class ActorInfo : BymlObject<ActorInfo>
+        public partial class ActorInfo : BymlObject<ActorInfo>
         {
             public string? ParentName = null;
 

@@ -182,6 +182,14 @@ namespace ToyStudio.Core.common.byml_serialization
 
             #endregion
 
+            public void SetBymlValue(ref Byml value, string name)
+            {
+                if (!map!.TryGetValue(name, out var node))
+                    return;
+
+                value = node;
+            }
+
             public void SetObject<TObject>(ref TObject value, string name)
                 where TObject : IBymlObject<TObject>
             {
@@ -296,9 +304,20 @@ namespace ToyStudio.Core.common.byml_serialization
             }
             #endregion
 
+            public void SetBymlValue(ref Byml value, string name)
+            {
+                if (value == null)
+                    return;
+
+                map[name] = value;
+            }
+
             public void SetObject<TObject>(ref TObject value, string name)
                 where TObject : IBymlObject
             {
+                if (value == null)
+                    return;
+
                 map[name] = value.Serialize();
             }
         }

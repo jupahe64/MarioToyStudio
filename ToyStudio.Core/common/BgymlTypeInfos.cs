@@ -96,6 +96,9 @@
         public readonly static BgymlTypeInfo BlackboardInfo =
             new(["Component", "Blackboard", "BlackboardInfo"], "engine__component__BlackboardInfo");
 
+        public readonly static BgymlTypeInfo BlackboardParamTable =
+            new(["Component", "Blackboard", "BlackboardParamTable"], "engine__component__BlackboardParamTable");
+
         public readonly static BgymlTypeInfo Collision2DParam =
             new(["Component", "2D", "Collision2D"], "engine__component__Collision2DParam");
 
