@@ -52,7 +52,6 @@ namespace ToyStudio.GUI.widgets
     {
         public record struct SelectionChangedArgs(IEnumerable<IViewportSelectable> SelectedObjects, IViewportSelectable? ActiveObject);
         public event Action<SelectionChangedArgs>? SelectionChanged;
-        public Action? DeleteSelectedObjectsHandler { private get; set; }
         public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             GLTaskScheduler glScheduler)
         {
@@ -135,11 +134,20 @@ namespace ToyStudio.GUI.widgets
             _topLeft = ImGui.GetItemRectMin();
             _size = ImGui.GetItemRectSize();
 
+            _currentModifiers = NoModifiers;
+
+            if (ImGui.GetIO().KeyShift)
+                _currentModifiers |= Shift;
+            if (ImGui.GetIO().KeyAlt)
+                _currentModifiers |= Alt;
+            if (OperatingSystem.IsMacOS() ? ImGui.GetIO().KeySuper : ImGui.GetIO().KeyCtrl)
+                _currentModifiers |= CtrlCmd;
+
             bool isViewportActive = ImGui.IsItemActive();
             bool isViewportHovered = ImGui.IsItemHovered();
             bool isViewportLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
                 ImGui.GetMouseDragDelta().Length() < 5;
-            bool isMultiSelect = ImGui.GetIO().KeyShift || ImGui.GetIO().KeyCtrl;
+            bool isMultiSelect = (_currentModifiers & (Shift | CtrlCmd)) > 0;
 
             //draw mouse coordinates
             {
@@ -191,23 +199,18 @@ namespace ToyStudio.GUI.widgets
 
             HandleTransformAction(isViewportActive);
 
-            KeyboardModifiers modifiers = KeyboardModifiers.None;
-
-            if (ImGui.GetIO().KeyShift)
-                modifiers |= KeyboardModifiers.Shift;
-            if (ImGui.GetIO().KeyAlt)
-                modifiers |= KeyboardModifiers.Alt;
-            if (OperatingSystem.IsMacOS() ? ImGui.GetIO().KeySuper : ImGui.GetIO().KeyCtrl)
-                modifiers |= KeyboardModifiers.CtrlCmd;
-
             if (hasFocus && isViewportHovered)
             {
-                if (ImGui.IsKeyPressed(ImGuiKey.Delete))
-                    DeleteSelectedObjectsHandler?.Invoke();
-                if (modifiers == KeyboardModifiers.CtrlCmd && ImGui.IsKeyPressed(ImGuiKey.D))
-                {
+                if (IsHotkeyPressed(CtrlCmd, ImGuiKey.A))
+                    _editContext.SelectAll();
+                if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.A))
+                    _editContext.DeselectAll();
+                if (IsHotkeyPressed(NoModifiers, ImGuiKey.Delete))
+                    _editContext.DeleteSelectedObjects();
+                if (IsHotkeyPressed(CtrlCmd, ImGuiKey.D))
+                    _editContext.DuplicateSelectedObjects();
 
-                }
+            }
 
             if (_lastSelectionVersion != _editContext.SelectionVersion)
             {
@@ -228,7 +231,7 @@ namespace ToyStudio.GUI.widgets
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
         {
             bool isPanGesture = ImGui.IsMouseDragging(ImGuiMouseButton.Middle) ||
-                (ImGui.IsMouseDragging(ImGuiMouseButton.Left) && ImGui.GetIO().KeyShift /*&& !mEditContext.IsAnySelected<CourseActor>()*/);
+                (ImGui.IsMouseDragging(ImGuiMouseButton.Left) && _currentModifiers == Shift);
 
             if (isViewportActive && isPanGesture)
             {
@@ -247,22 +250,22 @@ namespace ToyStudio.GUI.widgets
                 var zoomedCameraSpeed = MathF.Floor(zoomSpeedFactor) * baseCameraSpeed;
                 var dt = (float)deltaSeconds;
 
-                if (ImGui.IsKeyDown(ImGuiKey.LeftArrow) || ImGui.IsKeyDown(ImGuiKey.A))
+                if (IsKeyDown(ImGuiKey.LeftArrow) || IsKeyDown(ImGuiKey.A))
                 {
                     _camera.Target.X -= zoomedCameraSpeed * dt;
                 }
 
-                if (ImGui.IsKeyDown(ImGuiKey.RightArrow) || ImGui.IsKeyDown(ImGuiKey.D))
+                if (IsKeyDown(ImGuiKey.RightArrow) || IsKeyDown(ImGuiKey.D))
                 {
                     _camera.Target.X += zoomedCameraSpeed * dt;
                 }
 
-                if (ImGui.IsKeyDown(ImGuiKey.UpArrow) || ImGui.IsKeyDown(ImGuiKey.W))
+                if (IsKeyDown(ImGuiKey.UpArrow) || IsKeyDown(ImGuiKey.W))
                 {
                     _camera.Target.Y += zoomedCameraSpeed * dt;
                 }
 
-                if (ImGui.IsKeyDown(ImGuiKey.DownArrow) || ImGui.IsKeyDown(ImGuiKey.S))
+                if (IsKeyDown(ImGuiKey.DownArrow) || IsKeyDown(ImGuiKey.S))
                 {
                     _camera.Target.Y -= zoomedCameraSpeed * dt;
                 }
@@ -347,6 +350,36 @@ namespace ToyStudio.GUI.widgets
         private Vector2 _topLeft;
         private Vector2 _size;
         private ulong _lastSelectionVersion = 0;
+        private KeyboardModifiers _currentModifiers;
+
+        private const KeyboardModifiers NoModifiers = KeyboardModifiers.None;
+        private const KeyboardModifiers Shift = KeyboardModifiers.Shift;
+        private const KeyboardModifiers CtrlCmd = KeyboardModifiers.CtrlCmd;
+        private const KeyboardModifiers Alt = KeyboardModifiers.Alt;
+        private Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
+
+        private bool IsHotkeyPressed(KeyboardModifiers modifiers, ImGuiKey key) =>
+            _currentModifiers == modifiers && ImGui.IsKeyPressed(key);
+
+        private bool IsKeyDown(ImGuiKey key, KeyboardModifiers allowedModifiers = NoModifiers)
+        {
+            if (!ImGui.IsKeyDown(key))
+            {
+                _keyDownModifiers.Remove(key);
+                return false;
+            }
+
+            if (_keyDownModifiers.TryGetValue(key, out var modifiers))
+                return (modifiers & ~allowedModifiers) == 0;
+
+            if (ImGui.IsKeyPressed(key))
+            {
+                _keyDownModifiers[key] = _currentModifiers;
+                return (_currentModifiers & ~allowedModifiers) == 0;
+            }
+
+            return false; //if the key press wasn't registered on the widget it doesn't count
+        }
 
         private SubLevelViewport(Scene<SubLevelSceneContext> subLevelScene, SubLevelEditContext editContext, GLTaskScheduler glScheduler)
         {
