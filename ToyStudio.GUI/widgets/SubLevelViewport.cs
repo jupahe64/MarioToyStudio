@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.gl;
+using ToyStudio.GUI.level_editing;
 using ToyStudio.GUI.scene;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.transform;
@@ -60,7 +61,7 @@ namespace ToyStudio.GUI.widgets
             //dummy remove asap
             await Task.Delay(20); 
 
-            return new SubLevelViewport(subLevelScene, glScheduler);
+            return new SubLevelViewport(subLevelScene, subLevelScene.Context, glScheduler);
         }
 
         public IViewportDrawable? HoveredObject { get; private set; }
@@ -102,15 +103,17 @@ namespace ToyStudio.GUI.widgets
                 ImGui.EndChild();
                 return;
             }
-            ImGui.BeginDisabled();
-            ImGui.Button("Select All");
+            if (ImGui.Button("Select All"))
+                 _editContext.SelectAll();
             ImGui.SameLine();
-            ImGui.Button("Deselect");
+            if (ImGui.Button("Deselect"))
+                _editContext.DeselectAll();
             ImGui.SameLine();
-            ImGui.Button("Delete");
+            if (ImGui.Button("Delete"))
+                _editContext.DeleteSelectedObjects();
             ImGui.SameLine();
-            ImGui.Button("Duplicate");
-            ImGui.EndDisabled();
+            if (ImGui.Button("Duplicate"))
+                _editContext.DuplicateSelectedObjects();
 
             DrawViewport(gl, deltaSeconds, hasFocus);
 
@@ -182,7 +185,7 @@ namespace ToyStudio.GUI.widgets
                 }
                 else if (!isMultiSelect)
                 {
-                    _subLevelScene.Context.DeselectAll();
+                    _editContext.DeselectAll();
                 }
             }
 
@@ -206,11 +209,9 @@ namespace ToyStudio.GUI.widgets
 
                 }
 
-            }
-
-            if (_lastSelectionVersion != _subLevelScene.Context.SelectionVersion)
+            if (_lastSelectionVersion != _editContext.SelectionVersion)
             {
-                _lastSelectionVersion = _subLevelScene.Context.SelectionVersion;
+                _lastSelectionVersion = _editContext.SelectionVersion;
                 if (SelectionChanged is not null)
                 {
                     var args = new SelectionChangedArgs(
@@ -339,6 +340,7 @@ namespace ToyStudio.GUI.widgets
 
 
         private readonly Scene<SubLevelSceneContext> _subLevelScene;
+        private readonly SubLevelEditContext _editContext;
         private readonly GLTaskScheduler _glScheduler;
         private readonly Camera _camera;
         private ITransformAction? _activeTransformAction = null;
@@ -346,9 +348,10 @@ namespace ToyStudio.GUI.widgets
         private Vector2 _size;
         private ulong _lastSelectionVersion = 0;
 
-        private SubLevelViewport(Scene<SubLevelSceneContext> subLevelScene, GLTaskScheduler glScheduler)
+        private SubLevelViewport(Scene<SubLevelSceneContext> subLevelScene, SubLevelEditContext editContext, GLTaskScheduler glScheduler)
         {
             _subLevelScene = subLevelScene;
+            _editContext = editContext;
             _glScheduler = glScheduler;
             _camera = new Camera { Distance = 10 };
         }

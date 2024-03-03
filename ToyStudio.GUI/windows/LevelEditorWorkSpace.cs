@@ -31,14 +31,15 @@ namespace ToyStudio.GUI.windows
             foreach (var subLevel in level.SubLevels)
             {
                 var scene = new Scene<SubLevelSceneContext>(
-                    new SubLevelSceneContext(actorPackCache),
+                    new SubLevelSceneContext(subLevel, popupModalHost, actorPackCache),
                     new SubLevelSceneRoot(subLevel)
                 );
+
+                scene.Context.Update += scene.Invalidate;
 
                 ws._scenes[subLevel] = scene;
 
                 var viewport = await SubLevelViewport.Create(scene, glScheduler);
-                viewport.DeleteSelectedObjectsHandler = () => ws.DeleteSelectedObjects(scene, subLevel);
                 viewport.SelectionChanged += args =>
                 {
                     if (args.ActiveObject is IInspectable active)
@@ -111,16 +112,6 @@ namespace ToyStudio.GUI.windows
             _inspector.Draw();
 
             ImGui.End();
-        }
-
-        private void DeleteSelectedObjects(Scene<SubLevelSceneContext> scene, SubLevel subLevel)
-        {
-            for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
-            {
-                if (scene.Context.IsSelected(subLevel.Actors[i]))
-                    subLevel.Actors.RemoveAt(i);
-            }
-            scene.Update(); //for now
         }
 
 

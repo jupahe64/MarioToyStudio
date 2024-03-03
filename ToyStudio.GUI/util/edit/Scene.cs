@@ -33,7 +33,7 @@ namespace ToyStudio.GUI.util.edit
             Context = sceneContext;
             _updateContext = new UpdateContext(this);
             _sceneRoot = sceneRoot;
-            Update();
+            Invalidate();
         }
 
         bool _isUpdating = false;
@@ -41,7 +41,7 @@ namespace ToyStudio.GUI.util.edit
 
         bool _needsUpdate = false;
 
-        public void Update()
+        public void Invalidate()
         {
             if (_isUpdating) return;
 
@@ -108,7 +108,7 @@ namespace ToyStudio.GUI.util.edit
 
             _updateBlockers--;
             if (_needsUpdate)
-                Update();
+                Invalidate();
         }
 
         /// <summary>

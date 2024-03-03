@@ -19,6 +19,17 @@ namespace ToyStudio.Core.level
         public Vector3 Rotate;
         public Vector3 Translate;
 
+        public LevelActor CreateDuplicate(ulong newHash) => new()
+        {
+            Dynamic = new PropertyDict(Dynamic),
+            Gyaml = Gyaml,
+            Hash = newHash,
+            Name = Name,
+            Phive = Phive,
+            Rotate = Rotate,
+            Translate = Translate
+        };
+
         protected override void Deserialize(Deserializer d)
         {
             d.SetPropertyDict(ref Dynamic!, "Dynamic");

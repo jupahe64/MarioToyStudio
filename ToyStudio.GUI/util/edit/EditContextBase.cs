@@ -111,10 +111,10 @@ namespace ToyStudio.GUI.util.edit
             Update?.Invoke();
         }
 
-        public void Select(ICollection<object> objects)
+        public void SelectMany<T>(ICollection<T> objects)
         {
             int countBefore = _selectedObjects.Count;
-            _selectedObjects.UnionWith(objects);
+            _selectedObjects.UnionWith(objects.OfType<object>());
 
             if (_selectedObjects.Count != countBefore)
                 SelectionChanged();
