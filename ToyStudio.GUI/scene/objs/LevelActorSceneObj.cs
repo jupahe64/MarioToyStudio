@@ -28,7 +28,8 @@ namespace ToyStudio.GUI.scene.objs
             _actor = actor;
             _sceneContext = sceneContext;
             _actorPack = sceneContext.LoadActorPack(actor.Gyaml!);
-            _actorPack.TryGetBlackboardProperties(out _blackboardProperties);
+            if (_actorPack.TryGetBlackboardProperties(out var blackboardProperties))
+                _blackboardProperties = blackboardProperties;
         }
 
         public Vector3 Position => _actor.Translate;
@@ -148,7 +149,7 @@ namespace ToyStudio.GUI.scene.objs
             {
                 _ctx.RegisterProperty("Dynamic", () => _actor.Dynamic, v => _actor.Dynamic = v);
 
-                if (_blackboardProperties is not null)
+                if (_blackboardProperties.Count > 0)
                 {
                     _ctx.RegisterProperty("BlackboardTuple", () => 
                         new BlackboardPropertyTuple(_blackboardProperties, _actor.Dynamic), 
@@ -156,7 +157,6 @@ namespace ToyStudio.GUI.scene.objs
                             _actor.Dynamic = v.PropertyDict;
                         });
                 }
-                
             },
             drawFunc: _ctx =>
             {
@@ -231,7 +231,8 @@ namespace ToyStudio.GUI.scene.objs
         private readonly LevelActor _actor;
         private readonly SubLevelSceneContext _sceneContext;
         private readonly ActorPack _actorPack;
-        private readonly ImmutableSortedDictionary<string, (object initialValue, string tableName)>? _blackboardProperties = null;
+        private readonly ImmutableSortedDictionary<string, (object initialValue, string tableName)> _blackboardProperties = 
+            ImmutableSortedDictionary<string, (object initialValue, string tableName)>.Empty;
 
         private record struct BlackboardPropertyTuple(
             ImmutableSortedDictionary<string, (object initialValue, string tableName)> BlackboardProperties,

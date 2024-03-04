@@ -220,14 +220,17 @@ namespace ToyStudio.GUI.widgets
 
             public void Finalize(int inspectableCount, bool isSharedSection)
             {
-                foreach (var list in _sharedProperties.Values)
+                foreach (var key in _sharedProperties.Keys.ToArray())
                 {
-                    if (!isSharedSection || list.Count < inspectableCount)
+                    var list = _sharedProperties[key];
+                    if (!isSharedSection)
                     {
                         var first = list[0];
                         list.Clear();
                         list.Add(first);
                     }
+                    else if (list.Count < inspectableCount)
+                        _sharedProperties.Remove(key);
                 }
 
                 IsShared = isSharedSection;
