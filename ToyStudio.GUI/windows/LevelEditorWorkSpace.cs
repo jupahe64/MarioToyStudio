@@ -2,13 +2,17 @@
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core;
 using ToyStudio.Core.level;
+using ToyStudio.Core.util.capture;
+using ToyStudio.GUI.level_editing;
 using ToyStudio.GUI.scene;
 using ToyStudio.GUI.util.edit;
+using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.util.gl;
 using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
@@ -42,10 +46,7 @@ namespace ToyStudio.GUI.windows
                 var viewport = await SubLevelViewport.Create(scene, glScheduler);
                 viewport.SelectionChanged += args =>
                 {
-                    if (args.ActiveObject is IInspectable active)
-                        ws._inspector.Setup(args.SelectedObjects.OfType<IInspectable>(), active);
-                    else
-                        ws._inspector.SetEmpty();
+                    ws.SetupInspector(scene.Context, args.SelectedObjects, args.ActiveObject);
                 };
 
                 ws._viewports[subLevel] = viewport;
@@ -91,6 +92,12 @@ namespace ToyStudio.GUI.windows
                 {
                     if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
                     {
+                        if (_activeSubLevel != subLevel)
+                        {
+                            var (selectedObjs, active) = viewport.GetSelection();
+                            SetupInspector(_scenes[subLevel].Context, selectedObjs, active);
+
+                        }
                         _activeSubLevel = subLevel;
                     }
 
@@ -114,6 +121,45 @@ namespace ToyStudio.GUI.windows
             ImGui.End();
         }
 
+        private void Inspector_PropertyChanged(List<(ICaptureable source, IStaticPropertyCapture capture)> changedCaptures)
+        {
+            Debug.Assert(_inspectorEditContext == _scenes[_activeSubLevel].Context);
+            var changedNames = new HashSet<string>();
+            var sources = new HashSet<ICaptureable>();
+
+            foreach (var (source, capture) in changedCaptures)
+            {
+                sources.Add(source);
+                capture.CollectChanges((changed, name) =>
+                {
+                    if (changed)
+                        changedNames.Add(name);
+                });
+            }
+
+            var message = 
+                $"Changed {string.Join(", ", changedNames.Order())} " +
+                $"for {sources.Count} objects";
+
+            Debug.WriteLine(message);
+
+            _scenes[_activeSubLevel].Context.Commit(
+                new RevertablePropertyChange(changedCaptures.Select(x => x.capture).ToArray(),
+                message));
+        }
+
+        private void SetupInspector(SubLevelEditContext editContext, 
+            IEnumerable<IViewportSelectable> selectedObjects, IViewportSelectable? activeObject)
+        {
+            _inspectorEditContext = editContext;
+
+            if (activeObject is IInspectable active)
+                _inspector.Setup(selectedObjects.OfType<IInspectable>(), active);
+            else
+                _inspector.SetEmpty();
+
+        }
+
 
         private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
@@ -121,6 +167,7 @@ namespace ToyStudio.GUI.windows
         private GLTaskScheduler _glScheduler;
         private IPopupModalHost _popupModalHost;
         private ObjectInspector _inspector = new();
+        private SubLevelEditContext? _inspectorEditContext;
 
         private LevelEditorWorkSpace(Level level, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)
         {
@@ -129,6 +176,8 @@ namespace ToyStudio.GUI.windows
             _popupModalHost = popupModalHost;
 
             _activeSubLevel = level.SubLevels[0];
+
+            _inspector.PropertyChanged += Inspector_PropertyChanged;
         }
     }
 }

@@ -1,16 +1,18 @@
 ﻿using ImGuiNET;
 using System.Collections;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Windows.Markup;
 using System.Xml.Linq;
+using ToyStudio.Core.util.capture;
 using ToyStudio.GUI.util;
 
 namespace ToyStudio.GUI.widgets
 {
     internal interface IInspectable
     {
-        void SetupInspector(IInspectorSetupContext ctx);
+        ICaptureable SetupInspector(IInspectorSetupContext ctx);
     }
 
     internal interface IInspectorSetupContext
@@ -36,11 +38,26 @@ namespace ToyStudio.GUI.widgets
 
     internal class ObjectInspector
     {
+        public delegate void PropertyChangedEvent(List<(ICaptureable source, IStaticPropertyCapture captures)> changedCaptures);
+        public event PropertyChangedEvent? PropertyChanged;
+
         public void Draw()
         {
             if (_sections.Count == 0)
                 ImGui.Text("Empty");
 
+            //ignore all changes that happened after last call by checking the checkpoints (see end of method)
+            //and recapturing if needed
+            foreach (var (capture, checkpoint, _) in _captures)
+            {
+                bool anyChanges = false;
+                checkpoint.CollectChanges((c, _) => anyChanges |= c);
+
+                if (anyChanges)
+                    capture.Recapture();
+            }
+
+            //draw sections (this includes all widgets for editing)
             foreach (var section in _sections)
             {
                 string header = section.Name;
@@ -52,19 +69,62 @@ namespace ToyStudio.GUI.widgets
 
                 section.Draw();
             }
+
+            if (!ImGui.IsAnyItemActive()) //we don't want to register changes while editing
+            {
+                bool anyChanges = false;
+                foreach (var (capture, checkpoint, _) in _captures)
+                {
+                    capture.CollectChanges((hasChanged, name) 
+                        => anyChanges |= hasChanged);
+                }
+
+                if (anyChanges)
+                    TriggerEventAndRecapture();
+            }
+
+            //create new checkpoints
+            foreach (var (capture, checkpoint, _) in _captures)
+                checkpoint.Recapture();
+        }
+
+        private void TriggerEventAndRecapture()
+        {
+            if (PropertyChanged != null) //only do work if anyone cares
+            {
+                var changedCaptures = new List<(ICaptureable source, IStaticPropertyCapture captures)>();
+
+                foreach (var (capture, _, source) in _captures)
+                {
+                    bool anyChanges = false;
+                    capture.CollectChanges((hasChanged, name)
+                        => anyChanges |= hasChanged);
+
+                    if (anyChanges)
+                        changedCaptures.Add((source, capture));
+                }
+
+                PropertyChanged.Invoke(changedCaptures);
+            }
+
+            HashSet<ICaptureable> sources = _captures.Select(x => x.sourceObj).ToHashSet();
+            _captures.Clear();
+            foreach (var capturable in sources)
+                CollectCapture(capturable);
         }
 
         public void SetEmpty()
         {
+            _captures.Clear();
             _sections.Clear();
+            _sectionUsageCounts.Clear();
         }
 
         public void Setup(IEnumerable<IInspectable> inspectables, IInspectable mainInspectable)
         {
-            _sections.Clear();
-            _sectionUsageCounts.Clear();
+            SetEmpty();
             _isSectionsLocked = false;
-            mainInspectable.SetupInspector(new SetupContext(this));
+            CollectCapture(mainInspectable.SetupInspector(new SetupContext(this)));
             LockSections();
 
             int inspectableCount = 1;
@@ -73,7 +133,7 @@ namespace ToyStudio.GUI.widgets
                 if (inspectable == mainInspectable)
                     continue;
 
-                inspectable.SetupInspector(new SetupContext(this));
+                CollectCapture(inspectable.SetupInspector(new SetupContext(this)));
                 inspectableCount++;
             }
 
@@ -111,9 +171,24 @@ namespace ToyStudio.GUI.widgets
             }
         }
 
+        private void CollectCapture(ICaptureable captureable)
+        {
+            var iter1 = captureable.CaptureProperties().GetEnumerator();
+            var iter2 = captureable.CaptureProperties().GetEnumerator();
+
+            while (iter1.MoveNext() && iter2.MoveNext()) 
+            { 
+                var capture = iter1.Current;
+                var checkpoint = iter2.Current;
+                Debug.Assert(capture != checkpoint);
+                _captures.Add((capture, checkpoint, captureable));
+            }
+        }
+
         private readonly Dictionary<string, int> _sectionUsageCounts = [];
 
         private readonly List<Section> _sections = [];
+        private readonly List<(IPropertyCapture capture, IPropertyCapture checkpoint, ICaptureable sourceObj)> _captures = [];
 
         /// <summary>
         /// Prevents further sections from being added

@@ -12,6 +12,7 @@ using ToyStudio.Core;
 using ToyStudio.Core.component;
 using ToyStudio.Core.level;
 using ToyStudio.Core.util;
+using ToyStudio.Core.util.capture;
 using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.transform;
@@ -112,7 +113,7 @@ namespace ToyStudio.GUI.scene.objs
 
         }
 
-        public void SetupInspector(IInspectorSetupContext ctx)
+        public ICaptureable SetupInspector(IInspectorSetupContext ctx)
         {
             ctx.GeneralSection(
             setupFunc: _ctx =>
@@ -151,8 +152,8 @@ namespace ToyStudio.GUI.scene.objs
 
                 if (_blackboardProperties.Count > 0)
                 {
-                    _ctx.RegisterProperty("BlackboardTuple", () => 
-                        new BlackboardPropertyTuple(_blackboardProperties, _actor.Dynamic), 
+                    _ctx.RegisterProperty("BlackboardTuple", () =>
+                        new BlackboardPropertyTuple(_blackboardProperties, _actor.Dynamic),
                         v => {
                             _actor.Dynamic = v.PropertyDict;
                         });
@@ -226,6 +227,8 @@ namespace ToyStudio.GUI.scene.objs
                 if (ImGui.GetCursorPosY() == cursorYBefore)
                     ImGui.TextDisabled("Empty");
             });
+
+            return _actor;
         }
 
         private readonly LevelActor _actor;

@@ -95,6 +95,12 @@ namespace ToyStudio.GUI.widgets
             return new(world.X, world.Y, world.Z);
         }
 
+        public (IEnumerable<IViewportSelectable> selectables, IViewportSelectable? active) GetSelection()
+        {
+            var args = GenerateSelectionChangedArgs();
+            return (args.SelectedObjects, args.ActiveObject);
+        }
+
         public void Draw(Vector2 size, GL gl, double deltaSeconds, bool hasFocus)
         {
             if (!ImGui.BeginChild("LevelViewport", size))
@@ -223,15 +229,20 @@ namespace ToyStudio.GUI.widgets
                 _lastSelectionVersion = _editContext.SelectionVersion;
                 if (SelectionChanged is not null)
                 {
-                    var args = new SelectionChangedArgs(
-                        _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected()),
-                        _subLevelScene.GetObjects<IViewportSelectable>().FirstOrDefault(x => x.IsActive())
-                    );
+                    SelectionChangedArgs args = GenerateSelectionChangedArgs();
                     SelectionChanged.Invoke(args);
                 }
             }
 
             ImGui.PopClipRect();
+        }
+
+        private SelectionChangedArgs GenerateSelectionChangedArgs()
+        {
+            return new SelectionChangedArgs(
+                _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected()),
+                _subLevelScene.GetObjects<IViewportSelectable>().FirstOrDefault(x => x.IsActive())
+            );
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)

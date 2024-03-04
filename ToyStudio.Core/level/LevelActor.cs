@@ -1,15 +1,18 @@
-﻿using System;
+﻿using BymlLibrary;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using ToyStudio.Core.util;
 using ToyStudio.Core.util.byml_serialization;
+using ToyStudio.Core.util.capture;
 
 namespace ToyStudio.Core.level
 {
-    public class LevelActor : BymlObject<LevelActor>
+    public class LevelActor : BymlObject<LevelActor>, ICaptureable
     {
         public PropertyDict Dynamic = PropertyDict.Empty;
         public string? Gyaml;
@@ -63,6 +66,63 @@ namespace ToyStudio.Core.level
             protected override void Serialize(Serializer s)
             {
                 s.SetUInt64(ref ID!, "ID");
+            }
+        }
+
+        IEnumerable<IPropertyCapture> ICaptureable.CaptureProperties()
+        {
+            yield return new FieldCapture(this);
+            yield return new PropertyDictCapture(Dynamic);
+        }
+
+        private class FieldCapture : IPropertyCapture
+        {
+            private readonly LevelActor _obj;
+
+            public FieldCapture(LevelActor obj)
+            {
+                _obj = obj;
+                Recapture();
+            }
+
+            IStaticPropertyCapture IStaticPropertyCapture.Recapture() 
+                => new FieldCapture(_obj);
+
+            private PropertyDict Dynamic = default!;
+            private string? Gyaml = default!;
+            private string? Name = default!;
+            private PhiveParameter? Phive = default!;
+            private Vector3 Rotate = default!;
+            private Vector3 Translate = default!;
+
+            public void Recapture()
+            {
+                Dynamic = _obj.Dynamic;
+                Gyaml = _obj.Gyaml;
+                Name = _obj.Name;
+                Phive = _obj.Phive;
+                Rotate = _obj.Rotate;
+                Translate = _obj.Translate;
+            }
+
+            public void CollectChanges(ChangeCollector collect)
+            {
+                collect(_obj.Dynamic != Dynamic, "Dynamic");
+                collect(_obj.Gyaml != Gyaml, "Gyaml");
+                collect(_obj.Name != Name, "Name");
+                collect(_obj.Phive != Phive, "Phive");
+                collect(_obj.Rotate != Rotate, "Rotate");
+                collect(_obj.Translate!= Translate, "Translate");
+            }
+
+            public void Restore()
+            {
+                _obj.Dynamic = Dynamic;
+                _obj.Gyaml = Gyaml;
+                _obj.Name = Name;
+                _obj.Phive = Phive;
+                _obj.Rotate = Rotate;
+                _obj.Translate = Translate;
             }
         }
     }
