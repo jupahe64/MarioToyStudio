@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToyStudio.Core.common.byml_serialization
+namespace ToyStudio.Core.util.byml_serialization
 {
     public abstract class BymlObject<T> : IBymlObject<T>
          where T : BymlObject<T>, new()
@@ -75,7 +75,7 @@ namespace ToyStudio.Core.common.byml_serialization
         public static string ParseString(Byml byml) => byml.GetString();
         public static bool ParseBool(Byml byml) => byml.GetBool();
 
-        
+
 
         public class Deserializer(BymlMap map)
         {
@@ -114,14 +114,14 @@ namespace ToyStudio.Core.common.byml_serialization
                 if (!map!.TryGetValue(name, out var node))
                     return;
 
-                value = ParseArray<TItem>(node, mapper);
+                value = ParseArray(node, mapper);
             }
             public void SetMap<TItem>(ref Dictionary<string, TItem> value, string name, Func<Byml, TItem> mapper)
             {
                 if (!map!.TryGetValue(name, out var node))
                     return;
 
-                value = ParseMap<TItem>(node, mapper);
+                value = ParseMap(node, mapper);
             }
             public void SetInt32(ref int value, string name)
             {
@@ -264,11 +264,11 @@ namespace ToyStudio.Core.common.byml_serialization
             */
             public void SetArray<TItem>(ref List<TItem> value, string name, Func<TItem, Byml> mapper)
             {
-                map[name] = SerializeArray<TItem>(value, mapper);
+                map[name] = SerializeArray(value, mapper);
             }
             public void SetMap<TItem>(ref Dictionary<string, TItem> value, string name, Func<TItem, Byml> mapper)
             {
-                map[name] = SerializeMap<TItem>(value, mapper);
+                map[name] = SerializeMap(value, mapper);
             }
             public void SetInt32(ref int value, string name)
             {

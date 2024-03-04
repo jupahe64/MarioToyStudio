@@ -8,8 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ToyStudio.Core.common;
-using ToyStudio.Core.common.byml_serialization;
-using ToyStudio.Core.common.util;
+using ToyStudio.Core.util;
+using ToyStudio.Core.util.byml_serialization;
 using static ToyStudio.Core.ActorPack;
 
 namespace ToyStudio.Core

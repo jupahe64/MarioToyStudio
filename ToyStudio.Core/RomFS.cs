@@ -3,7 +3,7 @@ using SarcLibrary;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using ToyStudio.Core.common.util;
+using ToyStudio.Core.util;
 using ZstdSharp;
 
 namespace ToyStudio.Core

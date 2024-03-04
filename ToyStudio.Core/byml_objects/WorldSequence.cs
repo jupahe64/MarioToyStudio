@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ToyStudio.Core.common.byml_serialization;
+using ToyStudio.Core.util.byml_serialization;
 
 namespace ToyStudio.Core.byml_objects
 {

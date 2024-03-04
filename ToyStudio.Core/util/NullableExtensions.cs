@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToyStudio.Core.common.util
+namespace ToyStudio.Core.util
 {
     public static class NullableExtensions
     {

@@ -7,10 +7,11 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using ToyStudio.Core.common.byml_serialization;
+using ToyStudio.Core.common;
+using ToyStudio.Core.util.byml_serialization;
 using YamlDotNet.Core.Tokens;
 
-namespace ToyStudio.Core.common.util
+namespace ToyStudio.Core.util
 {
     /// <summary>
     /// Parse, Serialize and Set functions specifically for module system games
@@ -202,7 +203,7 @@ namespace ToyStudio.Core.common.util
         public static void SetFileRef<T, TValue>(this BymlObject<T>.Deserializer d,
             ref TValue value, string name)
             where T : BymlObject<T>, new()
-            where TValue: IFileRef<TValue>
+            where TValue : IFileRef<TValue>
         {
             if (!d.Map!.TryGetValue(name, out var node))
                 return;
