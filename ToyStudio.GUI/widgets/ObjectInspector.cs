@@ -18,9 +18,11 @@ namespace ToyStudio.GUI.widgets
     internal interface IInspectorSetupContext
     {
         void GeneralSection(Action<ISectionSetupContext> setupFunc,
-            Action<ISectionDrawContext> drawFunc);
+            Action<ISectionDrawContext>? drawNonSharedUI = null,
+            Action<ISectionDrawContext>? drawSharedUI = null);
         void AddSection(string name, Action<ISectionSetupContext> setupFunc,
-            Action<ISectionDrawContext> drawFunc);
+            Action<ISectionDrawContext>? drawNonSharedUI = null, 
+            Action<ISectionDrawContext>? drawSharedUI = null);
     }
 
     internal interface ISectionSetupContext
@@ -61,13 +63,31 @@ namespace ToyStudio.GUI.widgets
             foreach (var section in _sections)
             {
                 string header = section.Name;
-                if (section.IsShared)
-                    header += " (Shared)";
+                int usageCount = _sectionUsageCounts[section.Name];
+                string sharedText = $"Shared ({usageCount} objects)";
+
+                bool isShared = section.IsShared && usageCount > 1;
+
+                if (isShared && !section.HasNonSharedContent)
+                    header += $" [{sharedText}]";
 
                 if (!ImGui.CollapsingHeader(header, ImGuiTreeNodeFlags.DefaultOpen))
                     continue;
 
-                section.Draw();
+                ImGui.Spacing();
+                if (section.HasNonSharedContent)
+                    section.DrawNonShared();
+
+                if (section.HasSharedContent)
+                {
+                    if (isShared && section.HasNonSharedContent)
+                        ImGui.SeparatorText(sharedText);
+                    section.DrawShared();
+                }
+
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Dummy(new System.Numerics.Vector2(0, ImGui.GetStyle().ItemSpacing.Y * 2));
             }
 
             if (!ImGui.IsAnyItemActive()) //we don't want to register changes while editing
@@ -144,7 +164,7 @@ namespace ToyStudio.GUI.widgets
             //ensure we always have a General section in the first slot
             if (index == -1)
             {
-                _sections.Insert(0, new Section(GeneralSectionName, Section.EmptyDrawFunc));
+                _sections.Insert(0, new Section(GeneralSectionName, Section.EmptyDrawFunc, null));
             }
             else if (index != 0)
             {
@@ -201,23 +221,32 @@ namespace ToyStudio.GUI.widgets
 
         private class SetupContext(ObjectInspector inspector) : IInspectorSetupContext
         {
-            public void GeneralSection(Action<ISectionSetupContext> setupFunc, Action<ISectionDrawContext> drawFunc)
+            public void GeneralSection(Action<ISectionSetupContext> setupFunc,
+                Action<ISectionDrawContext>? drawNonSharedUI,
+                Action<ISectionDrawContext>? drawSharedUI)
             {
-                AddSectionInternal(GeneralSectionName, setupFunc, drawFunc);
+                AddSectionInternal(GeneralSectionName, setupFunc, drawNonSharedUI, drawSharedUI);
             }
 
-            public void AddSection(string name, Action<ISectionSetupContext> setupFunc, Action<ISectionDrawContext> drawFunc)
+            public void AddSection(string name, Action<ISectionSetupContext> setupFunc,
+                Action<ISectionDrawContext>? drawNonSharedUI,
+                Action<ISectionDrawContext>? drawSharedUI)
             {
                 if (name == GeneralSectionName)
                     throw new ArgumentException(
                         $"{GeneralSectionName} is a reserved name and cannot be used for added Sections");
 
-                AddSectionInternal(name, setupFunc, drawFunc);
+                AddSectionInternal(name, setupFunc, drawNonSharedUI, drawSharedUI);
             }
 
             private void AddSectionInternal(string name,
-                Action<ISectionSetupContext> setupFunc, Action<ISectionDrawContext> drawFunc)
+                Action<ISectionSetupContext> setupFunc,
+                Action<ISectionDrawContext>? drawNonSharedUI,
+                Action<ISectionDrawContext>? drawSharedUI)
             {
+                if (drawNonSharedUI == null && drawSharedUI == null)
+                    throw new ArgumentException($"{nameof(drawNonSharedUI)} and {nameof(drawNonSharedUI)} can't both be null");
+
                 if (_addedSections.Contains(name))
                     throw new ArgumentException($"{name} was already defined for this SetupContext");
 
@@ -225,7 +254,7 @@ namespace ToyStudio.GUI.widgets
                     return;
 
                 if (!inspector._isSectionsLocked)
-                    inspector._sections.Add(new Section(name, drawFunc));
+                    inspector._sections.Add(new Section(name, drawNonSharedUI, drawSharedUI));
 
                 //this is very legal code don't @me
                 ref int count = ref CollectionsMarshal.GetValueRefOrAddDefault(inspector._sectionUsageCounts, name, out _);
@@ -241,11 +270,18 @@ namespace ToyStudio.GUI.widgets
         }
 
 
-        private class Section(string name, Action<ISectionDrawContext> drawFunc) : ISectionSetupContext, ISectionDrawContext
+        private class Section(string name,
+            Action<ISectionDrawContext>? drawNonSharedUI,
+            Action<ISectionDrawContext>? drawSharedUI)
+            : ISectionSetupContext, ISectionDrawContext
         {
             public bool IsShared { get; private set; } = false;
 
-            public void Draw() => drawFunc(this);
+            public bool HasNonSharedContent => drawNonSharedUI != null;
+            public void DrawNonShared() => drawNonSharedUI!(this);
+
+            public bool HasSharedContent => drawSharedUI != null;
+            public void DrawShared() => drawSharedUI!(this);
 
             public static Action<ISectionDrawContext> EmptyDrawFunc => _ => { };
 

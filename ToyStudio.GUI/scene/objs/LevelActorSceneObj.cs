@@ -122,7 +122,7 @@ namespace ToyStudio.GUI.scene.objs
                 _ctx.RegisterProperty("Translate", () => _actor.Translate, v => _actor.Translate = v);
                 _ctx.RegisterProperty("Rotate", () => _actor.Rotate, v => _actor.Rotate = v);
             },
-            drawFunc: _ctx =>
+            drawNonSharedUI: _ctx =>
             {
                 ImGui.InputText("Name", ref _actor.Name, 100);
 
@@ -131,9 +131,9 @@ namespace ToyStudio.GUI.scene.objs
                 ImGui.InputText("Hash", ref text, (uint)text.Length, 
                     ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
 
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
+            },
+            drawSharedUI: _ctx =>
+            {
 
                 if (_ctx.TryGetSharedProperty<string?>("Gyaml", out var gyaml))
                     MultiValueInputs.String("Gyaml", gyaml.Value);
@@ -159,41 +159,56 @@ namespace ToyStudio.GUI.scene.objs
                         });
                 }
             },
-            drawFunc: _ctx =>
+            drawSharedUI: _ctx =>
             {
                 var cursorYBefore = ImGui.GetCursorPosY();
-                if (_ctx.TryGetSharedProperty<PropertyDict>("Dynamic", out var dynamic))
+                if (_ctx.TryGetSharedProperty<PropertyDict>("Dynamic", out var dynamicNullable))
                 {
+                    var dynamic = dynamicNullable.Value;
+                    var cursorYBeforeProps = ImGui.GetCursorPosY();
                     foreach (var key in _actor.Dynamic.Keys)
                     {
-                        if (PropertyDictUtil.TryGetSharedPropertyFor<int>(dynamic.Value, key, out var sharedIntProp))
+                        if (PropertyDictUtil.TryGetSharedPropertyFor<int>(dynamic, key, out var sharedIntProp))
                         {
                             MultiValueInputs.Int(key, sharedIntProp.Value);
                         }
-                        else if (PropertyDictUtil.TryGetSharedPropertyFor<float>(dynamic.Value, key, out var sharedFloatProp))
+                        else if (PropertyDictUtil.TryGetSharedPropertyFor<float>(dynamic, key, out var sharedFloatProp))
                         {
                             MultiValueInputs.Float(key, sharedFloatProp.Value);
                         }
-                        else if (PropertyDictUtil.TryGetSharedPropertyFor<bool>(dynamic.Value, key, out var sharedBoolProp))
+                        else if (PropertyDictUtil.TryGetSharedPropertyFor<bool>(dynamic, key, out var sharedBoolProp))
                         {
                             MultiValueInputs.Bool(key, sharedBoolProp.Value);
                         }
-                        else if (PropertyDictUtil.TryGetSharedPropertyFor<string?>(dynamic.Value, key, out var sharedStringProp))
+                        else if (PropertyDictUtil.TryGetSharedPropertyFor<string?>(dynamic, key, out var sharedStringProp))
                         {
                             MultiValueInputs.String(key, sharedStringProp.Value);
                         }
+                    }
+
+                    var totalCount = dynamic.Values.Count();
+                    if (ImGui.GetCursorPosY() == cursorYBeforeProps)
+                    {
+                        if (totalCount > 1)
+                            ImGui.TextDisabled("No properties in common");
+                        else
+                            ImGui.TextDisabled("No properties used");
+                    }
+                    else if (totalCount > 1)
+                    {
+                        ImGui.TextDisabled("There MIGHT be more properties used\n" +
+                            "just not by all selected objects");
                     }
                 }
 
                 if (_ctx.TryGetSharedProperty<BlackboardPropertyTuple>("BlackboardTuple", out var blackboardTuple))
                 {
-                    ImGui.Spacing();
-                    ImGui.Separator();
-                    ImGui.Spacing();
+                    ImGui.SeparatorText("Other supported Properties");
 
+
+                    var cursorYBeforeProps =  ImGui.GetCursorPosY();
                     var sharedTup = blackboardTuple.Value;
                     var totalCount = sharedTup.Values.Count();
-                    Debug.Assert(_blackboardProperties is not null);
                     foreach (var (key, (initialValue, table)) in _blackboardProperties)
                     {
                         int supportsKeyCount = 0;
@@ -211,7 +226,6 @@ namespace ToyStudio.GUI.scene.objs
                         ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0));
                         if (ImGui.Button("Add " + key, new Vector2(ImGui.CalcItemWidth(), 0)))
                         {
-                            //TODO make undoable
                             sharedTup.UpdateAll((ref BlackboardPropertyTuple x) =>
                             {
                                 var value = x.BlackboardProperties[key].initialValue;
@@ -221,6 +235,19 @@ namespace ToyStudio.GUI.scene.objs
                         ImGui.PopStyleVar();
                         ImGui.SameLine();
                         ImGui.Text("from: " + table);
+                    }
+
+                    if (ImGui.GetCursorPosY() == cursorYBeforeProps)
+                    {
+                        if (totalCount > 1)
+                            ImGui.TextDisabled("No other properties supported by all selected objects");
+                        else
+                            ImGui.TextDisabled("No other properties supported");
+                    }
+                    else if (totalCount > 1)
+                    {
+                        ImGui.TextDisabled("There MIGHT be more properties availible\n" +
+                            "just not for all selected objects");
                     }
                 }
 
