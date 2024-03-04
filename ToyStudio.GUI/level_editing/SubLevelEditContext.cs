@@ -26,9 +26,11 @@ namespace ToyStudio.GUI.level_editing
                 int count = 0;
                 for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
                 {
-                    if (IsSelected(subLevel.Actors[i]))
+                    var obj = subLevel.Actors[i];
+                    if (IsSelected(obj))
                     {
                         Commit(subLevel.Actors.RevertableRemoveAt(i));
+                        Deselect(obj);
                         count++;
                     }
                 }
