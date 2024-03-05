@@ -114,6 +114,9 @@ namespace ToyStudio.Core.component
                         if (entry.BBKey is null)
                             throw new Exception($"{nameof(entry.BBKey)} is not present null");
 
+                        if (!entry.IsInstanceParam)
+                            continue;
+
                         if (entry.StringParamType == "Reference" && entry.InitValConverted is not null)
                         {
                             dict[entry.BBKey] = (entry.InitValConverted!, tableName);
