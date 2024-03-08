@@ -12,7 +12,7 @@ namespace ToyStudio.Core
     {
         public bool TryLoad(string name, [NotNullWhen(true)] out ActorPack? actorPack)
         {
-            if (_actorPacks.TryGetValue(name, out actorPack))
+            if (s_actorPacks.TryGetValue(name, out actorPack))
                 return true;
 
             if (!romFS.TryLoadActorPack(name, out Sarc? pack))
@@ -22,10 +22,29 @@ namespace ToyStudio.Core
             }
 
             actorPack = new ActorPack(name, pack);
-            _actorPacks[name] = actorPack; 
+            s_actorPacks[name] = actorPack; 
             return true;
         }
 
-        private Dictionary<string, ActorPack> _actorPacks = [];
+        public bool Unload(string name)
+        {
+            if (s_actorPacks.Remove(name, out ActorPack? pack))
+            {
+                pack.Unload();
+                return true;
+            }
+
+            return false;
+        }
+
+        public void UnloadAll()
+        {
+            foreach (var (_, pack) in s_actorPacks)
+                pack.Unload();
+
+            s_actorPacks.Clear();
+        }
+
+        private readonly Dictionary<string, ActorPack> s_actorPacks = [];
     }
 }

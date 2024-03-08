@@ -9,7 +9,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core;
-using ToyStudio.Core.component;
+using ToyStudio.Core.component.Blackboard;
 using ToyStudio.Core.level;
 using ToyStudio.Core.util;
 using ToyStudio.Core.util.capture;
@@ -261,11 +261,11 @@ namespace ToyStudio.GUI.scene.objs
         private readonly LevelActor _actor;
         private readonly SubLevelSceneContext _sceneContext;
         private readonly ActorPack _actorPack;
-        private readonly ImmutableSortedDictionary<string, (object initialValue, string tableName)> _blackboardProperties = 
-            ImmutableSortedDictionary<string, (object initialValue, string tableName)>.Empty;
+        private readonly BlackboardProperties _blackboardProperties =
+            BlackboardProperties.Empty;
 
         private record struct BlackboardPropertyTuple(
-            ImmutableSortedDictionary<string, (object initialValue, string tableName)> BlackboardProperties,
+            BlackboardProperties BlackboardProperties,
             PropertyDict PropertyDict
             );
 

@@ -14,6 +14,11 @@ using static ToyStudio.Core.ActorPack;
 
 namespace ToyStudio.Core
 {
+    public interface IActorPackAttachment
+    {
+        void Unload();
+    }
+
     public partial class ActorPack
     {
         public ActorPack(string name, Dictionary<string, byte[]> entries)
@@ -81,8 +86,40 @@ namespace ToyStudio.Core
             _entries[string.Join('/', filePath)] = byml.ToBinary(Revrs.Endianness.Little);
         }
 
+        public void Attach<T>(T attachment)
+            where T : class, IActorPackAttachment
+        {
+            var type = typeof(T);
+            if (_attachments.ContainsKey(type))
+                throw new InvalidOperationException(
+                    $"ActorPack {_name} already has attachment of type {type.Name}");
+
+            _attachments[type] = attachment;
+        }
+
+        public bool TryGetAttachment<T>([NotNullWhen(true)] out T? attachment)
+            where T : class, IActorPackAttachment
+        {
+            bool success = _attachments.TryGetValue(typeof(T), out var value);
+            if (success)
+                attachment = (value as T);
+            else
+                attachment = null;
+            return success;
+        }
+
+        internal void Unload()
+        {
+            foreach (var type in _attachments.Keys.ToList())
+            {
+                _attachments.Remove(type, out var attachment);
+                attachment!.Unload();
+            }
+        }
+
         private readonly string _name;
         private readonly Dictionary<string, byte[]> _entries;
+        private readonly Dictionary<Type, IActorPackAttachment> _attachments = [];
         private readonly List<ActorInfo> _actorInfoHierarchy = [];
 
         
@@ -224,6 +261,39 @@ namespace ToyStudio.Core
             }
 
             ComponentsObject? _components;
+        }
+    }
+
+    public static class ActorPackExtensions
+    {
+        public static T GetOrCreateAttachment<T>(this ActorPack pack, out bool wasAlreadyPresent)
+            where T : class, IActorPackAttachment, new()
+        {
+            if (pack.TryGetAttachment(out T? attachment))
+            {
+                wasAlreadyPresent = true;
+                return attachment;
+            }
+
+            attachment = new T();
+            pack.Attach(attachment);
+            wasAlreadyPresent = false;
+            return attachment;
+        }
+
+        public static T GetOrCreateAttachment<T>(this ActorPack pack, Func<T> creator, out bool wasAlreadyPresent)
+            where T : class, IActorPackAttachment
+        {
+            if (pack.TryGetAttachment(out T? attachment))
+            {
+                wasAlreadyPresent = true;
+                return attachment;
+            }
+
+            attachment = creator();
+            pack.Attach(attachment);
+            wasAlreadyPresent = false;
+            return attachment;
         }
     }
 }
