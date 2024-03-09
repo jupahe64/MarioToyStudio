@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using Silk.NET.Core.Native;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -33,7 +34,6 @@ namespace ToyStudio.GUI.widgets
 
     internal interface ISectionDrawContext
     {
-        public delegate void ValueUpdateFunc<TValue>(ref TValue value);
         bool TryGetSharedProperty<TValue>(string name,
             [NotNullWhen(true)] out SharedProperty<TValue>? sharedProperty);
     }
@@ -45,6 +45,11 @@ namespace ToyStudio.GUI.widgets
 
         public void Draw()
         {
+            if (_isDrawing)
+                throw new InvalidOperationException("Draw cannot be called recursivly");
+
+            _isDrawing = true;
+
             if (_sections.Count == 0)
                 ImGui.Text("Empty");
 
@@ -106,6 +111,16 @@ namespace ToyStudio.GUI.widgets
             //create new checkpoints
             foreach (var (capture, checkpoint, _) in _captures)
                 checkpoint.Recapture();
+
+            _isDrawing = false;
+
+            if (_pendingSetup.TryGetValue(out var value))
+            {
+                if (value.mainInspectable == null)
+                    SetEmpty();
+                else
+                    Setup(value.inspectables, value.mainInspectable);
+            }
         }
 
         private void TriggerEventAndRecapture()
@@ -135,6 +150,14 @@ namespace ToyStudio.GUI.widgets
 
         public void SetEmpty()
         {
+            if (_isDrawing)
+            {
+                _pendingSetup = ([], null);
+                return;
+            }
+
+            _pendingSetup = null;
+
             _captures.Clear();
             _sections.Clear();
             _sectionUsageCounts.Clear();
@@ -142,6 +165,14 @@ namespace ToyStudio.GUI.widgets
 
         public void Setup(IEnumerable<IInspectable> inspectables, IInspectable mainInspectable)
         {
+            if (_isDrawing)
+            {
+                _pendingSetup = (inspectables.ToList(), mainInspectable);
+                return;
+            }
+
+            _pendingSetup = null;
+
             SetEmpty();
             _isSectionsLocked = false;
             CollectCapture(mainInspectable.SetupInspector(new SetupContext(this)));
@@ -214,7 +245,8 @@ namespace ToyStudio.GUI.widgets
         /// Prevents further sections from being added
         /// </summary>
         private bool _isSectionsLocked = false;
-
+        private bool _isDrawing;
+        private (List<IInspectable> inspectables, IInspectable? mainInspectable)? _pendingSetup = null;
         private const string GeneralSectionName = "General";
 
 
