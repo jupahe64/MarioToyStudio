@@ -34,19 +34,22 @@ namespace ToyStudio.GUI.windows
 
             foreach (var subLevel in level.SubLevels)
             {
+                var editContext = new SubLevelEditContext(subLevel, popupModalHost);
                 var scene = new Scene<SubLevelSceneContext>(
-                    new SubLevelSceneContext(subLevel, popupModalHost, actorPackCache),
+                    new SubLevelSceneContext(editContext, popupModalHost, actorPackCache),
                     new SubLevelSceneRoot(subLevel)
                 );
+                scene.Context.SetScene(scene);
 
-                scene.Context.Update += scene.Invalidate;
+                editContext.Update += scene.Invalidate;
 
                 ws._scenes[subLevel] = scene;
+                ws._editContexts[subLevel] = editContext;
 
-                var viewport = await SubLevelViewport.Create(scene, glScheduler);
+                var viewport = await SubLevelViewport.Create(scene, editContext, glScheduler);
                 viewport.SelectionChanged += args =>
                 {
-                    ws.SetupInspector(scene.Context, args.SelectedObjects, args.ActiveObject);
+                    ws.SetupInspector(editContext, args.SelectedObjects, args.ActiveObject);
                 };
 
                 ws._viewports[subLevel] = viewport;
@@ -62,8 +65,8 @@ namespace ToyStudio.GUI.windows
             _level.Save(romFS);
         }
 
-        public void Undo() => _scenes[_activeSubLevel].Context.Undo();
-        public void Redo() => _scenes[_activeSubLevel].Context.Redo();
+        public void Undo() => _editContexts[_activeSubLevel].Undo();
+        public void Redo() => _editContexts[_activeSubLevel].Redo();
         public void PreventFurtherRendering() { }
 
         public void DrawUI(GL gl, double deltaSeconds)
@@ -95,7 +98,7 @@ namespace ToyStudio.GUI.windows
                         if (_activeSubLevel != subLevel)
                         {
                             var (selectedObjs, active) = viewport.GetSelection();
-                            SetupInspector(_scenes[subLevel].Context, selectedObjs, active);
+                            SetupInspector(_editContexts[subLevel], selectedObjs, active);
 
                         }
                         _activeSubLevel = subLevel;
@@ -123,7 +126,7 @@ namespace ToyStudio.GUI.windows
 
         private void Inspector_PropertyChanged(List<(ICaptureable source, IStaticPropertyCapture capture)> changedCaptures)
         {
-            Debug.Assert(_inspectorEditContext == _scenes[_activeSubLevel].Context);
+            Debug.Assert(_inspectorEditContext == _editContexts[_activeSubLevel]);
             var changedNames = new HashSet<string>();
             var sources = new HashSet<ICaptureable>();
 
@@ -148,8 +151,8 @@ namespace ToyStudio.GUI.windows
                 message));
         }
 
-        private void SetupInspector(SubLevelEditContext editContext, 
-            IEnumerable<IViewportSelectable> selectedObjects, IViewportSelectable? activeObject)
+        private void SetupInspector(SubLevelEditContext editContext,
+            IReadOnlyCollection<IViewportSelectable> selectedObjects, IViewportSelectable? activeObject)
         {
             _inspectorEditContext = editContext;
 
@@ -163,6 +166,7 @@ namespace ToyStudio.GUI.windows
 
         private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
+        private readonly Dictionary<SubLevel, SubLevelEditContext> _editContexts = [];
         private Level _level;
         private GLTaskScheduler _glScheduler;
         private IPopupModalHost _popupModalHost;

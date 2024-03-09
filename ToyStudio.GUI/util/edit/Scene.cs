@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -15,7 +16,7 @@ namespace ToyStudio.GUI.util.edit
 
     interface ISceneObject<TSceneContext>
     {
-        void Update(ISceneUpdateContext<TSceneContext> updateContext, TSceneContext sceneContext);
+        void Update(ISceneUpdateContext<TSceneContext> updateContext, TSceneContext sceneContext, ref bool isValid);
     }
 
     interface ISceneUpdateContext<TSceneContext>
@@ -26,6 +27,7 @@ namespace ToyStudio.GUI.util.edit
 
     internal class Scene<TSceneContext>
     {
+        public event Action? AfterUpdate;
         public TSceneContext Context { get; private set; }
 
         public Scene(TSceneContext sceneContext, ISceneRoot<TSceneContext> sceneRoot)
@@ -43,7 +45,7 @@ namespace ToyStudio.GUI.util.edit
 
         public void Invalidate()
         {
-            if (_isUpdating) return;
+            if (_isUpdating) throw new InvalidOperationException("Cannot invalidate scene while it's rebuilding");
 
             if (_updateBlockers > 0)
             {
@@ -53,12 +55,15 @@ namespace ToyStudio.GUI.util.edit
 
             _isUpdating = true;
             _orderedSceneObjects.Clear();
+
             MarkAllDirty();
             _sceneRoot.Update(_updateContext, Context);
             CollectDirty();
 
             _isUpdating = false;
             _needsUpdate = false;
+
+            AfterUpdate?.Invoke();
         }
 
         public bool TryGetObjFor(object dataObject, [NotNullWhen(true)] out ISceneObject<TSceneContext>? sceneObject)
@@ -125,14 +130,14 @@ namespace ToyStudio.GUI.util.edit
         /// <summary>
         /// Objects that have a direct mapping to an actual data object
         /// </summary>
-        private Dictionary<object, (ISceneObject<TSceneContext> obj, bool isDirty)> _dataSceneObjects = [];
+        private readonly Dictionary<object, (ISceneObject<TSceneContext> obj, bool isDirty)> _dataSceneObjects = [];
 
-        private List<ISceneObject<TSceneContext>> _orderedSceneObjects = [];
+        private readonly List<ISceneObject<TSceneContext>> _orderedSceneObjects = [];
         private readonly ISceneRoot<TSceneContext> _sceneRoot;
 
         private readonly UpdateContext _updateContext;
 
-        public class UpdateContext(Scene<TSceneContext> s) : ISceneUpdateContext<TSceneContext>
+        private class UpdateContext(Scene<TSceneContext> s) : ISceneUpdateContext<TSceneContext>
         {
             public void AddOrUpdateSceneObject(ISceneObject<TSceneContext> sceneObject)
             {
@@ -149,7 +154,10 @@ namespace ToyStudio.GUI.util.edit
 
                 s._orderedSceneObjects.Add(entry.obj);
 
-                entry.obj.Update(this, s.Context);
+                bool isValid = true;
+                entry.obj.Update(this, s.Context, ref isValid);
+                if (!isValid)
+                    Debug.Fail("Only Scene objects with a dataObject can be invalidated");
 
                 s._dataSceneObjects[sceneObject] = entry with { isDirty = false };
             }
@@ -160,18 +168,32 @@ namespace ToyStudio.GUI.util.edit
                 if (!s._isUpdating)
                     throw new InvalidOperationException("Cannot call this function outside of Update");
 
+                bool justCreated = false;
                 if (!s._dataSceneObjects.TryGetValue(dataObject, out var entry))
                 {
                     var sceneObject = createFunc.Invoke();
                     entry = (sceneObject, isDirty: true);
+                    justCreated = true;
                 }
 
                 if (!entry.isDirty)
                     return entry.obj;
 
+                int countBefore = s._orderedSceneObjects.Count;
                 s._orderedSceneObjects.Add(entry.obj);
 
-                entry.obj.Update(this, s.Context);
+                bool isValid = true;
+                entry.obj.Update(this, s.Context, ref isValid);
+                if (!isValid && !justCreated)
+                {
+                    var count = s._orderedSceneObjects.Count;
+                    s._orderedSceneObjects.RemoveRange(countBefore, count - countBefore);
+                    entry.obj = createFunc.Invoke();
+                    s._orderedSceneObjects.Add(entry.obj);
+                    isValid = true;
+                    entry.obj.Update(this, s.Context, ref isValid);
+                }
+                Debug.Assert(isValid);
 
                 s._dataSceneObjects[dataObject] = entry with { isDirty = false };
                 return entry.obj;

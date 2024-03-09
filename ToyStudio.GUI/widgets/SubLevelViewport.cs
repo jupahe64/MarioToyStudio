@@ -24,10 +24,10 @@ namespace ToyStudio.GUI.widgets
 
     interface IViewportSelectable
     {
-        void OnSelect(bool isMultiSelect);
+        void OnSelect(EditContextBase editContext, bool isMultiSelect);
         bool IsSelected();
         bool IsActive();
-        public static void DefaultSelect(SubLevelSceneContext ctx, object selectable, bool isMultiSelect)
+        public static void DefaultSelect(EditContextBase ctx, object selectable, bool isMultiSelect)
         {
             if (isMultiSelect)
             {
@@ -50,9 +50,10 @@ namespace ToyStudio.GUI.widgets
 
     internal class SubLevelViewport
     {
-        public record struct SelectionChangedArgs(IEnumerable<IViewportSelectable> SelectedObjects, IViewportSelectable? ActiveObject);
+        public record struct SelectionChangedArgs(IReadOnlyCollection<IViewportSelectable> SelectedObjects, IViewportSelectable? ActiveObject);
         public event Action<SelectionChangedArgs>? SelectionChanged;
         public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
+            SubLevelEditContext editContext,
             GLTaskScheduler glScheduler)
         {
             //prepare glstuff here
@@ -60,7 +61,7 @@ namespace ToyStudio.GUI.widgets
             //dummy remove asap
             await Task.Delay(20); 
 
-            return new SubLevelViewport(subLevelScene, subLevelScene.Context, glScheduler);
+            return new SubLevelViewport(subLevelScene, editContext, glScheduler);
         }
 
         public IViewportDrawable? HoveredObject { get; private set; }
@@ -95,7 +96,7 @@ namespace ToyStudio.GUI.widgets
             return new(world.X, world.Y, world.Z);
         }
 
-        public (IEnumerable<IViewportSelectable> selectables, IViewportSelectable? active) GetSelection()
+        public (IReadOnlyCollection<IViewportSelectable> selectables, IViewportSelectable? active) GetSelection()
         {
             var args = GenerateSelectionChangedArgs();
             return (args.SelectedObjects, args.ActiveObject);
@@ -195,7 +196,7 @@ namespace ToyStudio.GUI.widgets
             {
                 if (HoveredObject is IViewportSelectable selectable)
                 {
-                    selectable.OnSelect(isMultiSelect);
+                    selectable.OnSelect(_editContext, isMultiSelect);
                 }
                 else if (!isMultiSelect)
                 {
@@ -240,7 +241,7 @@ namespace ToyStudio.GUI.widgets
         private SelectionChangedArgs GenerateSelectionChangedArgs()
         {
             return new SelectionChangedArgs(
-                _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected()),
+                _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected()).ToList(),
                 _subLevelScene.GetObjects<IViewportSelectable>().FirstOrDefault(x => x.IsActive())
             );
         }
@@ -418,6 +419,15 @@ namespace ToyStudio.GUI.widgets
             _editContext = editContext;
             _glScheduler = glScheduler;
             _camera = new Camera { Distance = 10 };
+
+            _subLevelScene.AfterUpdate += () =>
+            {
+                if (SelectionChanged is null)
+                    return;
+
+                SelectionChangedArgs args = GenerateSelectionChangedArgs();
+                SelectionChanged.Invoke(args);
+            };
         }
     }
 }

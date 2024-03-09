@@ -17,6 +17,7 @@ using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.transform;
 using ToyStudio.GUI.util.edit.undo_redo;
+using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.scene.objs
@@ -95,22 +96,42 @@ namespace ToyStudio.GUI.scene.objs
             _sceneContext.Commit(new RevertableTransformation(_actor, _preTransformPosition, _preTransformRotation));
         }
 
-        public void OnSelect(bool isMultiSelect)
+        public void OnSelect(EditContextBase editContext, bool isMultiSelect)
         {
-            IViewportSelectable.DefaultSelect(_sceneContext, _actor, isMultiSelect);
+            IViewportSelectable.DefaultSelect(editContext, _actor, isMultiSelect);
         }
 
         public bool IsSelected() => _sceneContext.IsSelected(_actor);
         public bool IsActive() => _sceneContext.ActiveObject == _actor;
 
-        private Vector3 _preTransformPosition;
-        private Vector3 _preTransformRotation;
-
         void ISceneObject<SubLevelSceneContext>.Update(
             ISceneUpdateContext<SubLevelSceneContext> updateContext,
-            SubLevelSceneContext sceneContext)
+            SubLevelSceneContext sceneContext, ref bool isValid)
         {
+            if (_actorPack.Name != _actor.Gyaml)
+                isValid = false;
+        }
 
+        public void SetActorGyaml(string gyaml, bool preventSceneInvalidation = false)
+        {
+            if (gyaml == _actor.Gyaml)
+                return;
+
+            var newActorPack = _sceneContext.LoadActorPack(gyaml);
+
+            if (!newActorPack.TryGetBlackboardProperties(out var properties))
+                _actor.Dynamic = PropertyDict.Empty;
+            else
+            {
+                _actor.Dynamic = new PropertyDict(
+                    _actor.Dynamic.Where(x => properties.ContainsKey(x.Key))
+                );
+            }
+
+            if (!preventSceneInvalidation)
+                _sceneContext.InvalidateScene();
+            
+            _actor.Gyaml = gyaml;
         }
 
         public ICaptureable SetupInspector(IInspectorSetupContext ctx)
@@ -118,7 +139,8 @@ namespace ToyStudio.GUI.scene.objs
             ctx.GeneralSection(
             setupFunc: _ctx =>
             {
-                _ctx.RegisterProperty("Gyaml", () => _actor.Gyaml, v => _actor.Gyaml = v);
+                _ctx.RegisterProperty("Gyaml", () => _actor.Gyaml, 
+                    v => SetActorGyaml(v!, preventSceneInvalidation: true /*avoid multiple scene rebuilds on multi edit*/));
                 _ctx.RegisterProperty("Translate", () => _actor.Translate, v => _actor.Translate = v);
                 _ctx.RegisterProperty("Rotate", () => _actor.Rotate, v => _actor.Rotate = v);
             },
@@ -136,7 +158,27 @@ namespace ToyStudio.GUI.scene.objs
             {
 
                 if (_ctx.TryGetSharedProperty<string?>("Gyaml", out var gyaml))
-                    MultiValueInputs.String("Gyaml", gyaml.Value);
+                {
+                    //for now (while there's no ActorPack selector)
+                    void UpdateAll(ValueUpdateFunc<string?> updateFunc)
+                    {
+                        try
+                        {
+                            gyaml!.Value.UpdateAll(updateFunc);
+                        }
+                        catch (Exception e)
+                        {
+                            PropertyChangeErrorDialog.ShowDialog(_sceneContext.ModalHost, "Gyaml", e);
+                        }
+
+                        //even though we call UpdateAll which indirectly calls SetActorGyaml which usually Invalidates the scene
+                        //we explicitly suppressed it to avoid multiple scene rebuilds
+                        //so we have to manually invalidate the scene here
+                        _sceneContext.InvalidateScene();
+                    }
+
+                    MultiValueInputs.String("Gyaml", gyaml.Value with { UpdateAll = UpdateAll});
+                }
 
                 if (_ctx.TryGetSharedProperty<Vector3>("Translate", out var position))
                     MultiValueInputs.Vector3("Position", position.Value);
@@ -213,10 +255,10 @@ namespace ToyStudio.GUI.scene.objs
                     {
                         int supportsKeyCount = 0;
                         int usesKeyCount = 0;
-                        foreach (var (blackboardProperties, propertyDict) in sharedTup.Values)
+                        foreach (var other in sharedTup.Values)
                         {
-                            if (blackboardProperties.ContainsKey(key)) supportsKeyCount++;
-                            if (propertyDict.ContainsKey(key)) usesKeyCount++;
+                            if (other.BlackboardProperties.ContainsKey(key)) supportsKeyCount++;
+                            if (other.PropertyDict.ContainsKey(key)) usesKeyCount++;
                         }
 
                         if (supportsKeyCount < totalCount || //key is not supported by all objects
@@ -263,6 +305,8 @@ namespace ToyStudio.GUI.scene.objs
         private readonly ActorPack _actorPack;
         private readonly BlackboardProperties _blackboardProperties =
             BlackboardProperties.Empty;
+        private Vector3 _preTransformPosition;
+        private Vector3 _preTransformRotation;
 
         private record struct BlackboardPropertyTuple(
             BlackboardProperties BlackboardProperties,

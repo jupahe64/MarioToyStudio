@@ -21,6 +21,8 @@ namespace ToyStudio.Core
 
     public partial class ActorPack
     {
+        public string Name => _name;
+
         public ActorPack(string name, Dictionary<string, byte[]> entries)
         {
             _name = name;
