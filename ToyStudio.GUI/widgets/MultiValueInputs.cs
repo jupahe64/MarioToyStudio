@@ -25,8 +25,6 @@ namespace ToyStudio.GUI.widgets
         private static extern void igPopItemFlag();
         [DllImport("cimgui.dll")]
         private static extern void igPushMultiItemsWidths(int itemCount, float width);
-        [DllImport("cimgui.dll")]
-        private static extern void igClearActiveID();
 
         public static void Byte(string label, SharedProperty<byte> sharedProp)
             => Scalar(label, ImGuiDataType.U8, sharedProp);
@@ -82,12 +80,12 @@ namespace ToyStudio.GUI.widgets
             bool edited = false;
             if (TryGetCommonString(sharedProp.Values, out var value))
             {
-                edited = ImGui.InputText(label, ref value, 100, ImGuiInputTextFlags.AutoSelectAll);
+                edited = ImGui.InputText(label, ref value, 100, ImGuiInputTextFlags.EnterReturnsTrue);
             }
             else
             {
                 value = string.Empty;
-                edited = SuggestingTextInput(label, ref value, 
+                edited = ExtraInputs.SuggestingTextInput(label, ref value, 
                     sharedProp.Values.Distinct()!, "Mixed");
             }
 
@@ -200,49 +198,6 @@ namespace ToyStudio.GUI.widgets
             return true;
 
 
-        }
-
-        private static bool SuggestingTextInput(string label, ref string value, IEnumerable<string> suggestions, string placeHolder = "")
-        {
-            //adapted from https://github.com/ocornut/imgui/issues/718#issuecomment-1249822993
-
-            bool is_input_text_enter_pressed = ImGui.InputTextWithHint(label, placeHolder, ref value, 100, 
-                ImGuiInputTextFlags.EnterReturnsTrue);
-            bool is_input_text_active = ImGui.IsItemActive();
-            bool is_input_text_activated = ImGui.IsItemActivated();
-
-            bool is_edited = is_input_text_enter_pressed;
-
-            if (is_input_text_activated)
-                ImGui.OpenPopup("##popup");
-
-            {
-                ImGui.SetNextWindowPos(new Vector2(ImGui.GetItemRectMin().X, ImGui.GetItemRectMax().Y));
-                ImGui.SetNextWindowSize(new Vector2(ImGui.GetItemRectSize().X, 0));
-                if (ImGui.BeginPopup("##popup", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove |
-                    ImGuiWindowFlags.NoResize | ImGuiWindowFlags.ChildWindow))
-                {
-                    foreach (var item in suggestions)
-                    {
-                        if (!item.StartsWith(value))
-                            continue; //filter by prefix
-
-                        if (ImGui.Selectable(item))
-                        {
-                            igClearActiveID();
-                            value = item;
-                            is_edited = true;
-                        }
-                    }
-
-                    if (is_input_text_enter_pressed || (!is_input_text_active && !ImGui.IsWindowFocused()))
-                        ImGui.CloseCurrentPopup();
-
-                    ImGui.EndPopup();
-                }
-            }
-
-            return is_edited;
         }
 
         private static bool TryGetCommonValue<TValue>(IEnumerable<TValue> values, out TValue value) 
