@@ -148,7 +148,7 @@ namespace ToyStudio.GUI.windows
                 return;
             }
 
-            LoadOrUpdateRomFSFromPreferences();
+            await LoadOrUpdateRomFSFromPreferences();
 
 
             string? latestCourse = UserSettings.GetLatestCourse();
@@ -180,7 +180,8 @@ namespace ToyStudio.GUI.windows
 
                             _activeLevelWorkSpace?.PreventFurtherRendering();
                             var actorPackCache = new ActorPackCache(_romfs!);
-                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, _glTaskScheduler, actorPackCache, _modalHost, p);
+                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, 
+                                _romfs!, _glTaskScheduler, actorPackCache, _modalHost, p);
                             _currentCourseName = name;
                         }
                         catch (Exception ex)
@@ -321,7 +322,7 @@ namespace ToyStudio.GUI.windows
                 if (UserSettings.GetRomFSPath() == "")
                     _isShowPreferenceWindow = true;
                 else
-                    LoadOrUpdateRomFSFromPreferences(onlyUpdateWhenChanged: true);
+                    _ = LoadOrUpdateRomFSFromPreferences(onlyUpdateWhenChanged: true);
             }
 
             _modalHost.DrawHostedModals();
@@ -346,7 +347,7 @@ namespace ToyStudio.GUI.windows
             return ((IPopupModalHost)_modalHost).WaitTick();
         }
 
-        private void LoadOrUpdateRomFSFromPreferences(bool onlyUpdateWhenChanged = false)
+        private async Task LoadOrUpdateRomFSFromPreferences(bool onlyUpdateWhenChanged = false)
         {
             var baseGameDirecory = UserSettings.GetRomFSPath();
             var modDirectory = UserSettings.GetModRomFSPath();
@@ -361,33 +362,30 @@ namespace ToyStudio.GUI.windows
 
             _lastUpdatedRomFSPaths = (baseGameDirecory, modDirectory);
 
-            Task.Run(async () =>
+            try
             {
-                try
+                if (baseGameChanged)
                 {
-                    if (baseGameChanged)
+                    if (_romfs is not null)
                     {
-                        if (_romfs is not null)
-                        {
-                            await RomFSChangeWarning.ShowDialog(_modalHost);
-                            _romfs.SetBaseGameDirectory(new DirectoryInfo(baseGameDirecory));
-                        }
-
-                        else
-                            _romfs = RomFS.Load(new DirectoryInfo(baseGameDirecory));
+                        await RomFSChangeWarning.ShowDialog(_modalHost);
+                        _romfs.SetBaseGameDirectory(new DirectoryInfo(baseGameDirecory));
                     }
 
-                    if (string.IsNullOrEmpty(modDirectory))
-                        _romfs!.SetModDirectory(null);
                     else
-                        _romfs!.SetModDirectory(new DirectoryInfo(modDirectory));
+                        _romfs = RomFS.Load(new DirectoryInfo(baseGameDirecory));
                 }
-                catch (Exception ex)
-                {
-                    _isShowPreferenceWindow = true;
-                    await LoadingErrorDialog.ShowDialog(_modalHost, "The RomFS", ex);
-                }
-            });
+
+                if (string.IsNullOrEmpty(modDirectory))
+                    _romfs!.SetModDirectory(null);
+                else
+                    _romfs!.SetModDirectory(new DirectoryInfo(modDirectory));
+            }
+            catch (Exception ex)
+            {
+                _isShowPreferenceWindow = true;
+                await LoadingErrorDialog.ShowDialog(_modalHost, "The RomFS", ex);
+            }
         }
 
         private readonly IWindow _window;

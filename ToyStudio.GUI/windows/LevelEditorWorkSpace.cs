@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core;
 using ToyStudio.Core.level;
+using ToyStudio.Core.util;
 using ToyStudio.Core.util.capture;
 using ToyStudio.GUI.level_editing;
 using ToyStudio.GUI.scene;
@@ -16,6 +18,7 @@ using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.util.gl;
 using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
+using ToyStudio.GUI.windows.panels;
 
 namespace ToyStudio.GUI.windows
 {
@@ -25,12 +28,13 @@ namespace ToyStudio.GUI.windows
         public SubLevel _activeSubLevel;
 
         public static async Task<LevelEditorWorkSpace> Create(Level level,
+            RomFS romfs,
             GLTaskScheduler glScheduler,
             ActorPackCache actorPackCache,
             IPopupModalHost popupModalHost,
             IProgress<(string operationName, float? progress)> progress)
         {
-            var ws = new LevelEditorWorkSpace(level, glScheduler, popupModalHost);
+            var ws = new LevelEditorWorkSpace(level, romfs, glScheduler, popupModalHost);
 
             foreach (var subLevel in level.SubLevels)
             {
@@ -72,7 +76,8 @@ namespace ToyStudio.GUI.windows
         public void DrawUI(GL gl, double deltaSeconds)
         {
             ViewportsHostPanel(gl, deltaSeconds);
-            InspectorPanel();
+            _inspector.Draw();
+            _actorPalette.Draw();
         }
 
         private void ViewportsHostPanel(GL gl, double deltaSeconds)
@@ -107,19 +112,6 @@ namespace ToyStudio.GUI.windows
                     viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds, _activeSubLevel == subLevel);
                 }
             }
-
-            ImGui.End();
-        }
-
-        private void InspectorPanel()
-        {
-            if (!ImGui.Begin("Inspector"))
-            {
-                ImGui.End();
-                return;
-            }
-
-            _inspector.Draw();
 
             ImGui.End();
         }
@@ -163,24 +155,70 @@ namespace ToyStudio.GUI.windows
 
         }
 
+        private async Task ObjectPlacementHandler(string gyaml)
+        {
+            _actorPalette.ObjectPlacementHandler = null;
+
+            Vector3? pos;
+            KeyboardModifiers modifiers;
+            do
+            {
+                (pos, modifiers) =
+                    await _viewports[_activeSubLevel].PickPosition(
+                        $"Pick a position to place {gyaml}\nHold shift to place multiple");
+
+                if (!pos.HasValue)
+                    break;
+
+                var ctx = _editContexts[_activeSubLevel];
+                ctx.Commit(
+                _activeSubLevel.Actors.RevertableAdd(new LevelActor()
+                {
+                    Dynamic = PropertyDict.Empty,
+                    Gyaml = gyaml,
+                    Name = gyaml,
+                    Translate = pos.Value,
+                    Hash = ctx.GenerateUniqueActorHash(),
+                    Phive = new LevelActor.PhiveParameter 
+                    {
+                        //TODO figure out what this ID needs to be set to is necessary
+                        Placement = new() { ID = 0}
+                    }
+                }, $"Add {gyaml}"));
+
+
+            } while ((modifiers & KeyboardModifiers.Shift) > 0);
+
+            _actorPalette.ObjectPlacementHandler = async gyaml => await ObjectPlacementHandler(gyaml);
+        }
+
 
         private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
         private readonly Dictionary<SubLevel, SubLevelEditContext> _editContexts = [];
-        private Level _level;
-        private GLTaskScheduler _glScheduler;
-        private IPopupModalHost _popupModalHost;
-        private ObjectInspector _inspector = new();
+        private readonly Level _level;
+        private readonly RomFS _romfs;
+        private readonly GLTaskScheduler _glScheduler;
+        private readonly IPopupModalHost _popupModalHost;
+        private readonly ObjectInspectorWindow _inspector;
+        private readonly ActorPaletteWindow _actorPalette;
         private SubLevelEditContext? _inspectorEditContext;
 
-        private LevelEditorWorkSpace(Level level, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)
+        private LevelEditorWorkSpace(Level level, RomFS romfs, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)
         {
             _level = level;
+            _romfs = romfs;
             _glScheduler = glScheduler;
             _popupModalHost = popupModalHost;
 
             _activeSubLevel = level.SubLevels[0];
 
+            _actorPalette = new("Actor Palette", romfs)
+            {
+                ObjectPlacementHandler = async gyaml => await ObjectPlacementHandler(gyaml)
+            };
+
+            _inspector = new("Inspector");
             _inspector.PropertyChanged += Inspector_PropertyChanged;
         }
     }

@@ -10,6 +10,8 @@ using ToyStudio.Core.level;
 using ToyStudio.GUI.gl;
 using ToyStudio.GUI.level_editing;
 using ToyStudio.GUI.scene;
+using ToyStudio.GUI.scene.objs;
+using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.transform;
 using ToyStudio.GUI.util.edit.transform.actions;
@@ -20,6 +22,11 @@ namespace ToyStudio.GUI.widgets
     interface IViewportDrawable
     {
         void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj);
+    }
+
+    interface IViewportPickable
+    {
+        object GetPickedObject(out string label);
     }
 
     interface IViewportSelectable
@@ -100,6 +107,37 @@ namespace ToyStudio.GUI.widgets
         {
             var args = GenerateSelectionChangedArgs();
             return (args.SelectedObjects, args.ActiveObject);
+        }
+
+        public Task<(object? picked, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
+            Predicate<object?> predicate)
+        {
+            CancelOngoingPickingRequests();
+            var promise = new TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)>();
+            mObjectPickingRequest = (tooltipMessage, predicate, promise);
+            return promise.Task;
+        }
+
+        public Task<(Vector3? picked, KeyboardModifiers modifiers)> PickPosition(string tooltipMessage)
+        {
+            CancelOngoingPickingRequests();
+            var promise = new TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)>();
+            mPositionPickingRequest = (tooltipMessage, promise);
+            return promise.Task;
+        }
+
+        private void CancelOngoingPickingRequests()
+        {
+            if (mObjectPickingRequest.TryGetValue(out var objectPickingRequest))
+            {
+                objectPickingRequest.promise.SetCanceled();
+                mObjectPickingRequest = null;
+            }
+            if (mPositionPickingRequest.TryGetValue(out var positionPickingRequest))
+            {
+                positionPickingRequest.promise.SetCanceled();
+                mPositionPickingRequest = null;
+            }
         }
 
         public void Draw(Vector2 size, GL gl, double deltaSeconds, bool hasFocus)
@@ -208,6 +246,49 @@ namespace ToyStudio.GUI.widgets
 
             if (hasFocus && isViewportHovered)
             {
+                object pickedObj;
+                if (mObjectPickingRequest.TryGetValue(out var objectPickingRequest) &&
+                    HoveredObject is IViewportPickable pickable &&
+                    objectPickingRequest
+                        .predicate(pickedObj = pickable.GetPickedObject(out string label))
+                    )
+                {
+                    string currentlyHoveredObjText = "";
+                    if (!string.IsNullOrEmpty(label))
+                        currentlyHoveredObjText = $"\n\nCurrently Hovered: {label}";
+
+                    ImGui.SetTooltip(objectPickingRequest.message + "\nPress Escape to cancel" +
+                        currentlyHoveredObjText);
+                    if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+                    {
+                        mObjectPickingRequest = null;
+                        objectPickingRequest.promise.SetResult((null, _currentModifiers));
+                    }
+                    else if (isViewportLeftClicked)
+                    {
+                        mObjectPickingRequest = null;
+                        objectPickingRequest.promise.SetResult((pickedObj, _currentModifiers));
+                    }
+
+                    return;
+                }
+                if (mPositionPickingRequest.TryGetValue(out var positionPickingRequest))
+                {
+                    ImGui.SetTooltip(positionPickingRequest.message + "\nPress Escape to cancel");
+                    if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+                    {
+                        mPositionPickingRequest = null;
+                        positionPickingRequest.promise.SetResult((null, _currentModifiers));
+                    }
+                    else if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                    {
+                        mPositionPickingRequest = null;
+                        positionPickingRequest.promise.SetResult((ScreenToWorld(ImGui.GetMousePos()), _currentModifiers));
+                    }
+
+                    return;
+                }
+
                 if (IsHotkeyPressed(CtrlCmd, ImGuiKey.A))
                     _editContext.SelectAll();
                 if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.A))
@@ -222,7 +303,6 @@ namespace ToyStudio.GUI.widgets
                 if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.Z) ||
                     IsHotkeyPressed(CtrlCmd, ImGuiKey.Y))
                     _editContext.Redo();
-
             }
 
             if (_lastSelectionVersion != _editContext.SelectionVersion)
@@ -389,6 +469,12 @@ namespace ToyStudio.GUI.widgets
         private const KeyboardModifiers CtrlCmd = KeyboardModifiers.CtrlCmd;
         private const KeyboardModifiers Alt = KeyboardModifiers.Alt;
         private Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
+
+        private (string message, Predicate<object?> predicate,
+            TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)> promise)?
+            mObjectPickingRequest = null;
+        private (string message, TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)> promise)?
+            mPositionPickingRequest = null;
 
         private bool IsHotkeyPressed(KeyboardModifiers modifiers, ImGuiKey key) =>
             _currentModifiers == modifiers && ImGui.IsKeyPressed(key);

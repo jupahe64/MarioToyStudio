@@ -164,7 +164,7 @@ namespace ToyStudio.Core
         public bool TryLoadActorPack(string packName, [NotNullWhen(true)] out Sarc? pack,
             bool searchInModpath = true)
         {
-            bool TryLoadFrom(DirectoryInfo root, out Sarc? pack)
+            bool TryLoadFrom(DirectoryInfo root, [NotNullWhen(true)] out Sarc? pack)
             {
                 var fileInfo = root.GetRelativeFileInfo("Pack", "Actor", packName+".pack.zs");
                 if (!fileInfo.Exists)
@@ -187,6 +187,21 @@ namespace ToyStudio.Core
 
             pack = null;
             return false;
+        }
+
+        public List<string> GetAllActorPackNames()
+        {
+            var fileInfos = BaseGameDirectory.GetSubDirectoryInfo(["Pack", "Actor"])
+                .EnumerateFileSystemInfos("*.pack.zs").OfType<FileInfo>();
+
+            if (ModDirectory is not null)
+            {
+                fileInfos = fileInfos.Concat(ModDirectory.GetSubDirectoryInfo(["Pack", "Actor"])
+                    .EnumerateFileSystemInfos("*.pack.zs").OfType<FileInfo>()
+                );
+            }
+
+            return fileInfos.Select(x => x.Name[..^".pack.zs".Length]).Distinct().ToList();
         }
 
         public static Span<byte> Decompress(byte[] data) => s_zsDecompressor.Unwrap(data);

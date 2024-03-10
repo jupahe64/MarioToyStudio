@@ -57,15 +57,30 @@ namespace ToyStudio.Core.level
 
         public class PhiveParameter : BymlObject<PhiveParameter>
         {
-            public ulong ID;
+            public PlacementParameter? Placement;
+
             protected override void Deserialize(Deserializer d)
             {
-                d.SetUInt64(ref ID!, "ID");
+                d.SetObject(ref Placement!, "Placement");
             }
 
             protected override void Serialize(Serializer s)
             {
-                s.SetUInt64(ref ID!, "ID");
+                s.SetObject(ref Placement!, "Placement");
+            }
+
+            public class PlacementParameter : BymlObject<PlacementParameter>
+            {
+                public ulong ID;
+                protected override void Deserialize(Deserializer d)
+                {
+                    d.SetUInt64(ref ID!, "ID");
+                }
+
+                protected override void Serialize(Serializer s)
+                {
+                    s.SetUInt64(ref ID!, "ID");
+                }
             }
         }
 

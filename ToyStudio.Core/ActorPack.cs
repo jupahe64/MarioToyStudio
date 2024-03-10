@@ -22,6 +22,7 @@ namespace ToyStudio.Core
     public partial class ActorPack
     {
         public string Name => _name;
+        public string? Category => GetActorInfoValue(x=>x.Category);
 
         public ActorPack(string name, Dictionary<string, byte[]> entries)
         {
@@ -129,18 +130,21 @@ namespace ToyStudio.Core
         public partial class ActorInfo : BymlObject<ActorInfo>
         {
             public string? ParentName = null;
+            public string? Category = null;
 
             public ComponentsObject? Components => _components;
             
             protected override void Deserialize(Deserializer d)
             {
                 d.SetBgymlRefName(ref ParentName!, "$parent", BgymlTypeInfos.ActorParam);
+                d.SetString(ref Category!, "Category");
                 d.SetObject(ref _components!, "Components");
             }
 
             protected override void Serialize(Serializer s)
             {
                 s.SetBgymlRefName(ref ParentName!, "$parent", BgymlTypeInfos.ActorParam);
+                s.SetString(ref Category!, "Category");
                 s.SetObject(ref _components!, "Components");
             }
 

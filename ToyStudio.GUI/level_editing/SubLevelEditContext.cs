@@ -60,6 +60,12 @@ namespace ToyStudio.GUI.level_editing
                 return $"Duplicating {duplicates.Count} objects"; 
             });
 
+        public ulong GenerateUniqueActorHash()
+        {
+            var usedHashes = subLevel.Actors.Select(x => x.Hash).ToHashSet();
+            return GenerateUniqueHash(usedHashes);
+        }
+
         private ulong GenerateUniqueHash(HashSet<ulong> usedHashes)
         {
             ulong hash;

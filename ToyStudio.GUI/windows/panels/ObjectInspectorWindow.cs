@@ -9,7 +9,7 @@ using System.Xml.Linq;
 using ToyStudio.Core.util.capture;
 using ToyStudio.GUI.util;
 
-namespace ToyStudio.GUI.widgets
+namespace ToyStudio.GUI.windows.panels
 {
     internal interface IInspectable
     {
@@ -22,7 +22,7 @@ namespace ToyStudio.GUI.widgets
             Action<ISectionDrawContext>? drawNonSharedUI = null,
             Action<ISectionDrawContext>? drawSharedUI = null);
         void AddSection(string name, Action<ISectionSetupContext> setupFunc,
-            Action<ISectionDrawContext>? drawNonSharedUI = null, 
+            Action<ISectionDrawContext>? drawNonSharedUI = null,
             Action<ISectionDrawContext>? drawSharedUI = null);
     }
 
@@ -38,7 +38,7 @@ namespace ToyStudio.GUI.widgets
             [NotNullWhen(true)] out SharedProperty<TValue>? sharedProperty);
     }
 
-    internal class ObjectInspector
+    internal class ObjectInspectorWindow(string name)
     {
         public delegate void PropertyChangedEvent(List<(ICaptureable source, IStaticPropertyCapture captures)> changedCaptures);
         public event PropertyChangedEvent? PropertyChanged;
@@ -48,7 +48,14 @@ namespace ToyStudio.GUI.widgets
             if (_isDrawing)
                 throw new InvalidOperationException("Draw cannot be called recursivly");
 
+            if (!ImGui.Begin(name))
+            {
+                ImGui.End();
+                return;
+            }
+
             _isDrawing = true;
+
 
             if (_sections.Count == 0)
                 ImGui.Text("Empty");
@@ -100,7 +107,7 @@ namespace ToyStudio.GUI.widgets
                 bool anyChanges = false;
                 foreach (var (capture, checkpoint, _) in _captures)
                 {
-                    capture.CollectChanges((hasChanged, name) 
+                    capture.CollectChanges((hasChanged, name)
                         => anyChanges |= hasChanged);
                 }
 
@@ -121,6 +128,8 @@ namespace ToyStudio.GUI.widgets
                 else
                     Setup(value.inspectables, value.mainInspectable);
             }
+
+            ImGui.End();
         }
 
         private void TriggerEventAndRecapture()
@@ -227,8 +236,8 @@ namespace ToyStudio.GUI.widgets
             var iter1 = captureable.CaptureProperties().GetEnumerator();
             var iter2 = captureable.CaptureProperties().GetEnumerator();
 
-            while (iter1.MoveNext() && iter2.MoveNext()) 
-            { 
+            while (iter1.MoveNext() && iter2.MoveNext())
+            {
                 var capture = iter1.Current;
                 var checkpoint = iter2.Current;
                 Debug.Assert(capture != checkpoint);
@@ -251,7 +260,7 @@ namespace ToyStudio.GUI.widgets
 
 
 
-        private class SetupContext(ObjectInspector inspector) : IInspectorSetupContext
+        private class SetupContext(ObjectInspectorWindow inspector) : IInspectorSetupContext
         {
             public void GeneralSection(Action<ISectionSetupContext> setupFunc,
                 Action<ISectionDrawContext>? drawNonSharedUI,

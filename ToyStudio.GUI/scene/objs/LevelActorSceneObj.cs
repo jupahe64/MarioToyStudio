@@ -19,11 +19,12 @@ using ToyStudio.GUI.util.edit.transform;
 using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
+using ToyStudio.GUI.windows.panels;
 
 namespace ToyStudio.GUI.scene.objs
 {
     internal class LevelActorSceneObj :
-        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, ITransformable, IInspectable
+        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, ITransformable, IInspectable, IViewportPickable
     {
         public LevelActorSceneObj(LevelActor actor, SubLevelSceneContext sceneContext)
         {
@@ -35,6 +36,12 @@ namespace ToyStudio.GUI.scene.objs
         }
 
         public Vector3 Position => _actor.Translate;
+
+        public object GetPickedObject(out string label)
+        {
+            label = _actor.Gyaml ?? "";
+            return _actor;
+        }
 
         public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj)
         {
