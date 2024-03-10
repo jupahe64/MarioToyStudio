@@ -224,26 +224,32 @@ namespace ToyStudio.GUI.windows
 
                     if (ImGui.MenuItem("Save"))
                     {
-                        //Ensure the romfs path is set for saving
-                        if (!string.IsNullOrEmpty(UserSettings.GetModRomFSPath()))
-                            _activeLevelWorkSpace!.Save(_romfs!);
-                        else //Else configure the mod path
+                        try
                         {
-                            Task.Run(async () =>
+                            if (!string.IsNullOrEmpty(UserSettings.GetModRomFSPath()))
+                                _activeLevelWorkSpace!.Save(_romfs!);
+                            else
                             {
-                                var result = await OperationWarningDialog.ShowDialog(_modalHost, "No Mod Directory",
-                                    """
+                                Task.Run(async () =>
+                                {
+                                    var result = await OperationWarningDialog.ShowDialog(_modalHost, "No Mod Directory",
+                                        """
                                     No Mod Directory has been set (in Preferences).
                                     Files will be saved in the BaseGame Directory, overwriting the game files.
                                     Continuing is NOT recommended!!!
                                     (If this is 100% intended set the Mod Directory to the BaseGame Directory)
                                     """);
 
-                                if (result == OperationWarningDialog.DialogResult.OK)
-                                {
-                                    _activeLevelWorkSpace!.Save(_romfs!);
-                                }
-                            });
+                                    if (result == OperationWarningDialog.DialogResult.OK)
+                                    {
+                                        _activeLevelWorkSpace!.Save(_romfs!);
+                                    }
+                                });
+                            }
+                        }
+                        catch(Exception e)
+                        {
+                            _ = SavingErrorDialog.ShowDialog(_modalHost, _currentCourseName!, e);
                         }
                     }
 
@@ -456,6 +462,34 @@ namespace ToyStudio.GUI.windows
             }
 
             private LoadingErrorDialog(Exception exception, string subject)
+            {
+                _exception = exception;
+                _subject = subject;
+            }
+
+            private Exception _exception;
+            private readonly string _subject;
+        }
+
+        class SavingErrorDialog : OkDialog
+        {
+            public static Task ShowDialog(IPopupModalHost modalHost, string subject, Exception exception) =>
+                ShowDialog(modalHost, new SavingErrorDialog(exception, subject));
+
+            protected override string Title => $"Error while saving {_subject}";
+
+            protected override void DrawBody()
+            {
+                ImGui.Text($"An error occured while saving {_subject}");
+
+                string message = _exception.Message + "\n\n" + _exception.StackTrace;
+
+                ImGui.InputTextMultiline("##error message", ref message,
+                    (uint)message.Length,
+                    new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, 400), ImGui.GetFrameHeight() * 6));
+            }
+
+            private SavingErrorDialog(Exception exception, string subject)
             {
                 _exception = exception;
                 _subject = subject;
