@@ -177,11 +177,11 @@ namespace ToyStudio.GUI.windows
                     Dynamic = PropertyDict.Empty,
                     Gyaml = gyaml,
                     Name = gyaml,
-                    Translate = pos.Value,
+                    Translate = pos.Value with { Z = 0 },
                     Hash = ctx.GenerateUniqueActorHash(),
                     Phive = new LevelActor.PhiveParameter 
                     {
-                        //TODO figure out what this ID needs to be set to is necessary
+                        //TODO figure out what this ID needs to be set to and if it's even necessary
                         Placement = new() { ID = 0}
                     }
                 }, $"Add {gyaml}"));
