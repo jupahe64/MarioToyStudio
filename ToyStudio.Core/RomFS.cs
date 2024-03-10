@@ -232,7 +232,7 @@ namespace ToyStudio.Core
             FileInfo fileInfo = ResloveFilePath(_modDirectory ?? _baseGameDirectory, filePath);
 
             fileInfo.Directory?.Create();
-            using var output = fileInfo.OpenWrite();
+            using var output = fileInfo.Open(FileMode.Create);
             output.Write(s_zsCompressor.Wrap(stream.GetBuffer().AsSpan()[..(int)stream.Length]));
         }
 
@@ -276,7 +276,7 @@ namespace ToyStudio.Core
         private Dictionary<string, string> _addressTable = [];
         private DirectoryInfo? _modDirectory = null;
         private readonly static Decompressor s_zsDecompressor = new();
-        private readonly static Compressor s_zsCompressor = new(level: 17);
+        private readonly static Compressor s_zsCompressor = new(level: 19);
         private readonly static string[] s_bootupFilePath = ["Pack", "Bootup.Nin_NX_NVN.pack.zs"];
 
         private RomFS()

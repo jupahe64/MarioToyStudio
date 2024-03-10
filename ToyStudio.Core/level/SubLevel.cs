@@ -48,12 +48,14 @@ namespace ToyStudio.Core.level
         {
             var map = new BymlMap();
 
+            var entries = new List<KeyValuePair<string, Byml>>();
+
             if (Actors.Count > 0)
             {
                 var actors = new BymlArray();
                 foreach (var actor in Actors)
                     actors.Add(actor.Serialize());
-                map["Actors"] = actors;
+                entries.Add(new("Actors", actors));
             }
 
             if (Rails.Count > 0)
@@ -61,11 +63,16 @@ namespace ToyStudio.Core.level
                 var rails = new BymlArray();
                 foreach (var rail in Rails)
                     rails.Add(rail.Serialize());
-                map["Rails"] = rails;
+                entries.Add(new("Rails", rails));
             }
 
-            foreach (var (key, value) in OtherBymlEntries)
-                map[key] = value;
+            entries.AddRange(OtherBymlEntries);
+
+            //temporary solution
+            entries.Sort((l,r)=>l.Key.CompareTo(r.Key));
+            map.EnsureCapacity(entries.Count);
+            foreach (var entry in entries)
+                map[entry.Key] = entry.Value;
 
             return new Byml(map);
         }
