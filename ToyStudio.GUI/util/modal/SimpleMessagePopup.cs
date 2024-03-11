@@ -13,6 +13,7 @@ namespace ToyStudio.GUI.util.modal
             ShowDialog(modalHost, new SimpleMessagePopup(message, title));
 
         protected override string Title => _title;
+        protected override string? ID => null;
 
         protected override void DrawBody()
         {

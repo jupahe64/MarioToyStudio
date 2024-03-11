@@ -186,7 +186,7 @@ namespace ToyStudio.GUI.windows
                         }
                         catch (Exception ex)
                         {
-                            await LoadingErrorDialog.ShowDialog(_modalHost, $"Level {name}", ex);
+                            await ErrorDialog.ShowLoadingError(_modalHost, $"Level {name}", ex);
                         }
                     });
         }
@@ -249,7 +249,7 @@ namespace ToyStudio.GUI.windows
                         }
                         catch(Exception e)
                         {
-                            _ = SavingErrorDialog.ShowDialog(_modalHost, _currentCourseName!, e);
+                            _ = ErrorDialog.ShowSavingError(_modalHost, _currentCourseName!, e);
                         }
                     }
 
@@ -390,7 +390,7 @@ namespace ToyStudio.GUI.windows
             catch (Exception ex)
             {
                 _isShowPreferenceWindow = true;
-                await LoadingErrorDialog.ShowDialog(_modalHost, "The RomFS", ex);
+                await ErrorDialog.ShowLoadingError(_modalHost, "The RomFS", ex);
             }
         }
 
@@ -415,6 +415,7 @@ namespace ToyStudio.GUI.windows
                 ShowDialog(modalHost, new WelcomeMessage());
 
             protected override string Title => "Welcome";
+            protected override string? ID => null;
 
             protected override void DrawBody()
             {
@@ -431,6 +432,7 @@ namespace ToyStudio.GUI.windows
                 ShowDialog(modalHost, new RomFSChangeWarning());
 
             protected override string Title => "Warning";
+            protected override string? ID => null;
 
             protected override void DrawBody()
             {
@@ -441,62 +443,6 @@ namespace ToyStudio.GUI.windows
             }
 
             private RomFSChangeWarning() { }
-        }
-
-        class LoadingErrorDialog : OkDialog
-        {
-            public static Task ShowDialog(IPopupModalHost modalHost, string subject, Exception exception) =>
-                ShowDialog(modalHost, new LoadingErrorDialog(exception, subject));
-
-            protected override string Title => $"Error while loading {_subject}";
-
-            protected override void DrawBody()
-            {
-                ImGui.Text($"An error occured while loading {_subject}");
-
-                string message = _exception.Message + "\n\n" + _exception.StackTrace;
-
-                ImGui.InputTextMultiline("##error message", ref message, 
-                    (uint)message.Length,
-                    new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, 400), ImGui.GetFrameHeight() * 6));
-            }
-
-            private LoadingErrorDialog(Exception exception, string subject)
-            {
-                _exception = exception;
-                _subject = subject;
-            }
-
-            private Exception _exception;
-            private readonly string _subject;
-        }
-
-        class SavingErrorDialog : OkDialog
-        {
-            public static Task ShowDialog(IPopupModalHost modalHost, string subject, Exception exception) =>
-                ShowDialog(modalHost, new SavingErrorDialog(exception, subject));
-
-            protected override string Title => $"Error while saving {_subject}";
-
-            protected override void DrawBody()
-            {
-                ImGui.Text($"An error occured while saving {_subject}");
-
-                string message = _exception.Message + "\n\n" + _exception.StackTrace;
-
-                ImGui.InputTextMultiline("##error message", ref message,
-                    (uint)message.Length,
-                    new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, 400), ImGui.GetFrameHeight() * 6));
-            }
-
-            private SavingErrorDialog(Exception exception, string subject)
-            {
-                _exception = exception;
-                _subject = subject;
-            }
-
-            private Exception _exception;
-            private readonly string _subject;
         }
     }
 }

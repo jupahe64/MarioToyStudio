@@ -175,7 +175,7 @@ namespace ToyStudio.GUI.scene.objs
                         }
                         catch (Exception e)
                         {
-                            PropertyChangeErrorDialog.ShowDialog(_sceneContext.ModalHost, "Gyaml", e);
+                            ErrorDialog.ShowPropertyChangeError(_sceneContext.ModalHost, "Gyaml", e);
                         }
 
                         //even though we call UpdateAll which indirectly calls SetActorGyaml which usually Invalidates the scene
