@@ -164,9 +164,9 @@ namespace ToyStudio.GUI.windows
             _shouldCheckForRomFSPathChanges = true;
         }
 
-        Task LoadLevelWithProgressBar(string name)
+        Task<bool> LoadLevelWithProgressBar(string name)
         {
-            return ProgressBarDialog.ShowDialogForAsyncAction(this,
+            return ProgressBarDialog.ShowDialogForAsyncFunc(this,
                     $"Loading {name}",
                     async (p) =>
                     {
@@ -183,10 +183,12 @@ namespace ToyStudio.GUI.windows
                             _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, 
                                 _romfs!, _glTaskScheduler, actorPackCache, _modalHost, p);
                             _currentCourseName = name;
+                            return true;
                         }
                         catch (Exception ex)
                         {
                             await ErrorDialog.ShowLoadingError(_modalHost, $"Level {name}", ex);
+                            return false;
                         }
                     });
         }
@@ -211,10 +213,10 @@ namespace ToyStudio.GUI.windows
 
                             if (await TryCloseWorkspace())
                             {
-                                _currentCourseName = selectedCourse;
-                                Console.WriteLine($"Selected course {_currentCourseName}!");
-                                await LoadLevelWithProgressBar(_currentCourseName);
-                                UserSettings.AppendRecentCourse(_currentCourseName);
+                                Console.WriteLine($"Selected course {selectedCourse}!");
+                                bool success = await LoadLevelWithProgressBar(selectedCourse);
+                                if (success)
+                                    UserSettings.AppendRecentCourse(_currentCourseName!);
                             }
                         }).ConfigureAwait(false); //fire and forget
                     }
