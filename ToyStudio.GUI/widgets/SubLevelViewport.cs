@@ -506,7 +506,7 @@ namespace ToyStudio.GUI.widgets
             _glScheduler = glScheduler;
             _camera = new Camera { Distance = 10 };
 
-            _subLevelScene.AfterUpdate += () =>
+            _subLevelScene.AfterRebuild += () =>
             {
                 if (SelectionChanged is null)
                     return;

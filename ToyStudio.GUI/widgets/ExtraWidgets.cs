@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace ToyStudio.GUI.widgets
 {
-    internal class ExtraInputs
+    internal class ExtraWidgets
     {
         [DllImport("cimgui.dll")]
         private static extern void igClearActiveID();
@@ -55,6 +55,38 @@ namespace ToyStudio.GUI.widgets
             }
 
             return is_edited;
+        }
+
+        public static bool TextToggleButton(string id, string text, ref bool toggle, Vector2 size = default)
+        {
+            var color = toggle ? ImGui.GetStyle().Colors[(int)ImGuiCol.Text]
+                               : ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled];
+
+            ImGui.PushStyleColor(ImGuiCol.Text, color);
+
+            var textSize = ImGui.CalcTextSize(text);
+            if (size.X == 0 || size.Y == 0)
+            {
+                if (size.X == 0)
+                    size.X = textSize.X + ImGui.GetStyle().FramePadding.X * 2;
+                if (size.Y == 0)
+                    size.Y = textSize.Y + ImGui.GetStyle().FramePadding.Y * 2;
+            }
+
+            bool pressed = ImGui.InvisibleButton(id, size);
+
+            if (!ImGui.IsItemHovered())
+                color.W *= 0.9f; //lower opacity a bit
+
+            var center = (ImGui.GetItemRectMin() + ImGui.GetItemRectMax()) / 2;
+            ImGui.GetWindowDrawList().AddText(center - textSize / 2, ImGui.ColorConvertFloat4ToU32(color), text);
+
+            ImGui.PopStyleColor();
+
+            if (pressed)
+                toggle = !toggle;
+
+            return pressed;
         }
     }
 }

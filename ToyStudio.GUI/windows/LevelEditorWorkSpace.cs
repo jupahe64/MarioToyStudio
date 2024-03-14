@@ -34,30 +34,10 @@ namespace ToyStudio.GUI.windows
             IPopupModalHost popupModalHost,
             IProgress<(string operationName, float? progress)> progress)
         {
-            var ws = new LevelEditorWorkSpace(level, romfs, glScheduler, popupModalHost);
+            var ws = new LevelEditorWorkSpace(level, romfs, glScheduler, actorPackCache, popupModalHost);
 
             foreach (var subLevel in level.SubLevels)
-            {
-                var editContext = new SubLevelEditContext(subLevel, popupModalHost);
-                var scene = new Scene<SubLevelSceneContext>(
-                    new SubLevelSceneContext(editContext, popupModalHost, actorPackCache),
-                    new SubLevelSceneRoot(subLevel)
-                );
-                scene.Context.SetScene(scene);
-
-                editContext.Update += scene.Invalidate;
-
-                ws._scenes[subLevel] = scene;
-                ws._editContexts[subLevel] = editContext;
-
-                var viewport = await SubLevelViewport.Create(scene, editContext, glScheduler);
-                viewport.SelectionChanged += args =>
-                {
-                    ws.SetupInspector(editContext, args.SelectedObjects, args.ActiveObject);
-                };
-
-                ws._viewports[subLevel] = viewport;
-            }
+                await ws.AddSubLevel(subLevel);
 
             return ws;
         }
@@ -78,6 +58,7 @@ namespace ToyStudio.GUI.windows
             ViewportsHostPanel(gl, deltaSeconds);
             _inspector.Draw();
             _actorPalette.Draw();
+            _objectTreeView.Draw();
         }
 
         private void ViewportsHostPanel(GL gl, double deltaSeconds)
@@ -105,6 +86,7 @@ namespace ToyStudio.GUI.windows
                             var (selectedObjs, active) = viewport.GetSelection();
                             SetupInspector(_editContexts[subLevel], selectedObjs, active);
 
+                            _objectTreeView.SetTree(_objectTrees[subLevel]);
                         }
                         _activeSubLevel = subLevel;
                     }
@@ -141,6 +123,37 @@ namespace ToyStudio.GUI.windows
             _scenes[_activeSubLevel].Context.Commit(
                 new RevertablePropertyChange(changedCaptures.Select(x => x.capture).ToArray(),
                 message));
+        }
+
+        private async Task AddSubLevel(SubLevel subLevel)
+        {
+            var editContext = new SubLevelEditContext(subLevel, _popupModalHost);
+            var scene = new Scene<SubLevelSceneContext>(
+                new SubLevelSceneContext(editContext, _popupModalHost, _actorPackCache),
+                new SubLevelSceneRoot(subLevel)
+            );
+            scene.Context.SetScene(scene);
+
+            editContext.Update += scene.Invalidate;
+
+            var objectTree = new ObjectTree<SubLevelTreeContext>(
+                new SubLevelTreeContext(editContext),
+                new SubLevelTreeRoot(subLevel)
+            );
+
+            scene.AfterRebuild += objectTree.Invalidate;
+
+            _scenes[subLevel] = scene;
+            _editContexts[subLevel] = editContext;
+            _objectTrees[subLevel] = objectTree;
+
+            var viewport = await SubLevelViewport.Create(scene, editContext, _glScheduler);
+            viewport.SelectionChanged += args =>
+            {
+                SetupInspector(editContext, args.SelectedObjects, args.ActiveObject);
+            };
+
+            _viewports[subLevel] = viewport;
         }
 
         private void SetupInspector(SubLevelEditContext editContext,
@@ -195,6 +208,7 @@ namespace ToyStudio.GUI.windows
 
         private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
+        private readonly Dictionary<SubLevel, ObjectTree<SubLevelTreeContext>> _objectTrees = [];
         private readonly Dictionary<SubLevel, SubLevelEditContext> _editContexts = [];
         private readonly Level _level;
         private readonly RomFS _romfs;
@@ -202,13 +216,16 @@ namespace ToyStudio.GUI.windows
         private readonly IPopupModalHost _popupModalHost;
         private readonly ObjectInspectorWindow _inspector;
         private readonly ActorPaletteWindow _actorPalette;
+        private readonly ObjectTreeViewWindow _objectTreeView;
         private SubLevelEditContext? _inspectorEditContext;
+        private ActorPackCache _actorPackCache;
 
-        private LevelEditorWorkSpace(Level level, RomFS romfs, GLTaskScheduler glScheduler, IPopupModalHost popupModalHost)
+        private LevelEditorWorkSpace(Level level, RomFS romfs, GLTaskScheduler glScheduler, ActorPackCache actorPackCache, IPopupModalHost popupModalHost)
         {
             _level = level;
             _romfs = romfs;
             _glScheduler = glScheduler;
+            _actorPackCache = actorPackCache;
             _popupModalHost = popupModalHost;
 
             _activeSubLevel = level.SubLevels[0];
@@ -220,6 +237,8 @@ namespace ToyStudio.GUI.windows
 
             _inspector = new("Inspector");
             _inspector.PropertyChanged += Inspector_PropertyChanged;
+
+            _objectTreeView = new("Objects");
         }
     }
 }

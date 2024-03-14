@@ -85,7 +85,7 @@ namespace ToyStudio.GUI.widgets
             else
             {
                 value = string.Empty;
-                edited = ExtraInputs.SuggestingTextInput(label, ref value, 
+                edited = ExtraWidgets.SuggestingTextInput(label, ref value, 
                     sharedProp.Values.Distinct()!, "Mixed");
             }
 

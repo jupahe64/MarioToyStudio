@@ -27,7 +27,7 @@ namespace ToyStudio.GUI.util.edit
 
     internal class Scene<TSceneContext>
     {
-        public event Action? AfterUpdate;
+        public event Action? AfterRebuild;
         public TSceneContext Context { get; private set; }
 
         public Scene(TSceneContext sceneContext, ISceneRoot<TSceneContext> sceneRoot)
@@ -63,7 +63,7 @@ namespace ToyStudio.GUI.util.edit
             _isUpdating = false;
             _needsUpdate = false;
 
-            AfterUpdate?.Invoke();
+            AfterRebuild?.Invoke();
         }
 
         public bool TryGetObjFor(object dataObject, [NotNullWhen(true)] out ISceneObject<TSceneContext>? sceneObject)
@@ -100,6 +100,9 @@ namespace ToyStudio.GUI.util.edit
         public void ForEach<T>(Action<T> action)
             where T : class
         {
+            if (_isUpdating)
+                throw new InvalidOperationException("Cannot call this function while scene is Rebuilding");
+
             _updateBlockers++;
 
             var span = CollectionsMarshal.AsSpan(_orderedSceneObjects);
