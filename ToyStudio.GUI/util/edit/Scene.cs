@@ -56,9 +56,9 @@ namespace ToyStudio.GUI.util.edit
             _isUpdating = true;
             _orderedSceneObjects.Clear();
 
-            MarkAllDirty();
+            _mapping.BeginUpdate();
             _sceneRoot.Update(_updateContext, Context);
-            CollectDirty();
+            _mapping.EndUpdate();
 
             _isUpdating = false;
             _needsUpdate = false;
@@ -68,26 +68,10 @@ namespace ToyStudio.GUI.util.edit
 
         public bool TryGetObjFor(object dataObject, [NotNullWhen(true)] out ISceneObject<TSceneContext>? sceneObject)
         {
-            bool success = _dataSceneObjects.TryGetValue(dataObject, out var entry);
-            sceneObject = entry.obj;
-            return success;
-        }
-
-        private void MarkAllDirty()
-        {
-            foreach (var key in _dataSceneObjects.Keys)
-            {
-                ref var value = ref CollectionsMarshal.GetValueRefOrNullRef(_dataSceneObjects, key);
-                value.isDirty = true;
-            }
-        }
-
-        private void CollectDirty()
-        {
-            var dirtyEntries = _dataSceneObjects.Where(x => x.Value.isDirty).Select(x => x.Key).ToList();
-
-            foreach (var key in dirtyEntries)
-                _dataSceneObjects.Remove(key);
+            bool success = _mapping.TryGetMappedObjFor(dataObject, out sceneObject, out bool isDirty);
+            if (isDirty)
+                sceneObject = null;
+            return success && !isDirty;
         }
 
 
@@ -130,10 +114,7 @@ namespace ToyStudio.GUI.util.edit
             where T : class
             => _orderedSceneObjects.OfType<T>();
 
-        /// <summary>
-        /// Objects that have a direct mapping to an actual data object
-        /// </summary>
-        private readonly Dictionary<object, (ISceneObject<TSceneContext> obj, bool isDirty)> _dataSceneObjects = [];
+        private readonly ObjectMapping<object, ISceneObject<TSceneContext>> _mapping = new();
 
         private readonly List<ISceneObject<TSceneContext>> _orderedSceneObjects = [];
         private readonly ISceneRoot<TSceneContext> _sceneRoot;
@@ -147,22 +128,23 @@ namespace ToyStudio.GUI.util.edit
                 if (!s._isUpdating)
                     throw new InvalidOperationException("Cannot call this function outside of Update");
 
-                if (!s._dataSceneObjects.TryGetValue(sceneObject, out var entry))
+                if (!s._mapping.TryGetMappedObjFor(sceneObject, out var obj, out bool isDirty))
                 {
-                    entry = (sceneObject, isDirty: true);
+                    obj = sceneObject;
+                    isDirty = true;
                 }
 
-                if (!entry.isDirty)
+                if (!isDirty)
                     return;
 
-                s._orderedSceneObjects.Add(entry.obj);
+                s._orderedSceneObjects.Add(obj);
 
                 bool isValid = true;
-                entry.obj.Update(this, s.Context, ref isValid);
+                obj.Update(this, s.Context, ref isValid);
                 if (!isValid)
                     Debug.Fail("Only Scene objects with a dataObject can be invalidated");
 
-                s._dataSceneObjects[sceneObject] = entry with { isDirty = false };
+                s._mapping.SetMappingFor(sceneObject, obj);
             }
 
             /// <returns>The created/updated scene object</returns>
@@ -172,34 +154,35 @@ namespace ToyStudio.GUI.util.edit
                     throw new InvalidOperationException("Cannot call this function outside of Update");
 
                 bool justCreated = false;
-                if (!s._dataSceneObjects.TryGetValue(dataObject, out var entry))
+                if (!s._mapping.TryGetMappedObjFor(dataObject, out var obj, out bool isDirty))
                 {
                     var sceneObject = createFunc.Invoke();
-                    entry = (sceneObject, isDirty: true);
+                    obj = sceneObject;
+                    isDirty = true;
                     justCreated = true;
                 }
 
-                if (!entry.isDirty)
-                    return entry.obj;
+                if (!isDirty)
+                    return obj;
 
                 int countBefore = s._orderedSceneObjects.Count;
-                s._orderedSceneObjects.Add(entry.obj);
+                s._orderedSceneObjects.Add(obj);
 
                 bool isValid = true;
-                entry.obj.Update(this, s.Context, ref isValid);
+                obj.Update(this, s.Context, ref isValid);
                 if (!isValid && !justCreated)
                 {
                     var count = s._orderedSceneObjects.Count;
                     s._orderedSceneObjects.RemoveRange(countBefore, count - countBefore);
-                    entry.obj = createFunc.Invoke();
-                    s._orderedSceneObjects.Add(entry.obj);
+                    obj = createFunc.Invoke();
+                    s._orderedSceneObjects.Add(obj);
                     isValid = true;
-                    entry.obj.Update(this, s.Context, ref isValid);
+                    obj.Update(this, s.Context, ref isValid);
                 }
                 Debug.Assert(isValid);
 
-                s._dataSceneObjects[dataObject] = entry with { isDirty = false };
-                return entry.obj;
+                s._mapping.SetMappingFor(dataObject, obj);
+                return obj;
             }
         }
     }

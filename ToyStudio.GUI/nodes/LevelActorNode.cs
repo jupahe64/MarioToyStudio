@@ -5,18 +5,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
+using ToyStudio.GUI.scene.objs;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.windows.panels;
 
-namespace ToyStudio.GUI.scene.nodes
+namespace ToyStudio.GUI.nodes
 {
-    internal class LevelActorNode(LevelActor actor, SubLevelTreeContext ctx, IObjectTreeViewNode parent) : IObjectTreeViewNode, IObjectTreeNode
+    internal class LevelActorNode(LevelActor actor, LevelNodeContext ctx, IObjectTreeViewNode parent) : IObjectTreeViewNode, ILevelNode
     {
         public bool IsExpanded { get; set; }
-        public bool IsVisible 
-        { 
-            get => _isVisible && parent.IsVisible; 
-            set => _isVisible = value; 
+        public bool IsVisible
+        {
+            get => _isVisible && parent.IsVisible;
+            set => _isVisible = value;
         }
         public bool IsSelected
         {
@@ -28,9 +29,9 @@ namespace ToyStudio.GUI.scene.nodes
 
         public ICollection<IObjectTreeViewNode> ChildNodes => [];
 
-        void IObjectTreeNode.Update(ITreeUpdateContext updateContext, ref bool isValid)
+        void ILevelNode.Update(LevelNodeTreeUpdater updater, ref bool isValid)
         {
-            
+
         }
 
         private bool _isVisible = true;

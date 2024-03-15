@@ -12,7 +12,9 @@ using ToyStudio.Core.level;
 using ToyStudio.Core.util;
 using ToyStudio.Core.util.capture;
 using ToyStudio.GUI.level_editing;
+using ToyStudio.GUI.nodes;
 using ToyStudio.GUI.scene;
+using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.util.gl;
@@ -83,12 +85,8 @@ namespace ToyStudio.GUI.windows
                     {
                         if (_activeSubLevel != subLevel)
                         {
-                            var (selectedObjs, active) = viewport.GetSelection();
-                            SetupInspector(_editContexts[subLevel], selectedObjs, active);
-
-                            _objectTreeView.SetTree(_objectTrees[subLevel]);
+                            ChangeActiveSubLevel(subLevel);
                         }
-                        _activeSubLevel = subLevel;
                     }
 
                     viewport.Draw(ImGui.GetContentRegionAvail(), gl, deltaSeconds, _activeSubLevel == subLevel);
@@ -96,6 +94,29 @@ namespace ToyStudio.GUI.windows
             }
 
             ImGui.End();
+        }
+
+        private void ChangeActiveSubLevel(SubLevel subLevel)
+        {
+            var (selectedObjs, active) = _viewports[subLevel].GetSelection();
+            SetupInspector(_editContexts[subLevel], selectedObjs, active);
+
+            if (_activeSubLevel != null)
+                _objectTrees[_activeSubLevel].Updated -= LevelObjectTree_Updated;
+
+            _activeSubLevel = subLevel;
+            _objectTrees[_activeSubLevel].Updated += LevelObjectTree_Updated;
+
+            _objectTreeView.SelectionUpdateWrapper = _scenes[_activeSubLevel].Context.WithSuspendUpdateDo;
+
+            LevelObjectTree_Updated(_objectTrees[_activeSubLevel]);
+        }
+
+        private void LevelObjectTree_Updated(LevelObjectTree source)
+        {
+            _objectTreeView.UpdateNodes(
+                source.GetRootNodes<IObjectTreeViewNode>()
+            );
         }
 
         private void Inspector_PropertyChanged(List<(ICaptureable source, IStaticPropertyCapture capture)> changedCaptures)
@@ -136,12 +157,9 @@ namespace ToyStudio.GUI.windows
 
             editContext.Update += scene.Invalidate;
 
-            var objectTree = new ObjectTree<SubLevelTreeContext>(
-                new SubLevelTreeContext(editContext),
-                new SubLevelTreeRoot(subLevel)
-            );
+            var objectTree = new LevelObjectTree(subLevel, scene, editContext);
 
-            scene.AfterRebuild += objectTree.Invalidate;
+            scene.AfterRebuild += objectTree.Update;
 
             _scenes[subLevel] = scene;
             _editContexts[subLevel] = editContext;
@@ -208,7 +226,7 @@ namespace ToyStudio.GUI.windows
 
         private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
-        private readonly Dictionary<SubLevel, ObjectTree<SubLevelTreeContext>> _objectTrees = [];
+        private readonly Dictionary<SubLevel, LevelObjectTree> _objectTrees = [];
         private readonly Dictionary<SubLevel, SubLevelEditContext> _editContexts = [];
         private readonly Level _level;
         private readonly RomFS _romfs;
@@ -239,6 +257,34 @@ namespace ToyStudio.GUI.windows
             _inspector.PropertyChanged += Inspector_PropertyChanged;
 
             _objectTreeView = new("Objects");
+        }
+
+        private class LevelObjectTree
+        {
+            public event Action<LevelObjectTree>? Updated;
+            public LevelObjectTree(SubLevel subLevel, Scene<SubLevelSceneContext> scene, 
+                SubLevelEditContext editContext)
+            {
+                var nodeContext = new LevelNodeContext(editContext);
+                _rootNode = new LevelRootNode(nodeContext, subLevel);
+                _mapping = new ObjectMapping<object, ILevelNode>();
+                _updater = new LevelNodeTreeUpdater(_mapping, scene);
+                Update();
+            }
+
+            public void Update()
+            {
+                _mapping.BeginUpdate();
+                _rootNode.Update(_updater);
+                _mapping.EndUpdate();
+                Updated?.Invoke(this);
+            }
+
+            public IEnumerable<T> GetRootNodes<T>() => _rootNode.Nodes.OfType<T>();
+
+            private readonly ObjectMapping<object, ILevelNode> _mapping;
+            private readonly LevelRootNode _rootNode;
+            private readonly LevelNodeTreeUpdater _updater;
         }
     }
 }

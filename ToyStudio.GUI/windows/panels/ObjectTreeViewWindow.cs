@@ -2,6 +2,7 @@
 using ImGuiNET;
 using Newtonsoft.Json.Bson;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -11,17 +12,13 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.level_editing;
+using ToyStudio.GUI.nodes;
 using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.windows.panels
 {
-    internal interface IObjectTreeViewNodeContainer
-    {
-        ICollection<IObjectTreeViewNode> Nodes { get; }
-    }
-
     interface IObjectTreeViewNode 
     {
         bool IsExpanded { get; set; }
@@ -33,22 +30,15 @@ namespace ToyStudio.GUI.windows.panels
 
     internal class ObjectTreeViewWindow(string name)
     {
-        public void SetTree(IObjectTree tree)
-        {
-            if (_tree is not null)
-                _tree.AfterRebuild -= UpdateNodes;
+        public delegate void ActionWrapper(Action wrapped);
 
-            _tree = tree;
-
-            _tree.AfterRebuild += UpdateNodes;
-            UpdateNodes();
-        }
+        public ActionWrapper? SelectionUpdateWrapper { private get; set; }
 
         public void Draw()
         {
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0));
             ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(0));
-            if (!ImGui.Begin(name) || _tree is null)
+            if (!ImGui.Begin(name) || _nodes.Count == 0)
             {
                 ImGui.End();
                 ImGui.PopStyleVar(2);
@@ -89,7 +79,7 @@ namespace ToyStudio.GUI.windows.panels
                     previousDepth = depth;
 
                     if (_isNodesDirty)
-                        UpdateNodes();
+                        UpdateNodesInternal();
                 }
 
                 int remaining = Math.Max(maxVisibleRows - _nodes.Count, 0);
@@ -111,7 +101,13 @@ namespace ToyStudio.GUI.windows.panels
             ImGui.End();
 
             if (_selectionRequest.TryGetValue(out var request))
-                HandleSelectionRequest(request);
+            {
+                void Handle() => HandleSelectionRequest(request);
+                if (SelectionUpdateWrapper != null)
+                    SelectionUpdateWrapper(Handle);
+                else
+                    Handle();
+            }
         }
 
         private void DrawNode(IObjectTreeViewNode node, NodeFlags flags)
@@ -167,10 +163,13 @@ namespace ToyStudio.GUI.windows.panels
             }
         }
 
-        private void UpdateNodes()
+        public void UpdateNodes(IEnumerable<IObjectTreeViewNode> rootNodes)
         {
-            Debug.Assert(_tree is not null);
-
+            _rootNodes = rootNodes.ToList();
+            UpdateNodesInternal();
+        }
+        private void UpdateNodesInternal()
+        {
             _nodes.Clear();
 
             int depth = 0;
@@ -196,15 +195,14 @@ namespace ToyStudio.GUI.windows.panels
                 }
             }
 
-            ForEachRootNode(Visit);
+            foreach (var node in _rootNodes)
+                Visit(node);
 
             _isNodesDirty = false;
         }
 
         private void DeselectAllNodes()
         {
-            Debug.Assert(_tree is not null);
-
             void Visit(IObjectTreeViewNode node)
             {
                 if (node.IsSelected)
@@ -214,36 +212,12 @@ namespace ToyStudio.GUI.windows.panels
                     Visit(child);
             }
 
-            ForEachRootNode(Visit);
-        }
-
-        private void ForEachRootNode(Action<IObjectTreeViewNode> action)
-        {
-            Debug.Assert(_tree is not null);
-
-            _tree.WithTreeRootDo<object>(root =>
-            {
-                if (root is IObjectTreeViewNodeContainer nodeContainer)
-                {
-                    foreach (var node in nodeContainer.Nodes)
-                        action(node);
-                }
-                else if (root is IObjectTreeViewNode node)
-                    action(node);
-                else
-                    throw new InvalidOperationException($"{root.GetType().FullName} does not implement " +
-                        $"{nameof(IObjectTreeViewNodeContainer)} or {nameof(IObjectTreeViewNode)}");
-            });
+            foreach (var node in _rootNodes)
+                Visit(node);
         }
 
         private void HandleSelectionRequest((IObjectTreeViewNode node, bool isMulti, bool isShift) request)
         {
-            if (_tree == null)
-            {
-                _selectionRequest = null;
-                return;
-            }
-
             if (request.isShift && _lastClickedNode != null && _lastClickedNode != request.node)
             {
                 int indexA = _nodes.FindIndex(x => x.node == _lastClickedNode);
@@ -264,13 +238,10 @@ namespace ToyStudio.GUI.windows.panels
             }
             else
             {
-                _tree.WithSuspendUpdateDo(() =>
-                {
-                    DeselectAllNodes();
+                DeselectAllNodes();
 
-                    if (!request.node.IsSelected)
-                        request.node.IsSelected = true;
-                });
+                if (!request.node.IsSelected)
+                    request.node.IsSelected = true;
             }
 
             _selectionRequest = null;
@@ -284,51 +255,48 @@ namespace ToyStudio.GUI.windows.panels
             int min = Math.Min(indexA, indexB);
             int max = Math.Max(indexA, indexB);
 
-            _tree?.WithSuspendUpdateDo(() =>
+            if (isMulti && !_nodes[indexA].node.IsSelected)
             {
-                if (isMulti && !_nodes[indexA].node.IsSelected)
-                {
-                    for (int i = min; i <= max; i++)
-                    {
-                        var node = _nodes[i].node;
-                        if (node.IsSelected)
-                            node.IsSelected = false;
-                    }
-                    return;
-                }
-
-                if (prevIndexB != -1)
-                {
-                    int prevMin = Math.Min(indexA, prevIndexB);
-                    int prevMax = Math.Max(indexA, prevIndexB);
-
-                    for (int i = prevMin; i <= min; i++)
-                    {
-                        var node = _nodes[i].node;
-                        if (node.IsSelected)
-                            node.IsSelected = false;
-                    }
-
-                    for (int i = max; i <= prevMax; i++)
-                    {
-                        var node = _nodes[i].node;
-                        if (node.IsSelected)
-                            node.IsSelected = false;
-                    }
-                }
-
                 for (int i = min; i <= max; i++)
                 {
                     var node = _nodes[i].node;
-                    if (!node.IsSelected)
-                        node.IsSelected = true;
+                    if (node.IsSelected)
+                        node.IsSelected = false;
                 }
-            });
+                return true;
+            }
+
+            if (prevIndexB != -1)
+            {
+                int prevMin = Math.Min(indexA, prevIndexB);
+                int prevMax = Math.Max(indexA, prevIndexB);
+
+                for (int i = prevMin; i <= min; i++)
+                {
+                    var node = _nodes[i].node;
+                    if (node.IsSelected)
+                        node.IsSelected = false;
+                }
+
+                for (int i = max; i <= prevMax; i++)
+                {
+                    var node = _nodes[i].node;
+                    if (node.IsSelected)
+                        node.IsSelected = false;
+                }
+            }
+
+            for (int i = min; i <= max; i++)
+            {
+                var node = _nodes[i].node;
+                if (!node.IsSelected)
+                    node.IsSelected = true;
+            }
 
             return true;
         }
 
-        private IObjectTree? _tree;
+        private ICollection<IObjectTreeViewNode> _rootNodes;
 
         private bool _isNodesDirty = false;
         private readonly List<(IObjectTreeViewNode node, int depth, NodeFlags flags)> _nodes = [];
