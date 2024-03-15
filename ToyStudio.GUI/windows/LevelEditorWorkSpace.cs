@@ -46,10 +46,10 @@ namespace ToyStudio.GUI.windows
 
         //for now
         public bool HasUnsavedChanges() => false;
-        public void Save(RomFS romFS)
+        public void Save(RomFS romFS) => romFS.BatchSave(() =>
         {
             _level.Save(romFS);
-        }
+        });
 
         public void Undo() => _editContexts[_activeSubLevel].Undo();
         public void Redo() => _editContexts[_activeSubLevel].Redo();

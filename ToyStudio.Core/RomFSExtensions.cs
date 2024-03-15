@@ -1,4 +1,5 @@
 ﻿using BymlLibrary;
+using System.IO;
 using ZstdSharp;
 
 namespace ToyStudio.Core
@@ -23,18 +24,9 @@ namespace ToyStudio.Core
         /// <returns>The uncompressed size</returns>
         public static uint SaveByml(this RomFS romfs, string[] filePath, Byml byml, bool isCompressed = false)
         {
-            if (isCompressed)
-            {
-                var stream = new MemoryStream();
-                byml.WriteBinary(stream, Revrs.Endianness.Little);
-                var length = stream.Length;
-                romfs.SaveFromMemStreamCompressed(filePath, stream);
-                return (uint)length;
-            }
-
-            var bytes = byml.ToBinary();
-            romfs.SaveFile(filePath, bytes);
-            return (uint)bytes.Length;
+            return isCompressed
+                ? romfs.SaveFileCompressed(filePath, s => byml.WriteBinary(s, Revrs.Endianness.Little))
+                : romfs.SaveFile(filePath,           s => byml.WriteBinary(s, Revrs.Endianness.Little));
         }
     }
 }
