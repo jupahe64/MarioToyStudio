@@ -26,10 +26,11 @@ namespace ToyStudio.GUI.scene.objs
     internal class LevelActorSceneObj :
         ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, ITransformable, IInspectable, IViewportPickable
     {
-        public LevelActorSceneObj(LevelActor actor, SubLevelSceneContext sceneContext)
+        public LevelActorSceneObj(LevelActor actor, SubLevelSceneContext sceneContext, LevelActorsListSceneObj visibilityParent)
         {
             _actor = actor;
             _sceneContext = sceneContext;
+            _visibilityParent = visibilityParent;
             _actorPack = sceneContext.LoadActorPack(actor.Gyaml!);
             if (_actorPack.TryGetBlackboardProperties(out var blackboardProperties))
                 _blackboardProperties = blackboardProperties;
@@ -37,6 +38,11 @@ namespace ToyStudio.GUI.scene.objs
 
         public Vector3 Position => _actor.Translate;
 
+        public bool IsVisible 
+        { 
+            get => _isVisible; 
+            set => _isVisible = value; 
+        }
         public object GetPickedObject(out string label)
         {
             label = _actor.Gyaml ?? "";
@@ -45,6 +51,9 @@ namespace ToyStudio.GUI.scene.objs
 
         public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj)
         {
+            if (!IsVisible || !_visibilityParent.IsVisible)
+                return;
+
             Span<Vector2> points =
             [
                 viewport.WorldToScreen(_actor.Translate + new Vector3(-0.5f, 0.5f, 0)),
@@ -309,11 +318,13 @@ namespace ToyStudio.GUI.scene.objs
 
         private readonly LevelActor _actor;
         private readonly SubLevelSceneContext _sceneContext;
+        private readonly LevelActorsListSceneObj _visibilityParent;
         private readonly ActorPack _actorPack;
         private readonly BlackboardProperties _blackboardProperties =
             BlackboardProperties.Empty;
         private Vector3 _preTransformPosition;
         private Vector3 _preTransformRotation;
+        private bool _isVisible = true;
 
         private record struct BlackboardPropertyTuple(
             BlackboardProperties BlackboardProperties,

@@ -7,7 +7,7 @@ using ToyStudio.GUI.util.edit;
 namespace ToyStudio.GUI.nodes
 {
     internal class LevelNodeTreeUpdater(ObjectMapping<object, ILevelNode> nodeMapping,
-        Scene<SubLevelSceneContext> scene)
+        Scene<SubLevelSceneContext> scene, LevelNodeContext nodeContext)
     {
         public TNode UpdateOrCreateNodeFor<TNode>(object levelObj, Func<TNode> createFunc)
             where TNode : class, ILevelNode
@@ -26,12 +26,12 @@ namespace ToyStudio.GUI.nodes
                 return node;
 
             bool isValid = true;
-            node.Update(this, ref isValid);
+            node.Update(this, nodeContext, ref isValid);
             if (!isValid && !justCreated)
             {
                 node = createFunc.Invoke();
                 isValid = true;
-                node.Update(this, ref isValid);
+                node.Update(this, nodeContext, ref isValid);
             }
             Debug.Assert(isValid);
 

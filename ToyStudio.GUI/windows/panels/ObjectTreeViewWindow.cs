@@ -36,6 +36,9 @@ namespace ToyStudio.GUI.windows.panels
 
         public void Draw()
         {
+            if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && _dragVisibility.HasValue)
+                _dragVisibility = null;
+
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0));
             ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(0));
             if (!ImGui.Begin(name) || _nodes.Count == 0)
@@ -153,13 +156,23 @@ namespace ToyStudio.GUI.windows.panels
 
             ImGui.TableNextColumn();
 
-            bool isVisible = node.IsVisible;
-            string icon = node.IsVisible ? IconUtil.ICON_EYE : IconUtil.ICON_EYE_SLASH;
+            bool isVisible = (flags & NodeFlags.IsVisible) > 0;
+            bool isParentVisible = (flags & NodeFlags.IsParentVisible) > 0;
 
-            if (ExtraWidgets.TextToggleButton("VisibleToggle", icon, ref isVisible, 
-                    new Vector2(0, ImGui.GetFrameHeight())))
+            string icon = node.IsVisible ? IconUtil.ICON_EYE : IconUtil.ICON_EYE_SLASH;
+            bool tmp = isVisible && isParentVisible;
+            _ = ExtraWidgets.TextToggleButton("VisibleToggle", icon, ref tmp,
+                    new Vector2(0, ImGui.GetFrameHeight()));
+
+            if (ImGui.IsItemActivated() && _dragVisibility == null)
+                _dragVisibility = !isVisible;
+
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem) && 
+                _dragVisibility.HasValue && _dragVisibility.Value != isVisible)
             {
-                node.IsVisible = isVisible;
+                node.IsVisible = _dragVisibility.Value;
+                if (node.IsVisible == _dragVisibility.Value) //ensure that IsVisible was actually set, since it's a property
+                    _isNodesDirty = true;
             }
         }
 
@@ -174,7 +187,7 @@ namespace ToyStudio.GUI.windows.panels
 
             int depth = 0;
 
-            void Visit(IObjectTreeViewNode node)
+            void Visit(IObjectTreeViewNode node, bool isParentVisible = true)
             {
                 NodeFlags flags = NodeFlags.None;
 
@@ -184,13 +197,21 @@ namespace ToyStudio.GUI.windows.panels
                 if (node.IsExpanded)
                     flags |= NodeFlags.IsExpanded;
 
+                if (isParentVisible)
+                    flags |= NodeFlags.IsParentVisible;
+
+                if (node.IsVisible)
+                    flags |= NodeFlags.IsVisible;
+                else
+                    isParentVisible = false;
+
                 _nodes.Add((node, depth, flags));
 
-                if (flags == (NodeFlags.IsExpanded | NodeFlags.HasChildren))
+                if ((flags & (NodeFlags.IsExpanded | NodeFlags.HasChildren)) > 0)
                 {
                     depth++;
                     foreach (var child in node.ChildNodes) 
-                        Visit(child);
+                        Visit(child, isParentVisible);
                     depth--;
                 }
             }
@@ -203,7 +224,7 @@ namespace ToyStudio.GUI.windows.panels
 
         private void DeselectAllNodes()
         {
-            void Visit(IObjectTreeViewNode node)
+            static void Visit(IObjectTreeViewNode node)
             {
                 if (node.IsSelected)
                     node.IsSelected = false;
@@ -296,19 +317,22 @@ namespace ToyStudio.GUI.windows.panels
             return true;
         }
 
-        private ICollection<IObjectTreeViewNode> _rootNodes;
+        private ICollection<IObjectTreeViewNode> _rootNodes = [];
 
         private bool _isNodesDirty = false;
         private readonly List<(IObjectTreeViewNode node, int depth, NodeFlags flags)> _nodes = [];
         private (IObjectTreeViewNode node, bool isMulti, bool isShift)? _selectionRequest;
         private IObjectTreeViewNode? _lastClickedNode = null;
         private IObjectTreeViewNode? _lastShiftClickedNode = null;
+        private bool? _dragVisibility = null;
 
         private enum NodeFlags
         {
             None = 0,
             IsExpanded = 1,
-            HasChildren = 2
+            HasChildren = 2,
+            IsVisible = 4,
+            IsParentVisible = 8
         }
     }
 }

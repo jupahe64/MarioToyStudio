@@ -13,10 +13,7 @@ namespace ToyStudio.GUI.scene
     {
         public void Update(ISceneUpdateContext<SubLevelSceneContext> ctx, SubLevelSceneContext sceneContext)
         {
-            foreach (var actor in subLevel.Actors)
-            {
-                ctx.UpdateOrCreateObjFor(actor, () => new LevelActorSceneObj(actor, sceneContext));
-            }
+            ctx.UpdateOrCreateObjFor(subLevel.Actors, () => new LevelActorsListSceneObj(subLevel.Actors));
         }
     }
 }

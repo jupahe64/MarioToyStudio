@@ -9,6 +9,6 @@ namespace ToyStudio.GUI.nodes
 {
     internal interface ILevelNode
     {
-        void Update(LevelNodeTreeUpdater updater, ref bool isValid);
+        void Update(LevelNodeTreeUpdater updater, LevelNodeContext nodeContext, ref bool isValid);
     }
 }

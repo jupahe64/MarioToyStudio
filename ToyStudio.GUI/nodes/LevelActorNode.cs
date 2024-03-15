@@ -11,13 +11,17 @@ using ToyStudio.GUI.windows.panels;
 
 namespace ToyStudio.GUI.nodes
 {
-    internal class LevelActorNode(LevelActor actor, LevelNodeContext ctx, IObjectTreeViewNode parent) : IObjectTreeViewNode, ILevelNode
+    internal class LevelActorNode(LevelActor actor, LevelNodeContext ctx) : IObjectTreeViewNode, ILevelNode
     {
         public bool IsExpanded { get; set; }
         public bool IsVisible
         {
-            get => _isVisible && parent.IsVisible;
-            set => _isVisible = value;
+            get => _sceneObj?.IsVisible ?? true;
+            set
+            {
+                if (_sceneObj is not null)
+                    _sceneObj.IsVisible = value;
+            }
         }
         public bool IsSelected
         {
@@ -29,11 +33,11 @@ namespace ToyStudio.GUI.nodes
 
         public ICollection<IObjectTreeViewNode> ChildNodes => [];
 
-        void ILevelNode.Update(LevelNodeTreeUpdater updater, ref bool isValid)
+        void ILevelNode.Update(LevelNodeTreeUpdater updater, LevelNodeContext nodeContext, ref bool isValid)
         {
-
+            updater.TryGetSceneObjFor(actor, out _sceneObj);
         }
 
-        private bool _isVisible = true;
+        private LevelActorSceneObj? _sceneObj;
     }
 }

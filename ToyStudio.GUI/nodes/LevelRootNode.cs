@@ -9,7 +9,7 @@ using ToyStudio.GUI.windows.panels;
 
 namespace ToyStudio.GUI.nodes
 {
-    internal class LevelRootNode(LevelNodeContext nodeContext, SubLevel subLevel)
+    internal class LevelRootNode(SubLevel subLevel)
     {
         public ICollection<IObjectTreeViewNode> Nodes { get; private set; } = [];
 
@@ -17,7 +17,7 @@ namespace ToyStudio.GUI.nodes
         {
             Nodes = [
                 updater.UpdateOrCreateNodeFor(subLevel.Actors, 
-                () => new ActorListNode(subLevel.Actors, nodeContext))
+                () => new ActorListNode(subLevel.Actors))
             ];
         }
     }

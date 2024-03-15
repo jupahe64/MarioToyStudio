@@ -266,9 +266,9 @@ namespace ToyStudio.GUI.windows
                 SubLevelEditContext editContext)
             {
                 var nodeContext = new LevelNodeContext(editContext);
-                _rootNode = new LevelRootNode(nodeContext, subLevel);
+                _rootNode = new LevelRootNode(subLevel);
                 _mapping = new ObjectMapping<object, ILevelNode>();
-                _updater = new LevelNodeTreeUpdater(_mapping, scene);
+                _updater = new LevelNodeTreeUpdater(_mapping, scene, nodeContext);
                 Update();
             }
 
