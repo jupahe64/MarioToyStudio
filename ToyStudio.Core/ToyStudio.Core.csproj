@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="BymlLibrary" Version="2.1.5" />
-    <PackageReference Include="RstbLibrary" Version="1.0.0" />
+    <PackageReference Include="RstbLibrary" Version="1.0.1" />
     <PackageReference Include="SarcLibrary" Version="3.0.4" />
     <PackageReference Include="ZstdSharp.Port" Version="0.7.5" />
   </ItemGroup>

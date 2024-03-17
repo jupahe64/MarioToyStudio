@@ -354,7 +354,6 @@ namespace ToyStudio.Core
             }
 
             var rstb = _sizeTables.mod ?? _sizeTables.baseGame;
-            rstb.OverflowTable[""] = 0; //overflowtable cannot be empty due to stupid bug
             var stream = new MemoryStream();
             rstb.WriteBinary(stream);
 
