@@ -140,5 +140,14 @@ namespace ToyStudio.Core.level
                 _obj.Translate = Translate;
             }
         }
+
+        public static readonly Property<LevelActor, Vector3> TranslateProperty =
+            new(o => o.Translate, (o, v) => o.Translate = v);
+
+        public static readonly Property<LevelActor, Vector3> RotateProperty =
+            new(o => o.Rotate, (o, v) => o.Rotate = v);
+
+        public static readonly Property<LevelActor, PropertyDict> DynamicProperty =
+            new(o => o.Dynamic, (o, v) => o.Dynamic = v);
     }
 }

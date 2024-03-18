@@ -11,10 +11,12 @@ using System.Threading.Tasks;
 using ToyStudio.Core;
 using ToyStudio.Core.component.Blackboard;
 using ToyStudio.Core.level;
-using ToyStudio.Core.util;
+using PropertyDict = ToyStudio.Core.util.PropertyDict;
 using ToyStudio.Core.util.capture;
+using ToyStudio.GUI.scene.objs.components;
 using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
+using ToyStudio.GUI.util.edit.components;
 using ToyStudio.GUI.util.edit.transform;
 using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.util.modal;
@@ -32,8 +34,13 @@ namespace ToyStudio.GUI.scene.objs
             _sceneContext = sceneContext;
             _visibilityParent = visibilityParent;
             _actorPack = sceneContext.LoadActorPack(actor.Gyaml!);
+
             if (_actorPack.TryGetBlackboardProperties(out var blackboardProperties))
-                _blackboardProperties = blackboardProperties;
+                _blackboardComponent = new(actor, blackboardProperties, LevelActor.DynamicProperty);
+            else
+                _blackboardComponent = new(actor, BlackboardProperties.Empty, LevelActor.DynamicProperty);
+
+            _transformComponent = new TransformComponent<LevelActor>(actor, s_transformProperties);
         }
 
         public Vector3 Position => _actor.Translate;
@@ -88,29 +95,15 @@ namespace ToyStudio.GUI.scene.objs
             dl.AddCircleFilled(points[3], 4, colorU32);
         }
 
+        #region ITransformable
         public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)
-        {
-            if (newPosition != null)
-                _actor.Translate = newPosition.Value;
-        }
+            => _transformComponent.UpdateTransform(newPosition, newOrientation, newScale);
 
-        public ITransformable.InitialTransform OnBeginTransform()
-        {
-            _preTransformPosition = _actor.Translate;
-            _preTransformRotation = _actor.Rotate;
-            return new(_actor.Translate, Quaternion.Identity /*for now*/, Vector3.One);
-        }
+        public ITransformable.InitialTransform OnBeginTransform() => _transformComponent.OnBeginTransform();
 
-        public void OnEndTransform(bool isCancel)
-        {
-            if (isCancel)
-            {
-                _actor.Translate = _preTransformPosition;
-                return;
-            }
-
-            _sceneContext.Commit(new RevertableTransformation(_actor, _preTransformPosition, _preTransformRotation));
-        }
+        public void OnEndTransform(bool isCancel) => _transformComponent.OnEndTransform(isCancel, _sceneContext.Commit, 
+            $"Transform {nameof(LevelActor)} {_actor.Hash}");
+        #endregion
 
         public void OnSelect(EditContextBase editContext, bool isMultiSelect)
         {
@@ -203,115 +196,7 @@ namespace ToyStudio.GUI.scene.objs
                     MultiValueInputs.Vector3("Rotation", rotation.Value);
             });
 
-            ctx.AddSection("Properties",
-            setupFunc: _ctx =>
-            {
-                _ctx.RegisterProperty("Dynamic", () => _actor.Dynamic, v => _actor.Dynamic = v);
-
-                if (_blackboardProperties.Count > 0)
-                {
-                    _ctx.RegisterProperty("BlackboardTuple", () =>
-                        new BlackboardPropertyTuple(_blackboardProperties, _actor.Dynamic),
-                        v => {
-                            _actor.Dynamic = v.PropertyDict;
-                        });
-                }
-            },
-            drawSharedUI: _ctx =>
-            {
-                var cursorYBefore = ImGui.GetCursorPosY();
-                if (_ctx.TryGetSharedProperty<PropertyDict>("Dynamic", out var dynamicNullable))
-                {
-                    var dynamic = dynamicNullable.Value;
-                    var cursorYBeforeProps = ImGui.GetCursorPosY();
-                    foreach (var key in _actor.Dynamic.Keys)
-                    {
-                        if (PropertyDictUtil.TryGetSharedPropertyFor<int>(dynamic, key, out var sharedIntProp))
-                        {
-                            MultiValueInputs.Int(key, sharedIntProp.Value);
-                        }
-                        else if (PropertyDictUtil.TryGetSharedPropertyFor<float>(dynamic, key, out var sharedFloatProp))
-                        {
-                            MultiValueInputs.Float(key, sharedFloatProp.Value);
-                        }
-                        else if (PropertyDictUtil.TryGetSharedPropertyFor<bool>(dynamic, key, out var sharedBoolProp))
-                        {
-                            MultiValueInputs.Bool(key, sharedBoolProp.Value);
-                        }
-                        else if (PropertyDictUtil.TryGetSharedPropertyFor<string?>(dynamic, key, out var sharedStringProp))
-                        {
-                            MultiValueInputs.String(key, sharedStringProp.Value);
-                        }
-                    }
-
-                    var totalCount = dynamic.Values.Count();
-                    if (ImGui.GetCursorPosY() == cursorYBeforeProps)
-                    {
-                        if (totalCount > 1)
-                            ImGui.TextDisabled("No properties in common");
-                        else
-                            ImGui.TextDisabled("No properties used");
-                    }
-                    else if (totalCount > 1)
-                    {
-                        ImGui.TextDisabled("There MIGHT be more properties used\n" +
-                            "just not by all selected objects");
-                    }
-                }
-
-                if (_ctx.TryGetSharedProperty<BlackboardPropertyTuple>("BlackboardTuple", out var blackboardTuple))
-                {
-                    ImGui.SeparatorText("Other supported Properties");
-
-
-                    var cursorYBeforeProps =  ImGui.GetCursorPosY();
-                    var sharedTup = blackboardTuple.Value;
-                    var totalCount = sharedTup.Values.Count();
-                    foreach (var (key, (initialValue, table)) in _blackboardProperties)
-                    {
-                        int supportsKeyCount = 0;
-                        int usesKeyCount = 0;
-                        foreach (var other in sharedTup.Values)
-                        {
-                            if (other.BlackboardProperties.ContainsKey(key)) supportsKeyCount++;
-                            if (other.PropertyDict.ContainsKey(key)) usesKeyCount++;
-                        }
-
-                        if (supportsKeyCount < totalCount || //key is not supported by all objects
-                            usesKeyCount == totalCount) //key is already present in all objects
-                            continue;
-
-                        ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0));
-                        if (ImGui.Button("Add " + key, new Vector2(ImGui.CalcItemWidth(), 0)))
-                        {
-                            sharedTup.UpdateAll((ref BlackboardPropertyTuple x) =>
-                            {
-                                var value = x.BlackboardProperties[key].initialValue;
-                                x.PropertyDict = new PropertyDict(x.PropertyDict.Append(new(key, value)));
-                            });
-                        }
-                        ImGui.PopStyleVar();
-                        ImGui.SameLine();
-                        ImGui.Text("from: " + table);
-                    }
-
-                    if (ImGui.GetCursorPosY() == cursorYBeforeProps)
-                    {
-                        if (totalCount > 1)
-                            ImGui.TextDisabled("No other properties supported by all selected objects");
-                        else
-                            ImGui.TextDisabled("No other properties supported");
-                    }
-                    else if (totalCount > 1)
-                    {
-                        ImGui.TextDisabled("There MIGHT be more properties availible\n" +
-                            "just not for all selected objects");
-                    }
-                }
-
-                if (ImGui.GetCursorPosY() == cursorYBefore)
-                    ImGui.TextDisabled("Empty");
-            });
+            _blackboardComponent.AddToInspector(ctx, "Properties");
 
             return _actor;
         }
@@ -320,28 +205,14 @@ namespace ToyStudio.GUI.scene.objs
         private readonly SubLevelSceneContext _sceneContext;
         private readonly LevelActorsListSceneObj _visibilityParent;
         private readonly ActorPack _actorPack;
-        private readonly BlackboardProperties _blackboardProperties =
-            BlackboardProperties.Empty;
-        private Vector3 _preTransformPosition;
-        private Vector3 _preTransformRotation;
+        private readonly BlackboardComponent<LevelActor> _blackboardComponent;
+        private readonly TransformComponent<LevelActor> _transformComponent;
         private bool _isVisible = true;
 
-        private record struct BlackboardPropertyTuple(
-            BlackboardProperties BlackboardProperties,
-            PropertyDict PropertyDict
+        private static readonly TransformPropertySet<LevelActor> s_transformProperties = new(
+            LevelActor.TranslateProperty,
+            LevelActor.RotateProperty,
+            null
             );
-
-        private class RevertableTransformation(LevelActor actor, Vector3 prevPos, Vector3 prevRot) : IRevertable
-        {
-            public string Name => $"Transform {nameof(LevelActor)} {actor.Hash}";
-
-            public IRevertable Revert()
-            {
-                var revertable = new RevertableTransformation(actor, actor.Translate, actor.Rotate);
-                actor.Translate = prevPos; 
-                actor.Rotate = prevRot;
-                return revertable;
-            }
-        }
     }
 }
