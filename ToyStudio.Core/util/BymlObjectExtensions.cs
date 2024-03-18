@@ -50,10 +50,10 @@ namespace ToyStudio.Core.util
         }
 
         public static void SetFloat3<T>(this BymlObject<T>.Serializer s,
-            ref Vector3 value, string name, Vector3? defaultValue = null)
+            ref Vector3 value, string name, Vector3? removeIfEquals = null)
             where T : BymlObject<T>, new()
         {
-            if (value == defaultValue)
+            if (value == removeIfEquals)
                 s.Map.Remove(name);
             else
                 s.Map[name] = SerializeFloat3(value);

@@ -63,10 +63,10 @@ namespace ToyStudio.GUI.scene.objs
 
             Span<Vector2> points =
             [
-                viewport.WorldToScreen(_actor.Translate + new Vector3(-0.5f, 0.5f, 0)),
-                viewport.WorldToScreen(_actor.Translate + new Vector3(0.5f, 0.5f, 0)),
-                viewport.WorldToScreen(_actor.Translate + new Vector3(0.5f, -0.5f, 0)),
-                viewport.WorldToScreen(_actor.Translate + new Vector3(-0.5f, -0.5f, 0)),
+                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(-0.5f, 0.5f, 0)),
+                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(0.5f, 0.5f, 0)),
+                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(0.5f, -0.5f, 0)),
+                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(-0.5f, -0.5f, 0)),
             ];
 
             isNewHoveredObj = MathUtil.HitTestConvexPolygonPoint(points, ImGui.GetMousePos());
@@ -152,6 +152,7 @@ namespace ToyStudio.GUI.scene.objs
                     v => SetActorGyaml(v!, preventSceneInvalidation: true /*avoid multiple scene rebuilds on multi edit*/));
                 _ctx.RegisterProperty("Translate", () => _actor.Translate, v => _actor.Translate = v);
                 _ctx.RegisterProperty("Rotate", () => _actor.Rotate, v => _actor.Rotate = v);
+                _ctx.RegisterProperty("Scale", () => _actor.Scale, v => _actor.Scale = v);
             },
             drawNonSharedUI: _ctx =>
             {
@@ -189,11 +190,16 @@ namespace ToyStudio.GUI.scene.objs
                     MultiValueInputs.String("Gyaml", gyaml.Value with { UpdateAll = UpdateAll});
                 }
 
+                ImGui.Spacing();
+
                 if (_ctx.TryGetSharedProperty<Vector3>("Translate", out var position))
                     MultiValueInputs.Vector3("Position", position.Value);
 
                 if (_ctx.TryGetSharedProperty<Vector3>("Rotate", out var rotation))
                     MultiValueInputs.Vector3("Rotation", rotation.Value);
+
+                if (_ctx.TryGetSharedProperty<Vector3>("Scale", out var scale))
+                    MultiValueInputs.Vector3("Scale", scale.Value);
             });
 
             _blackboardComponent.AddToInspector(ctx, "Properties");
@@ -212,7 +218,7 @@ namespace ToyStudio.GUI.scene.objs
         private static readonly TransformPropertySet<LevelActor> s_transformProperties = new(
             LevelActor.TranslateProperty,
             LevelActor.RotateProperty,
-            null
+            LevelActor.ScaleProperty
             );
     }
 }
