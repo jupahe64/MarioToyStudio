@@ -207,7 +207,8 @@ namespace ToyStudio.GUI.windows.panels
 
                 _nodes.Add((node, depth, flags));
 
-                if ((flags & (NodeFlags.IsExpanded | NodeFlags.HasChildren)) > 0)
+                if ((flags & NodeFlags.IsExpanded) > 0 && 
+                    (flags & NodeFlags.HasChildren) > 0)
                 {
                     depth++;
                     foreach (var child in node.ChildNodes) 
