@@ -205,6 +205,7 @@ namespace ToyStudio.GUI.windows.panels
             if (index == -1)
             {
                 _sections.Insert(0, new Section(GeneralSectionName, Section.EmptyDrawFunc, null));
+                _sectionUsageCounts[GeneralSectionName] = 0;
             }
             else if (index != 0)
             {
