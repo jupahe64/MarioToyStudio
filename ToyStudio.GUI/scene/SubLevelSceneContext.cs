@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -42,6 +43,25 @@ namespace ToyStudio.GUI.scene
         public void BatchAction(Func<string> actionReturningName) => editContext.BatchAction(actionReturningName);
         public object? ActiveObject => editContext.ActiveObject;
         public bool IsSelected(object obj) => editContext.IsSelected(obj);
+
+        public void Select(object obj, bool deselectAll = true)
+        {
+            if (deselectAll)
+                editContext.DeselectAll();
+
+            editContext.Select(obj);
+        }
+
+        public LevelRail.Point InsertRailPoint(LevelRail rail, int index, Vector3 pos)
+        {
+            var point = new LevelRail.Point
+            {
+                Translate = pos,
+                Hash = editContext.GenerateUniqueRailHash(),
+            };
+            Commit(rail.Points.RevertableInsert(point, index, "Insering rail point"));
+            return point;
+        }
 
         private Scene<SubLevelSceneContext>? _scene = null;
 

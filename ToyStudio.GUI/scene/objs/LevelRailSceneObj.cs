@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.HighPerformance.Buffers;
 using ImGuiNET;
+using Silk.NET.Input;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,6 +16,7 @@ using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.components;
 using ToyStudio.GUI.util.edit.transform;
+using ToyStudio.GUI.util.edit.undo_redo;
 using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.widgets;
 using ToyStudio.GUI.windows.panels;
@@ -61,13 +63,17 @@ namespace ToyStudio.GUI.scene.objs
 
             using var pointObjs = SpanOwner<LevelRailPointSceneObj>.Allocate(pointCount);
             using var segmentObjs = SpanOwner<LevelRailSegmentSceneObj>.Allocate(segmentCount);
+            using var addButtonObjs = SpanOwner<LevelRailPointAddButtonObj>.Allocate(segmentCount);
             
             for (int i = 0; i < segmentCount; i++)
             {
                 int idxA = i, idxB = (i + 1) % pointCount;
                 var segmentObj = new LevelRailSegmentSceneObj(rail, idxA, idxB, sceneContext, this);
+                var addButtonObj = new LevelRailPointAddButtonObj(rail, idxA, idxB, sceneContext, this);
                 updateContext.AddSceneObject(segmentObj);
+                updateContext.AddSceneObject(addButtonObj);
                 segmentObjs.Span[i] = segmentObj;
+                addButtonObjs.Span[i] = addButtonObj;
             }
 
             for (int i = 0; i < pointCount; i++)
@@ -81,7 +87,10 @@ namespace ToyStudio.GUI.scene.objs
             }
 
             for (int i = 0; i < segmentCount; i++)
+            {
                 segmentObjs.Span[i].UpdatePointObjects(pointObjs.Span);
+                addButtonObjs.Span[i].UpdatePointObjects(pointObjs.Span);
+            }
         }
     }
 
@@ -243,9 +252,9 @@ namespace ToyStudio.GUI.scene.objs
                 color = Vector4.Lerp(color, Vector4.One, 0.8f);
             }
 
-            dl.AddCircleFilled(pos, 4.5f, ImGui.ColorConvertFloat4ToU32(color));
+            dl.AddCircleFilled(pos, 6.5f, ImGui.ColorConvertFloat4ToU32(color));
 
-            if (Vector2.Distance(ImGui.GetMousePos(), pos) < 4.5f)
+            if (Vector2.Distance(ImGui.GetMousePos(), pos) < 6.5f)
                 hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
         }
 
@@ -315,5 +324,77 @@ namespace ToyStudio.GUI.scene.objs
         {
             
         }
+    }
+
+    internal class LevelRailPointAddButtonObj :
+        ISceneObject<SubLevelSceneContext>, IViewportDrawable
+    {
+        public LevelRailPointAddButtonObj(LevelRail rail, int pointIdxA, int pointIdxB,
+            SubLevelSceneContext sceneContext, LevelRailSceneObj railObj)
+        {
+            _rail = rail;
+            _pointIdxA = pointIdxA;
+            _pointIdxB = pointIdxB;
+            _sceneContext = sceneContext;
+            _railObj = railObj;
+            _pointA = rail.Points[pointIdxA];
+            _pointB = rail.Points[pointIdxB];
+        }
+
+        /// <summary>
+        /// Should only be used in <see cref="LevelRailSceneObj.Update"/>
+        /// </summary>
+        public void UpdatePointObjects(ReadOnlySpan<LevelRailPointSceneObj> pointObjs)
+        {
+            _pointAObj = pointObjs[_pointIdxA];
+            _pointBObj = pointObjs[_pointIdxB];
+        }
+
+        public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref Vector3? hitPoint)
+        {
+            Debug.Assert(_pointAObj is not null && _pointBObj is not null);
+            if (!_railObj.IsTransitiveVisible ||
+                _pointAObj?.IsVisible == false ||
+                _pointBObj?.IsVisible == false)
+                return;
+
+            var pos = (_pointA.Translate + _pointB.Translate) / 2;
+            var pos2D = viewport.WorldToScreen(pos);
+
+            var color = new Vector4(1f, 0, 0.8f, 1);
+
+            if (viewport.HoveredObject == this)
+            {
+                color = Vector4.Lerp(color, Vector4.One, 0.8f);
+                ImGui.SetTooltip("Insert point");
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                {
+                    var point = _sceneContext.InsertRailPoint(_rail, _pointIdxA+1, pos);
+                    _sceneContext.Select(point);
+                }
+            }
+
+            color.W *= 0.5f;
+            dl.AddCircleFilled(pos2D, 5.5f, ImGui.ColorConvertFloat4ToU32(color));
+
+            if (Vector2.Distance(ImGui.GetMousePos(), pos2D) < 5.5f)
+                hitPoint = viewport.HitPointOnPlane(pos, viewport.GetCameraForwardDirection());
+        }
+
+        public void Update(ISceneUpdateContext<SubLevelSceneContext> updateContext, SubLevelSceneContext sceneContext, ref bool isValid)
+        {
+
+        }
+
+        private readonly LevelRail _rail;
+        private readonly int _pointIdxA;
+        private readonly int _pointIdxB;
+        private readonly SubLevelSceneContext _sceneContext;
+        private readonly LevelRailSceneObj _railObj;
+        private readonly LevelRail.Point _pointA;
+        private readonly LevelRail.Point _pointB;
+
+        private LevelRailPointSceneObj? _pointAObj;
+        private LevelRailPointSceneObj? _pointBObj;
     }
 }

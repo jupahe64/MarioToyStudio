@@ -97,6 +97,12 @@ namespace ToyStudio.GUI.level_editing
             return GenerateUniqueHash(usedHashes);
         }
 
+        public ulong GenerateUniqueRailHash()
+        {
+            var usedHashes = subLevel.Rails.Select(x => x.Hash).ToHashSet();
+            return GenerateUniqueHash(usedHashes);
+        }
+
         private ulong GenerateUniqueHash(HashSet<ulong> usedHashes)
         {
             ulong hash;
