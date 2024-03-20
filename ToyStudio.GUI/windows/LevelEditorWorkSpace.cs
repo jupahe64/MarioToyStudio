@@ -179,7 +179,7 @@ namespace ToyStudio.GUI.windows
             IReadOnlyCollection<IInspectable> selectedInspectables)
         {
             _inspectorEditContext = editContext;
-            var mainInspectable = selectedInspectables.FirstOrDefault();
+            var mainInspectable = selectedInspectables.Where(x=>x.IsMainInspectable()).FirstOrDefault();
 
             if (mainInspectable is not null)
                 _inspector.Setup(selectedInspectables, mainInspectable);
