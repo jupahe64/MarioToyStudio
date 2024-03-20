@@ -125,7 +125,7 @@ namespace ToyStudio.GUI.util.edit
             DoUpdate();
         }
 
-        public void SelectMany<T>(ICollection<T> objects)
+        public void SelectMany<T>(IEnumerable<T> objects)
         {
             int countBefore = _selectedObjects.Count;
             _selectedObjects.UnionWith(objects.OfType<object>());

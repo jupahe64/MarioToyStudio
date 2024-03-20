@@ -71,24 +71,53 @@ namespace ToyStudio.GUI.level_editing
         public void DuplicateSelectedObjects() 
             => BatchAction(() =>
             {
-                var usedHashes = subLevel.Actors.Select(x => x.Hash).ToHashSet();
-                var duplicates = new List<LevelActor>();
-                foreach (LevelActor actor in subLevel.Actors)
+                var count = 0;
+
                 {
-                    if (IsSelected(actor))
+                    var usedHashes = subLevel.Actors.Select(x => x.Hash).ToHashSet();
+                    var duplicates = new List<LevelActor>();
+                    foreach (LevelActor actor in subLevel.Actors)
                     {
-                        Deselect(actor);
-                        duplicates.Add(actor.CreateDuplicate(GenerateUniqueHash(usedHashes)));
+                        if (IsSelected(actor))
+                        {
+                            Deselect(actor);
+                            ulong newHash = GenerateUniqueHash(usedHashes);
+                            duplicates.Add(actor.CreateDuplicate(newHash));
+                            usedHashes.Add(newHash);
+                        }
                     }
+
+                    foreach (LevelActor actor in duplicates)
+                    {
+                        Commit(subLevel.Actors.RevertableAdd(actor));
+                    }
+                    SelectMany(duplicates);
+                    count += duplicates.Count;
                 }
 
-                foreach (LevelActor actor in duplicates)
                 {
-                    Commit(subLevel.Actors.RevertableAdd(actor));
-                }
-                SelectMany(duplicates);
+                    var usedHashes = subLevel.Rails.Select(x => x.Hash).ToHashSet();
+                    var duplicates = new List<LevelRail>();
+                    foreach (LevelRail rail in subLevel.Rails)
+                    {
+                        if (rail.Points.All(IsSelected))
+                        {
+                            rail.Points.ForEach(Deselect);
+                            ulong newHash = GenerateUniqueHash(usedHashes);
+                            duplicates.Add(rail.CreateDuplicate(newHash));
+                            usedHashes.Add(newHash);
+                        }
+                    }
 
-                return $"Duplicating {duplicates.Count} objects"; 
+                    foreach (LevelRail rails in duplicates)
+                    {
+                        Commit(subLevel.Rails.RevertableAdd(rails));
+                    }
+                    SelectMany(duplicates.SelectMany(x=>x.Points));
+                    count += duplicates.Count;
+                }
+
+                return $"Duplicating {count} objects"; 
             });
 
         public ulong GenerateUniqueActorHash()

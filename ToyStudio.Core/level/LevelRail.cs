@@ -17,6 +17,16 @@ namespace ToyStudio.Core.level
         public bool IsClosed = false;
         public List<Point> Points = [];
 
+        public LevelRail CreateDuplicate(ulong newHash)
+        {
+            return new LevelRail
+            {
+                Hash = newHash,
+                IsClosed = IsClosed,
+                Points = [..Points.Select(x => x.CreateDuplicate(x.Hash))]
+            };
+        }
+
         protected override void Deserialize(Deserializer d)
         {
             d.SetUInt64(ref Hash!, "Hash");
@@ -35,6 +45,15 @@ namespace ToyStudio.Core.level
         {
             public ulong Hash;
             public Vector3 Translate;
+
+            public Point CreateDuplicate(ulong newHash)
+            {
+                return new Point 
+                { 
+                    Hash = newHash,
+                    Translate = Translate
+                };
+            }
 
             protected override void Deserialize(Deserializer d)
             {
