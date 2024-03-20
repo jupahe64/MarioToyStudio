@@ -21,7 +21,7 @@ namespace ToyStudio.GUI.widgets
 {
     interface IViewportDrawable
     {
-        void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj);
+        void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref Vector3? hitPoint);
     }
 
     interface IViewportPickable
@@ -58,7 +58,6 @@ namespace ToyStudio.GUI.widgets
     internal class SubLevelViewport
     {
         public event Action? SelectionChanged;
-        public event Action<SelectionChangedArgs>? SelectionChanged;
         public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             SubLevelEditContext editContext,
             GLTaskScheduler glScheduler)
@@ -103,11 +102,26 @@ namespace ToyStudio.GUI.widgets
             return new(world.X, world.Y, world.Z);
         }
 
-        public (IReadOnlyCollection<IViewportSelectable> selectables, IViewportSelectable? active) GetSelection()
+        public (Vector3 rayOrigin, Vector3 rayDirection) GetMouseRay()
         {
-            var args = GenerateSelectionChangedArgs();
-            return (args.SelectedObjects, args.ActiveObject);
+            var mouseRayBegin = ScreenToWorld(ImGui.GetMousePos(), -1);
+            var mouseRayEnd = ScreenToWorld(ImGui.GetMousePos(), 1);
+
+            return (mouseRayBegin, Vector3.Normalize(mouseRayEnd - mouseRayBegin));
         }
+
+        public Vector3? HitPointOnPlane(Vector3 planePoint, Vector3 planeNormal)
+        {
+            (Vector3 rayOrigin, Vector3 rayDirection) = GetMouseRay();
+            var res = MathUtil.IntersectPlaneRay(rayDirection, rayOrigin, planeNormal, planePoint);
+
+            var anyInvalid = float.IsNaN(res.X) || float.IsNaN(res.Y) || float.IsNaN(res.Z) ||
+                float.IsInfinity(res.X) || float.IsInfinity(res.Y) || float.IsInfinity(res.Z);
+
+            return anyInvalid ? null : res; 
+        }
+
+        public Vector3 GetCameraForwardDirection() => Vector3.Transform(Vector3.UnitZ, _camera.Rotation);
 
         public Task<(object? picked, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
             Predicate<object?> predicate)
@@ -188,6 +202,10 @@ namespace ToyStudio.GUI.widgets
             if (OperatingSystem.IsMacOS() ? ImGui.GetIO().KeySuper : ImGui.GetIO().KeyCtrl)
                 _currentModifiers |= CtrlCmd;
 
+            if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+                _draggedObject = null;
+
+
             bool isViewportActive = ImGui.IsItemActive();
             bool isViewportHovered = ImGui.IsItemHovered();
             bool isViewportLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
@@ -215,20 +233,27 @@ namespace ToyStudio.GUI.widgets
 
             var dl = ImGui.GetWindowDrawList();
 
-            IViewportDrawable? newHoveredObject = null;
+            (IViewportDrawable obj, Vector3 hitPoint)? newHoveredObject = null;
 
             _subLevelScene.ForEach<IViewportDrawable>(obj =>
             {
-                bool isNewHoveredObj = false;
-                obj.Draw2D(this, dl, ref isNewHoveredObj);
-                if (isNewHoveredObj)
-                    newHoveredObject = obj;
+                Vector3? newHitPoint = null;
+                obj.Draw2D(this, dl, ref newHitPoint);
+                if (newHitPoint.HasValue)
+                    newHoveredObject = (obj, newHitPoint.Value);
             });
 
-            HoveredObject = newHoveredObject;
+            if (_draggedObject == null)
+                HoveredObject = newHoveredObject.GetValueOrDefault().obj;
 
             if (!isViewportHovered)
                 HoveredObject = null;
+
+            if (isViewportHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                _draggedObject = newHoveredObject;
+
+            if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && !ImGui.IsMouseDown(ImGuiMouseButton.Right))
+                _canStartNewTransformAction = true;
 
             if (isViewportLeftClicked)
             {
@@ -314,14 +339,6 @@ namespace ToyStudio.GUI.widgets
             ImGui.PopClipRect();
         }
 
-        private SelectionChangedArgs GenerateSelectionChangedArgs()
-        {
-            return new SelectionChangedArgs(
-                _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected()).ToList(),
-                _subLevelScene.GetObjects<IViewportSelectable>().FirstOrDefault(x => x.IsActive())
-            );
-        }
-
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
         {
             bool isPanGesture = ImGui.IsMouseDragging(ImGuiMouseButton.Middle) ||
@@ -368,13 +385,11 @@ namespace ToyStudio.GUI.widgets
 
         private void HandleTransformAction(bool isActive)
         {
-            var mouseRayBegin = ScreenToWorld(ImGui.GetMousePos(), -1);
-            var mouseRayEnd = ScreenToWorld(ImGui.GetMousePos(), 1);
-            var viewDirection = Vector3.Transform(Vector3.UnitZ, _camera.Rotation);
+            var (rayOrigin, rayDirection) = GetMouseRay();
             var camInfo = new ITransformAction.CameraInfo(
-                ViewDirection: viewDirection,
-                MouseRayOrigin: mouseRayBegin,
-                MouseRayDirection: mouseRayEnd - mouseRayBegin
+                ViewDirection: GetCameraForwardDirection(),
+                MouseRayOrigin: rayOrigin,
+                MouseRayDirection: rayDirection
             );
 
             if (_activeTransformAction is not null)
@@ -410,16 +425,21 @@ namespace ToyStudio.GUI.widgets
                 {
                     _activeTransformAction.Cancel();
                     _activeTransformAction = null;
+                    _canStartNewTransformAction = false;
+                    HoveredObject = null;
                 }
 
                 return;
             }
 
-            if (isActive && ImGui.GetMouseDragDelta(ImGuiMouseButton.Left).Length() > 5)
+            if (isActive && _canStartNewTransformAction && 
+                ImGui.GetMouseDragDelta(ImGuiMouseButton.Left).Length() > 5)
             {
-                if (HoveredObject is null || 
-                    HoveredObject is not ITransformable transformable ||
-                    HoveredObject is not IViewportSelectable selectable ||
+                var dragStartObj = _draggedObject.GetValueOrDefault().obj;
+
+                if (_draggedObject == null ||
+                    dragStartObj is not ITransformable transformable ||
+                    dragStartObj is not IViewportSelectable selectable ||
                     !selectable.IsSelected())
                     return;
 
@@ -428,7 +448,7 @@ namespace ToyStudio.GUI.widgets
 
                 _activeTransformAction = new MoveAction(camInfo,
                     objects,
-                    pivot: transformable.Position)
+                    pivot: _draggedObject.Value.hitPoint)
                 {
                     SnapIncrement = 0.5f
                 };
@@ -455,6 +475,8 @@ namespace ToyStudio.GUI.widgets
         private readonly GLTaskScheduler _glScheduler;
         private readonly Camera _camera;
         private ITransformAction? _activeTransformAction = null;
+        private bool _canStartNewTransformAction = true;
+        public (IViewportDrawable obj, Vector3 hitPoint)? _draggedObject = null;
         private Vector2 _topLeft;
         private Vector2 _size;
         private ulong _lastSelectionVersion = 0;

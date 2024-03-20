@@ -11,8 +11,6 @@ namespace ToyStudio.GUI.util.edit.transform
     {
         public record struct InitialTransform(Vector3 Position, Quaternion Orientation, Vector3 Scale);
 
-        public Vector3 Position { get; }
-
         void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale);
 
         /// <summary>

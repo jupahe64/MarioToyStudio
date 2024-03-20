@@ -56,7 +56,7 @@ namespace ToyStudio.GUI.scene.objs
             return _actor;
         }
 
-        public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref bool isNewHoveredObj)
+        public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref Vector3? hitPoint)
         {
             if (!IsVisible || !_visibilityParent.IsVisible)
                 return;
@@ -69,7 +69,8 @@ namespace ToyStudio.GUI.scene.objs
                 viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(-0.5f, -0.5f, 0)),
             ];
 
-            isNewHoveredObj = MathUtil.HitTestConvexPolygonPoint(points, ImGui.GetMousePos());
+            if(MathUtil.HitTestConvexPolygonPoint(points, ImGui.GetMousePos()))
+                hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
 
             var color = new Vector4(0.4f, 0.8f, 0, 1);
 
