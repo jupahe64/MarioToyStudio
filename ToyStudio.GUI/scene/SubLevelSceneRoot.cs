@@ -14,6 +14,7 @@ namespace ToyStudio.GUI.scene
         public void Update(ISceneUpdateContext<SubLevelSceneContext> ctx, SubLevelSceneContext sceneContext)
         {
             ctx.UpdateOrCreateObjFor(subLevel.Actors, () => new LevelActorsListSceneObj(subLevel.Actors));
+            ctx.UpdateOrCreateObjFor(subLevel.Rails, () => new LevelRailsListSceneObj(subLevel.Rails));
         }
     }
 }

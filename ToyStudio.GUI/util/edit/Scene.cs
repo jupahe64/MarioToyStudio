@@ -22,7 +22,13 @@ namespace ToyStudio.GUI.util.edit
     interface ISceneUpdateContext<TSceneContext>
     {
         ISceneObject<TSceneContext> UpdateOrCreateObjFor(object dataObject, Func<ISceneObject<TSceneContext>> createFunc);
-        void AddOrUpdateSceneObject(ISceneObject<TSceneContext> sceneObject);
+        void AddSceneObject(ISceneObject<TSceneContext> sceneObject);
+
+        /// <summary>
+        /// Will only update <paramref name="sceneObject"/> if it hasn't been added yet
+        /// </summary>
+        /// <param name="sceneObject"></param>
+        void AddSceneObjectRef(ISceneObject<TSceneContext> sceneObject);
     }
 
     internal class Scene<TSceneContext>
@@ -123,7 +129,17 @@ namespace ToyStudio.GUI.util.edit
 
         private class UpdateContext(Scene<TSceneContext> s) : ISceneUpdateContext<TSceneContext>
         {
-            public void AddOrUpdateSceneObject(ISceneObject<TSceneContext> sceneObject)
+            public void AddSceneObject(ISceneObject<TSceneContext> sceneObject)
+            {
+                s._orderedSceneObjects.Add(sceneObject);
+
+                bool isValid = true;
+                sceneObject.Update(this, s.Context, ref isValid);
+                if (!isValid)
+                    Debug.Fail("Only Scene objects associated with a dataObject can be invalidated");
+            }
+
+            public void AddSceneObjectRef(ISceneObject<TSceneContext> sceneObject)
             {
                 if (!s._isUpdating)
                     throw new InvalidOperationException("Cannot call this function outside of Update");
@@ -142,7 +158,7 @@ namespace ToyStudio.GUI.util.edit
                 bool isValid = true;
                 obj.Update(this, s.Context, ref isValid);
                 if (!isValid)
-                    Debug.Fail("Only Scene objects with a dataObject can be invalidated");
+                    Debug.Fail("Only Scene objects associated with a dataObject can be invalidated");
 
                 s._mapping.SetMappingFor(sceneObject, obj);
             }

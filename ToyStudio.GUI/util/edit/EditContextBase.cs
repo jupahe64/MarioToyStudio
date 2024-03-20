@@ -20,6 +20,7 @@ namespace ToyStudio.GUI.util.edit
         public object? ActiveObject => _activeObject;
 
         public ulong SelectionVersion { get; private set; } = 0;
+        public int SelectedObjectCount => _selectedObjects.Count;
 
         public event Action? Update;
 

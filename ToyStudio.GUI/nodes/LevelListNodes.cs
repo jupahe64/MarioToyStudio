@@ -23,7 +23,7 @@ namespace ToyStudio.GUI.nodes
             }
         }
 
-        protected override LevelActorNode CreateNode(LevelActor item, LevelNodeContext nodeContext)
+        protected override LevelActorNode CreateNode(LevelActor item, int id, LevelNodeContext nodeContext)
             => new(item, nodeContext);
 
         protected override void AfterUpdate(LevelNodeTreeUpdater updater)
@@ -32,6 +32,30 @@ namespace ToyStudio.GUI.nodes
         }
 
         private LevelActorsListSceneObj? _sceneObj;
+    }
+
+    internal class RailListNode(IReadOnlyList<LevelRail> listRef)
+        : ListNodeBase<LevelRail, LevelRailNode>("Rails", listRef)
+    {
+        public override bool IsVisible
+        {
+            get => _sceneObj?.IsVisible ?? true;
+            set
+            {
+                if (_sceneObj != null)
+                    _sceneObj.IsVisible = value;
+            }
+        }
+
+        protected override LevelRailNode CreateNode(LevelRail item, int id, LevelNodeContext nodeContext)
+            => new(item, id, nodeContext);
+
+        protected override void AfterUpdate(LevelNodeTreeUpdater updater)
+        {
+            updater.TryGetSceneObjFor(ListRef, out _sceneObj);
+        }
+
+        private LevelRailsListSceneObj? _sceneObj;
     }
 
     internal abstract class ListNodeBase<TItem, TItemNode>(string name, IReadOnlyList<TItem> listRef) 
@@ -47,7 +71,7 @@ namespace ToyStudio.GUI.nodes
         public ICollection<IObjectTreeViewNode> ChildNodes { get; private set; } = [];
         protected IReadOnlyList<TItem> ListRef => listRef;
 
-        protected abstract TItemNode CreateNode(TItem item, LevelNodeContext nodeContext);
+        protected abstract TItemNode CreateNode(TItem item, int id, LevelNodeContext nodeContext);
 
         void ILevelNode.Update(LevelNodeTreeUpdater updater, LevelNodeContext nodeContext, ref bool isValid)
         {
@@ -55,7 +79,7 @@ namespace ToyStudio.GUI.nodes
             for (int i = 0; i < listRef.Count; i++)
             {
                 array[i] = updater.UpdateOrCreateNodeFor(listRef[i]!,
-                    () => CreateNode(listRef[i], nodeContext));
+                    () => CreateNode(listRef[i], i, nodeContext));
             }
 
             ChildNodes = array;

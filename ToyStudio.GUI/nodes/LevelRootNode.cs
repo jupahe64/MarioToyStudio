@@ -17,7 +17,9 @@ namespace ToyStudio.GUI.nodes
         {
             Nodes = [
                 updater.UpdateOrCreateNodeFor(subLevel.Actors, 
-                () => new ActorListNode(subLevel.Actors))
+                () => new ActorListNode(subLevel.Actors)),
+                 updater.UpdateOrCreateNodeFor(subLevel.Rails,
+                () => new RailListNode(subLevel.Rails))
             ];
         }
     }

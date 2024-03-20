@@ -1,4 +1,5 @@
-﻿using ToyStudio.Core.level;
+﻿using System.Diagnostics;
+using ToyStudio.Core.level;
 using ToyStudio.GUI.scene;
 using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.undo_redo;
@@ -15,8 +16,12 @@ namespace ToyStudio.GUI.level_editing
                 foreach (var actor in subLevel.Actors)
                     Select(actor);
 
-                foreach (var rail in subLevel.Rails)
-                    Select(rail);
+                foreach (var railPoint in subLevel.Rails
+                    .SelectMany(x=>x.Points))
+                    Select(railPoint);
+
+                if (subLevel.Actors.Count > 0)
+                    Select(subLevel.Actors[0]); //try to set the first actor as active object
             });
         }
 
@@ -26,14 +31,40 @@ namespace ToyStudio.GUI.level_editing
                 int count = 0;
                 for (int i = subLevel.Actors.Count - 1; i >= 0; i--)
                 {
-                    var obj = subLevel.Actors[i];
-                    if (IsSelected(obj))
+                    var actor = subLevel.Actors[i];
+                    if (!IsSelected(actor))
+                        continue;
+
+                    Commit(subLevel.Actors.RevertableRemoveAt(i));
+                    Deselect(actor);
+                    count++;
+                }
+                for (int i = subLevel.Rails.Count - 1; i >= 0; i--)
+                {
+                    var rail = subLevel.Rails[i];
+                    if (rail.Points.All(IsSelected))
                     {
-                        Commit(subLevel.Actors.RevertableRemoveAt(i));
-                        Deselect(obj);
+                        Commit(subLevel.Rails.RevertableRemoveAt(i));
+                        foreach (var point in rail.Points)
+                            Deselect(point);
+
                         count++;
+                        continue;
+                    }
+
+                    for (int iPoint = rail.Points.Count - 1; iPoint >= 0; iPoint--)
+                    {
+                        var point = rail.Points[iPoint];
+                        if (!IsSelected(point))
+                            continue;
+
+                        Commit(rail.Points.RevertableRemoveAt(iPoint));
+                        Deselect(point);
                     }
                 }
+
+                Debug.Assert(SelectedObjectCount == 0);
+
                 return $"Deleting {count} objects";
             });
 
