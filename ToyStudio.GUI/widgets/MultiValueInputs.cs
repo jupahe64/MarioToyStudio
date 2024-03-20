@@ -1,5 +1,4 @@
-﻿using Fasterflect;
-using FuzzySharp.Edits;
+﻿using FuzzySharp.Edits;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;

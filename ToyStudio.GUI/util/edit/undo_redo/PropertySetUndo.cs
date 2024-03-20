@@ -1,5 +1,4 @@
-﻿using Fasterflect;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using ToyStudio.Core.util;
