@@ -14,6 +14,8 @@ namespace ToyStudio.GUI.windows.panels
     internal interface IInspectable
     {
         ICaptureable SetupInspector(IInspectorSetupContext ctx);
+        bool IsMainInspectable();
+        bool IsSelected();
     }
 
     internal interface IInspectorSetupContext
@@ -193,8 +195,11 @@ namespace ToyStudio.GUI.windows.panels
                 if (inspectable == mainInspectable)
                     continue;
 
-                CollectCapture(inspectable.SetupInspector(new SetupContext(this)));
-                inspectableCount++;
+                var setupCtx = new SetupContext(this);
+                CollectCapture(inspectable.SetupInspector(setupCtx));
+
+                if (setupCtx.HasSections)
+                    inspectableCount++;
             }
 
             FinalizeSections(inspectableCount);
@@ -263,6 +268,8 @@ namespace ToyStudio.GUI.windows.panels
 
         private class SetupContext(ObjectInspectorWindow inspector) : IInspectorSetupContext
         {
+            public bool HasSections => _addedSections.Count > 0;
+
             public void GeneralSection(Action<ISectionSetupContext> setupFunc,
                 Action<ISectionDrawContext>? drawNonSharedUI,
                 Action<ISectionDrawContext>? drawSharedUI)

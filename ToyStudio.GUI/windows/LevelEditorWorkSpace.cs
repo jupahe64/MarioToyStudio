@@ -98,8 +98,8 @@ namespace ToyStudio.GUI.windows
 
         private void ChangeActiveSubLevel(SubLevel subLevel)
         {
-            var (selectedObjs, active) = _viewports[subLevel].GetSelection();
-            SetupInspector(_editContexts[subLevel], selectedObjs, active);
+            var inspectables = _scenes[_activeSubLevel].GetObjects<IInspectable>().Where(x=>x.IsSelected()).ToList();
+            SetupInspector(_editContexts[subLevel], inspectables);
 
             if (_activeSubLevel != null)
                 _objectTrees[_activeSubLevel].Updated -= LevelObjectTree_Updated;
@@ -166,21 +166,23 @@ namespace ToyStudio.GUI.windows
             _objectTrees[subLevel] = objectTree;
 
             var viewport = await SubLevelViewport.Create(scene, editContext, _glScheduler);
-            viewport.SelectionChanged += args =>
+            viewport.SelectionChanged += () =>
             {
-                SetupInspector(editContext, args.SelectedObjects, args.ActiveObject);
+                var inspectables = scene.GetObjects<IInspectable>().Where(x => x.IsSelected()).ToList();
+                SetupInspector(editContext, inspectables);
             };
 
             _viewports[subLevel] = viewport;
         }
 
         private void SetupInspector(SubLevelEditContext editContext,
-            IReadOnlyCollection<IViewportSelectable> selectedObjects, IViewportSelectable? activeObject)
+            IReadOnlyCollection<IInspectable> selectedInspectables)
         {
             _inspectorEditContext = editContext;
+            var mainInspectable = selectedInspectables.FirstOrDefault();
 
-            if (activeObject is IInspectable active)
-                _inspector.Setup(selectedObjects.OfType<IInspectable>(), active);
+            if (mainInspectable is not null)
+                _inspector.Setup(selectedInspectables, mainInspectable);
             else
                 _inspector.SetEmpty();
 

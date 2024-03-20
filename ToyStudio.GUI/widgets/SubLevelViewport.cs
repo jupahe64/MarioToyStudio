@@ -57,7 +57,7 @@ namespace ToyStudio.GUI.widgets
 
     internal class SubLevelViewport
     {
-        public record struct SelectionChangedArgs(IReadOnlyCollection<IViewportSelectable> SelectedObjects, IViewportSelectable? ActiveObject);
+        public event Action? SelectionChanged;
         public event Action<SelectionChangedArgs>? SelectionChanged;
         public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             SubLevelEditContext editContext,
@@ -308,11 +308,7 @@ namespace ToyStudio.GUI.widgets
             if (_lastSelectionVersion != _editContext.SelectionVersion)
             {
                 _lastSelectionVersion = _editContext.SelectionVersion;
-                if (SelectionChanged is not null)
-                {
-                    SelectionChangedArgs args = GenerateSelectionChangedArgs();
-                    SelectionChanged.Invoke(args);
-                }
+                SelectionChanged?.Invoke();
             }
 
             ImGui.PopClipRect();
@@ -508,11 +504,7 @@ namespace ToyStudio.GUI.widgets
 
             _subLevelScene.AfterRebuild += () =>
             {
-                if (SelectionChanged is null)
-                    return;
-
-                SelectionChangedArgs args = GenerateSelectionChangedArgs();
-                SelectionChanged.Invoke(args);
+                SelectionChanged?.Invoke();
             };
         }
     }

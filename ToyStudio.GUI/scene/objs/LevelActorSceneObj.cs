@@ -110,8 +110,11 @@ namespace ToyStudio.GUI.scene.objs
             IViewportSelectable.DefaultSelect(editContext, _actor, isMultiSelect);
         }
 
-        public bool IsSelected() => _sceneContext.IsSelected(_actor);
-        public bool IsActive() => _sceneContext.ActiveObject == _actor;
+        bool IViewportSelectable.IsActive() => _sceneContext.ActiveObject == _actor;
+        bool IInspectable.IsMainInspectable() => _sceneContext.ActiveObject == _actor;
+
+        bool IViewportSelectable.IsSelected() => _sceneContext.IsSelected(_actor);
+        bool IInspectable.IsSelected() => _sceneContext.IsSelected(_actor);
 
         void ISceneObject<SubLevelSceneContext>.Update(
             ISceneUpdateContext<SubLevelSceneContext> updateContext,
