@@ -61,17 +61,6 @@ namespace ToyStudio.GUI.scene.objs
             if (!IsVisible || !_visibilityParent.IsVisible)
                 return;
 
-            Span<Vector2> points =
-            [
-                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(-0.5f, 0.5f, 0)),
-                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(0.5f, 0.5f, 0)),
-                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(0.5f, -0.5f, 0)),
-                viewport.WorldToScreen(_actor.Translate + _actor.Scale * new Vector3(-0.5f, -0.5f, 0)),
-            ];
-
-            if(MathUtil.HitTestConvexPolygonPoint(points, ImGui.GetMousePos()))
-                hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
-
             var color = new Vector4(0.4f, 0.8f, 0, 1);
 
             if (_sceneContext.ActiveObject == _actor)
@@ -87,13 +76,59 @@ namespace ToyStudio.GUI.scene.objs
 
             var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-            dl.AddPolyline(ref points[0], points.Length,
+            var quat =
+                Quaternion.CreateFromAxisAngle(Vector3.UnitX, _actor.Rotate.X) *
+                Quaternion.CreateFromAxisAngle(Vector3.UnitY, _actor.Rotate.Y) *
+                Quaternion.CreateFromAxisAngle(Vector3.UnitZ, _actor.Rotate.Z);
+
+            var mtx =
+                Matrix4x4.CreateScale(_actor.Scale) *
+                Matrix4x4.CreateFromQuaternion(quat) *
+                Matrix4x4.CreateTranslation(_actor.Translate);
+
+            void Face(Vector3 normal, Vector3 rightVec, ref Vector3? hitPoint)
+            {
+                Vector3 upVec = Vector3.Cross(rightVec, normal);
+
+                var camForward = viewport.GetCameraForwardDirection();
+                if (Vector3.Dot(Vector3.Transform(normal, quat), -camForward) <= 0.0001f)
+                    return; //backface culling
+
+                Span<Vector3> points =
+                [
+                    Vector3.Transform(normal*.5f+rightVec*-.5f+upVec*+.5f, mtx),
+                    Vector3.Transform(normal*.5f+rightVec*+.5f+upVec*+.5f, mtx),
+                    Vector3.Transform(normal*.5f+rightVec*-.5f+upVec*-.5f, mtx),
+                    Vector3.Transform(normal*.5f+rightVec*+.5f+upVec*-.5f, mtx),
+                ];
+
+                Span<Vector2> polygonPoints =
+                [
+                    viewport.WorldToScreen(points[0]),
+                    viewport.WorldToScreen(points[1]),
+                    viewport.WorldToScreen(points[3]),
+                    viewport.WorldToScreen(points[2]),
+                ];
+
+                //will be replaced with accurate hittesting eventually
+                if (MathUtil.HitTestConvexPolygonPoint(polygonPoints, ImGui.GetMousePos()))
+                    hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
+
+                dl.AddPolyline(ref polygonPoints[0], points.Length,
                 colorU32, ImDrawFlags.Closed, 1.5f);
 
-            dl.AddCircleFilled(points[0], 4, colorU32);
-            dl.AddCircleFilled(points[1], 4, colorU32);
-            dl.AddCircleFilled(points[2], 4, colorU32);
-            dl.AddCircleFilled(points[3], 4, colorU32);
+                dl.AddCircleFilled(polygonPoints[0], 4, colorU32);
+                dl.AddCircleFilled(polygonPoints[1], 4, colorU32);
+                dl.AddCircleFilled(polygonPoints[2], 4, colorU32);
+                dl.AddCircleFilled(polygonPoints[3], 4, colorU32);
+            }
+
+            Face(Vector3.UnitX, Vector3.UnitZ, ref hitPoint);
+            Face(-Vector3.UnitX, -Vector3.UnitZ, ref hitPoint);
+            Face(Vector3.UnitY, Vector3.UnitX, ref hitPoint);
+            Face(-Vector3.UnitY, -Vector3.UnitX, ref hitPoint);
+            Face(Vector3.UnitZ, Vector3.UnitX, ref hitPoint);
+            Face(-Vector3.UnitZ, -Vector3.UnitX, ref hitPoint);
         }
 
         #region ITransformable
