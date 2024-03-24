@@ -55,9 +55,17 @@ namespace ToyStudio.GUI.widgets
         }
     }
 
+    interface IViewportTool
+    {
+        void Draw(SubLevelViewport viewport, ImDrawListPtr dl, 
+            bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool);
+        void Cancel();
+    }
+
     internal class SubLevelViewport
     {
         public event Action? SelectionChanged;
+        public event Action? ActiveToolChanged;
         public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
             SubLevelEditContext editContext,
             GLTaskScheduler glScheduler)
@@ -68,6 +76,20 @@ namespace ToyStudio.GUI.widgets
             await Task.Delay(20); 
 
             return new SubLevelViewport(subLevelScene, editContext, glScheduler);
+        }
+
+        public IViewportTool? ActiveTool
+        {
+            get => _activeTool; 
+            set
+            {
+                if (_activeTool == value)
+                    return;
+
+                _activeTool?.Cancel();
+                _activeTool = value;
+                ActiveToolChanged?.Invoke();
+            }
         }
 
         public IViewportDrawable? HoveredObject { get; private set; }
@@ -126,32 +148,16 @@ namespace ToyStudio.GUI.widgets
         public Task<(object? picked, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
             Predicate<object?> predicate)
         {
-            CancelOngoingPickingRequests();
             var promise = new TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)>();
-            mObjectPickingRequest = (tooltipMessage, predicate, promise);
+            ActiveTool = new ObjectPickingTool(tooltipMessage, predicate, promise);
             return promise.Task;
         }
 
         public Task<(Vector3? picked, KeyboardModifiers modifiers)> PickPosition(string tooltipMessage)
         {
-            CancelOngoingPickingRequests();
             var promise = new TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)>();
-            mPositionPickingRequest = (tooltipMessage, promise);
+            ActiveTool = new PositionPickingTool(tooltipMessage, promise);
             return promise.Task;
-        }
-
-        private void CancelOngoingPickingRequests()
-        {
-            if (mObjectPickingRequest.TryGetValue(out var objectPickingRequest))
-            {
-                objectPickingRequest.promise.SetCanceled();
-                mObjectPickingRequest = null;
-            }
-            if (mPositionPickingRequest.TryGetValue(out var positionPickingRequest))
-            {
-                positionPickingRequest.promise.SetCanceled();
-                mPositionPickingRequest = null;
-            }
         }
 
         public void Draw(Vector2 size, GL gl, double deltaSeconds, bool hasFocus)
@@ -250,85 +256,57 @@ namespace ToyStudio.GUI.widgets
             if (!isViewportHovered)
                 HoveredObject = null;
 
-            if (isViewportHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-                _draggedObject = newHoveredObject;
-
-            if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && !ImGui.IsMouseDown(ImGuiMouseButton.Right))
-                _canStartNewTransformAction = true;
-
-            if (isViewportLeftClicked)
+            if (ActiveTool is null)
             {
-                if (HoveredObject is IViewportSelectable selectable)
-                {
-                    selectable.OnSelect(_editContext, isMultiSelect);
-                }
-                else if (!isMultiSelect)
-                {
-                    _editContext.DeselectAll();
-                }
-            }
+                if (isViewportHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                    _draggedObject = newHoveredObject;
 
-            HandleTransformAction(isViewportActive);
+                if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && !ImGui.IsMouseDown(ImGuiMouseButton.Right))
+                    _canStartNewTransformAction = true;
+
+                if (isViewportLeftClicked)
+                {
+                    if (HoveredObject is IViewportSelectable selectable)
+                    {
+                        selectable.OnSelect(_editContext, isMultiSelect);
+                    }
+                    else if (!isMultiSelect)
+                    {
+                        _editContext.DeselectAll();
+                    }
+                }
+
+                HandleTransformAction(isViewportActive);
+            }
+            
 
             if (hasFocus && isViewportHovered)
             {
-                object pickedObj;
-                if (mObjectPickingRequest.TryGetValue(out var objectPickingRequest) &&
-                    HoveredObject is IViewportPickable pickable &&
-                    objectPickingRequest
-                        .predicate(pickedObj = pickable.GetPickedObject(out string label))
-                    )
+                if (ActiveTool is not null)
                 {
-                    string currentlyHoveredObjText = "";
-                    if (!string.IsNullOrEmpty(label))
-                        currentlyHoveredObjText = $"\n\nCurrently Hovered: {label}";
+                    var activeToolBefore = _activeTool;
+                    ActiveTool.Draw(this, dl, isViewportLeftClicked, _currentModifiers, ref _activeTool);
 
-                    ImGui.SetTooltip(objectPickingRequest.message + "\nPress Escape to cancel" +
-                        currentlyHoveredObjText);
-                    if (ImGui.IsKeyPressed(ImGuiKey.Escape))
-                    {
-                        mObjectPickingRequest = null;
-                        objectPickingRequest.promise.SetResult((null, _currentModifiers));
-                    }
-                    else if (isViewportLeftClicked)
-                    {
-                        mObjectPickingRequest = null;
-                        objectPickingRequest.promise.SetResult((pickedObj, _currentModifiers));
-                    }
-
-                    return;
+                    if (_activeTool != activeToolBefore)
+                        ActiveToolChanged?.Invoke();
                 }
-                if (mPositionPickingRequest.TryGetValue(out var positionPickingRequest))
+                else
                 {
-                    ImGui.SetTooltip(positionPickingRequest.message + "\nPress Escape to cancel");
-                    if (ImGui.IsKeyPressed(ImGuiKey.Escape))
-                    {
-                        mPositionPickingRequest = null;
-                        positionPickingRequest.promise.SetResult((null, _currentModifiers));
-                    }
-                    else if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-                    {
-                        mPositionPickingRequest = null;
-                        positionPickingRequest.promise.SetResult((ScreenToWorld(ImGui.GetMousePos()), _currentModifiers));
-                    }
+                    if (IsHotkeyPressed(CtrlCmd, ImGuiKey.A))
+                        _editContext.SelectAll();
+                    if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.A))
+                        _editContext.DeselectAll();
+                    if (IsHotkeyPressed(NoModifiers, ImGuiKey.Delete))
+                        _editContext.DeleteSelectedObjects();
+                    if (IsHotkeyPressed(CtrlCmd, ImGuiKey.D))
+                        _editContext.DuplicateSelectedObjects();
 
-                    return;
+                    if (IsHotkeyPressed(CtrlCmd, ImGuiKey.Z))
+                        _editContext.Undo();
+                    if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.Z) ||
+                        IsHotkeyPressed(CtrlCmd, ImGuiKey.Y))
+                        _editContext.Redo();
                 }
-
-                if (IsHotkeyPressed(CtrlCmd, ImGuiKey.A))
-                    _editContext.SelectAll();
-                if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.A))
-                    _editContext.DeselectAll();
-                if (IsHotkeyPressed(NoModifiers, ImGuiKey.Delete))
-                    _editContext.DeleteSelectedObjects();
-                if (IsHotkeyPressed(CtrlCmd, ImGuiKey.D))
-                    _editContext.DuplicateSelectedObjects();
-
-                if (IsHotkeyPressed(CtrlCmd, ImGuiKey.Z))
-                    _editContext.Undo();
-                if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.Z) ||
-                    IsHotkeyPressed(CtrlCmd, ImGuiKey.Y))
-                    _editContext.Redo();
             }
 
             if (_lastSelectionVersion != _editContext.SelectionVersion)
@@ -343,7 +321,7 @@ namespace ToyStudio.GUI.widgets
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
         {
             bool isPanGesture = ImGui.IsMouseDragging(ImGuiMouseButton.Middle) ||
-                (ImGui.IsMouseDragging(ImGuiMouseButton.Left) && _currentModifiers == Shift);
+                (ImGui.IsMouseDragging(ImGuiMouseButton.Left) && _currentModifiers == Shift && ActiveTool is null);
 
             if (isViewportActive && isPanGesture)
             {
@@ -488,12 +466,7 @@ namespace ToyStudio.GUI.widgets
         private const KeyboardModifiers CtrlCmd = KeyboardModifiers.CtrlCmd;
         private const KeyboardModifiers Alt = KeyboardModifiers.Alt;
         private Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
-
-        private (string message, Predicate<object?> predicate,
-            TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)> promise)?
-            mObjectPickingRequest = null;
-        private (string message, TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)> promise)?
-            mPositionPickingRequest = null;
+        private IViewportTool? _activeTool;
 
         private bool IsHotkeyPressed(KeyboardModifiers modifiers, ImGuiKey key) =>
             _currentModifiers == modifiers && ImGui.IsKeyPressed(key);
@@ -529,6 +502,66 @@ namespace ToyStudio.GUI.widgets
             {
                 SelectionChanged?.Invoke();
             };
+        }
+
+        private class ObjectPickingTool(string message, Predicate<object?> predicate,
+            TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)> promise) : IViewportTool
+        {
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl,
+                bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+            {
+                object pickedObj;
+                if (viewport.HoveredObject is not IViewportPickable pickable ||
+                    !predicate(pickedObj = pickable.GetPickedObject(out string label)))
+                {
+                    return;
+                }
+
+                string currentlyHoveredObjText = "";
+                if (!string.IsNullOrEmpty(label))
+                    currentlyHoveredObjText = $"\n\nCurrently Hovered: {label}";
+
+                ImGui.SetTooltip(message + "\nPress Escape to cancel" +
+                    currentlyHoveredObjText);
+                if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+                {
+                    activeTool = null;
+                    promise.SetResult((null, keyboardModifiers));
+                }
+                else if (isLeftClicked)
+                {
+                    activeTool = null;
+                    promise.SetResult((pickedObj, keyboardModifiers));
+                }
+
+                return;
+            }
+
+            public void Cancel() => promise.SetCanceled();
+        }
+
+        private class PositionPickingTool(string message, 
+            TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)> promise) : IViewportTool
+        {
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl,
+                bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+            {
+                ImGui.SetTooltip(message + "\nPress Escape to cancel");
+                if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+                {
+                    activeTool = null;
+                    promise.SetResult((null, keyboardModifiers));
+                }
+                else if (isLeftClicked)
+                {
+                    activeTool = null;
+                    promise.SetResult((viewport.ScreenToWorld(ImGui.GetMousePos()), keyboardModifiers));
+                }
+
+                return;
+            }
+
+            public void Cancel() => promise.SetCanceled();
         }
     }
 }
