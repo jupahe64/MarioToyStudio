@@ -369,8 +369,8 @@ namespace ToyStudio.GUI.scene.objs
                 ImGui.SetTooltip("Insert point");
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    var point = _sceneContext.InsertRailPoint(_rail, _pointIdxA+1, pos);
-                    _sceneContext.Select(point);
+                    var point = _sceneContext.InsertRailPoint(_rail, _pointIdxA+1, pos, out IRevertable insertUndo);
+                    viewport.ActiveTool ??= new PointMoveTool(point, _sceneContext, (insertUndo, revertOnCancel: false));
                 }
             }
 
@@ -396,5 +396,80 @@ namespace ToyStudio.GUI.scene.objs
 
         private LevelRailPointSceneObj? _pointAObj;
         private LevelRailPointSceneObj? _pointBObj;
+
+        private class PointMoveTool : IViewportTool
+        {
+            public PointMoveTool(LevelRail.Point point, SubLevelSceneContext sceneContext, (IRevertable revertable, bool revertOnCancel)? insertUndo)
+            {
+                _point = point;
+                _sceneContext = sceneContext;
+                _insertUndo = insertUndo;
+                _initialPosition = point.Translate;
+            }
+
+            public void Cancel()
+            {
+                _point.Translate = _initialPosition;
+            }
+
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+            {
+                Vector3 hitPoint = viewport.HitPointOnPlane(_initialPosition, viewport.GetCameraForwardDirection())!.Value;
+
+                _point.Translate = hitPoint;
+
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+                {
+                    Cancel();
+                    if (_insertUndo.HasValue)
+                    {
+                        if (_insertUndo.Value.revertOnCancel)
+                            _ = _insertUndo.Value.revertable.Revert();
+                        else
+                            _sceneContext.Commit(_insertUndo.Value.revertable);
+                    }
+                    
+                    _sceneContext.InvalidateScene();
+                    activeTool = null;
+                }
+
+                if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                {
+                    _sceneContext.Select(_point);
+
+                    var revertableMove = new RevertableMove(_point, _initialPosition);
+
+                    if (_insertUndo == null)
+                        _sceneContext.Commit(revertableMove);
+                    else
+                        _sceneContext.BatchAction(() =>
+                        {
+                            _sceneContext.Commit(_insertUndo.Value.revertable);
+                            _sceneContext.Commit(revertableMove);
+                            return _insertUndo.Value.revertable.Name;
+                        });
+
+                    activeTool = null;
+                }
+            }
+
+            private readonly LevelRail.Point _point;
+            private readonly SubLevelSceneContext _sceneContext;
+            private readonly (IRevertable revertable, bool revertOnCancel)? _insertUndo;
+            private readonly Vector3 _initialPosition;
+
+            private class RevertableMove(LevelRail.Point point, Vector3 previousPos) : IRevertable
+            {
+                public string Name => "Moved rail point";
+
+                public IRevertable Revert()
+                {
+                    var pos = point.Translate;
+                    point.Translate = previousPos;
+
+                    return new RevertableMove(point, pos);
+                }
+            }
+        }
     }
 }

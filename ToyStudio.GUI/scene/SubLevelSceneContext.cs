@@ -52,14 +52,15 @@ namespace ToyStudio.GUI.scene
             editContext.Select(obj);
         }
 
-        public LevelRail.Point InsertRailPoint(LevelRail rail, int index, Vector3 pos)
+        public LevelRail.Point InsertRailPoint(LevelRail rail, int index, Vector3 pos, out IRevertable uncommittedAction)
         {
             var point = new LevelRail.Point
             {
                 Translate = pos,
                 Hash = editContext.GenerateUniqueRailHash(),
             };
-            Commit(rail.Points.RevertableInsert(point, index, "Insering rail point"));
+            uncommittedAction = rail.Points.RevertableInsert(point, index, "Inserting rail point");
+            InvalidateScene();
             return point;
         }
 
