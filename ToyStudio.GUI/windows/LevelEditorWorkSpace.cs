@@ -60,6 +60,7 @@ namespace ToyStudio.GUI.windows
             ViewportsHostPanel(gl, deltaSeconds);
             _inspector.Draw();
             _actorPalette.Draw();
+            _railPalette.Draw();
             _objectTreeView.Draw();
         }
 
@@ -105,7 +106,10 @@ namespace ToyStudio.GUI.windows
             SetupInspector(_editContexts[subLevel], inspectables);
 
             if (_activeSubLevel != null)
+            {
                 _objectTrees[_activeSubLevel].Updated -= LevelObjectTree_Updated;
+                _viewports[_activeSubLevel].ActiveToolChanged -= UpdateObjectPlacementHandlers;
+            }
 
             _activeSubLevel = subLevel;
             _objectTrees[_activeSubLevel].Updated += LevelObjectTree_Updated;
@@ -113,6 +117,9 @@ namespace ToyStudio.GUI.windows
             _objectTreeView.SelectionUpdateWrapper = _scenes[_activeSubLevel].Context.WithSuspendUpdateDo;
 
             LevelObjectTree_Updated(_objectTrees[_activeSubLevel]);
+
+            UpdateObjectPlacementHandlers();
+            _viewports[subLevel].ActiveToolChanged += UpdateObjectPlacementHandlers;
         }
 
         private void LevelObjectTree_Updated(LevelObjectTree source)
@@ -191,7 +198,18 @@ namespace ToyStudio.GUI.windows
 
         }
 
-        private async Task ObjectPlacementHandler(string gyaml)
+        private void UpdateObjectPlacementHandlers()
+        {
+            bool isClear = _viewports.GetValueOrDefault(_activeSubLevel)?.ActiveTool is not null;
+
+            _actorPalette.ObjectPlacementHandler = isClear ? null :
+                async gyaml => await ActorPlacementHandler(gyaml);
+
+            _railPalette.ObjectPlacementHandler = isClear ? null : RailPlacementHandler;
+
+        }
+
+        private async Task ActorPlacementHandler(string gyaml)
         {
             _actorPalette.ObjectPlacementHandler = null;
 
@@ -224,8 +242,11 @@ namespace ToyStudio.GUI.windows
 
 
             } while ((modifiers & KeyboardModifiers.Shift) > 0);
+        }
 
-            _actorPalette.ObjectPlacementHandler = async gyaml => await ObjectPlacementHandler(gyaml);
+        private void RailPlacementHandler(IRailShapeTool shapeTool)
+        {
+            _viewports[_activeSubLevel].ActiveTool = new RailShapeViewportTool(shapeTool, this);
         }
 
 
@@ -239,6 +260,7 @@ namespace ToyStudio.GUI.windows
         private readonly IPopupModalHost _popupModalHost;
         private readonly ObjectInspectorWindow _inspector;
         private readonly ActorPaletteWindow _actorPalette;
+        private readonly RailPaletteWindow _railPalette;
         private readonly ObjectTreeViewWindow _objectTreeView;
         private SubLevelEditContext? _inspectorEditContext;
         private ActorPackCache _actorPackCache;
@@ -253,10 +275,8 @@ namespace ToyStudio.GUI.windows
 
             _activeSubLevel = level.SubLevels[0];
 
-            _actorPalette = new("Actor Palette", romfs)
-            {
-                ObjectPlacementHandler = async gyaml => await ObjectPlacementHandler(gyaml)
-            };
+            _actorPalette = new("Actor Palette", romfs);
+            _railPalette = new("Rail Palette");
 
             _inspector = new("Inspector");
             _inspector.PropertyChanged += Inspector_PropertyChanged;
@@ -290,6 +310,60 @@ namespace ToyStudio.GUI.windows
             private readonly ObjectMapping<object, ILevelNode> _mapping;
             private readonly LevelRootNode _rootNode;
             private readonly LevelNodeTreeUpdater _updater;
+        }
+
+        private class RailShapeViewportTool : IViewportTool
+        {
+            public RailShapeViewportTool(IRailShapeTool shapeTool, LevelEditorWorkSpace workSpace)
+            {
+                _shapeTool = shapeTool;
+                shapeTool.Setup(3, 10);
+                _workSpace = workSpace;
+            }
+
+            public void Cancel() { }
+
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, 
+                bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+            {
+                var hitCoords = viewport.HitPointOnPlane(Vector3.Zero, Vector3.UnitZ) ?? Vector3.Zero;
+
+                _shapeTool.OnMouseMove(hitCoords);
+
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                    _shapeTool.OnMouseDown(hitCoords);
+                if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+                    _shapeTool.OnMouseUp(hitCoords);
+
+                _shapeTool.Draw(dl, viewport.WorldToScreen);
+
+                if (_shapeTool.TryGetFinishedShape(out RailShape? shape))
+                {
+                    var subLevel = _workSpace._activeSubLevel;
+                    var editContext = _workSpace._editContexts[subLevel];
+                    var hashes = editContext.GenerateUniqueHashes(shape.Points.Count);
+                    editContext.Commit(subLevel.Rails.RevertableAdd(
+                        new LevelRail
+                        {
+                            Hash = editContext.GenerateUniqueRailHash(),
+                            IsClosed = shape.IsClosed,
+                            Points = shape.Points.Select((pos, i)=>new LevelRail.Point
+                            {
+                                Hash = hashes[i],
+                                Translate = pos
+                            }).ToList()
+
+                        }, $"Add Rail [{shape.Points.Count} points]"));
+
+                    if ((keyboardModifiers & KeyboardModifiers.Shift) > 0)
+                        _shapeTool = _shapeTool.CreateNew();
+                    else
+                        activeTool = null;
+                }
+            }
+
+            private IRailShapeTool _shapeTool;
+            private readonly LevelEditorWorkSpace _workSpace;
         }
     }
 }
