@@ -161,6 +161,7 @@ namespace ToyStudio.GUI.widgets
                 ImGui.EndChild();
                 return;
             }
+            ImGui.SetCursorPos(ImGui.GetCursorPos() + ImGui.GetStyle().FramePadding);
             if (ImGui.Button("Select All"))
                  _editContext.SelectAll();
             ImGui.SameLine();
@@ -216,7 +217,7 @@ namespace ToyStudio.GUI.widgets
             {
                 var mouseCoords = ScreenToWorld(ImGui.GetMousePos());
                 var text = isViewportHovered ? $"x: {mouseCoords.X:F3}\ny: {mouseCoords.Y:F3}" : "x:\ny: ";
-                ImGui.GetWindowDrawList().AddText(_topLeft + ImGui.GetStyle().WindowPadding,
+                ImGui.GetWindowDrawList().AddText(_topLeft + ImGui.GetStyle().FramePadding,
                     ImGui.GetColorU32(ImGuiCol.Text), text);
             }
 

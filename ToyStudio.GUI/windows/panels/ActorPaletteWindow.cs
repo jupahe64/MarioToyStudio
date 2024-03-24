@@ -26,9 +26,11 @@ namespace ToyStudio.GUI.windows.panels
             }
 
             ImGui.Spacing();
-
             ImGui.Columns(2);
-            ImGui.BeginChild("LeftSide");
+            //column padding is based on item spacing so we revert it
+            ImGui.SetCursorPos(ImGui.GetCursorPos() - ImGui.GetStyle().ItemSpacing with { Y = 0 });
+
+            ImGui.BeginChild("LeftSide", new Vector2(0), ImGuiChildFlags.AlwaysUseWindowPadding);
             LeftSide();
             ImGui.EndChild();
             ImGui.NextColumn();
@@ -42,9 +44,9 @@ namespace ToyStudio.GUI.windows.panels
 
         private void LeftSide() 
         {
-            ImGui.SetNextItemWidth(ImGui.CalcTextSize(Enum.GetName(Page.Common)).X + 
+            ImGui.SetNextItemWidth(ImGui.CalcTextSize(LeftPadString + Enum.GetName(Page.Common)).X + 
                 ImGui.GetFrameHeight()*2);
-            if (ImGui.BeginCombo("##onlyPinned", Enum.GetName(_page)))
+            if (ImGui.BeginCombo("##onlyPinned", LeftPadString + Enum.GetName(_page)))
             {
                 void Item(Page page)
                 {
@@ -81,11 +83,11 @@ namespace ToyStudio.GUI.windows.panels
 
             if (ImGui.BeginTable("ActorPackList_Detail", column: 3,
                 ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti |
-                ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersOuter |
+                ImGuiTableFlags.Resizable |
                 ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg
                 , tableSize))
             {
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.DefaultSort);
+                ImGui.TableSetupColumn(LeftPadString + "Name##Name", ImGuiTableColumnFlags.DefaultSort);
                 ImGui.TableSetupColumn("Category", ImGuiTableColumnFlags.WidthStretch);
                 ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed | 
                     ImGuiTableColumnFlags.NoResize | ImGuiTableColumnFlags.NoSort);
@@ -161,7 +163,7 @@ namespace ToyStudio.GUI.windows.panels
                     ImGui.TableNextColumn();
                     var contentRegionSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
 
-                    if (ImGui.Selectable(row.Name, _selectedName == row.Name, 
+                    if (ImGui.Selectable(LeftPadString + row.Name, _selectedName == row.Name, 
                         ImGuiSelectableFlags.SpanAllColumns, new Vector2(contentRegionSize.X - lastColumnWidth, 0)))
                     {
                         _selectedName = row.Name;
@@ -232,6 +234,8 @@ namespace ToyStudio.GUI.windows.panels
         ];
         private bool _showOnlyPinned = false;
         private Page _page = Page.All;
+        private const string LeftPadString = "  ";
+
         private record DetailRow(string Name, string Category);
 
         private enum Page

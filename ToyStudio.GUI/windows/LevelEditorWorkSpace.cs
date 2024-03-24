@@ -65,9 +65,11 @@ namespace ToyStudio.GUI.windows
 
         private void ViewportsHostPanel(GL gl, double deltaSeconds)
         {
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 2));
             if (!ImGui.Begin("Viewports", ImGuiWindowFlags.NoNav))
             {
                 ImGui.End();
+                ImGui.PopStyleVar();
                 return;
             }
 
@@ -94,6 +96,7 @@ namespace ToyStudio.GUI.windows
             }
 
             ImGui.End();
+            ImGui.PopStyleVar();
         }
 
         private void ChangeActiveSubLevel(SubLevel subLevel)
