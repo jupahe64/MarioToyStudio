@@ -26,6 +26,7 @@
   	<PackageReference Include="Silk.NET.OpenGL" Version="2.19.0" />
   	<PackageReference Include="Silk.NET.Input" Version="2.19.0" />
   	<PackageReference Include="Silk.NET.Input.Extensions" Version="2.19.0" />
+  	<PackageReference Include="SixLabors.ImageSharp" Version="3.1.3" />
   	<PackageReference Include="StbImageSharp" Version="2.27.13" />
   </ItemGroup>
 
@@ -74,6 +75,9 @@
 	</None>
 	<None Update="res\NotoSansCJKjp-Medium.otf">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\OrientationCubeTex.png">
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</None>
 	<None Update="res\shaders\Lightmap.frag">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

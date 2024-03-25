@@ -96,7 +96,7 @@ namespace ToyStudio.GUI.util
         /// <summary>
         /// Does a collision check between a LineLoop and a point
         /// </summary>
-        /// <param name="polygon">Points of a LineLoop</param>
+        /// <param name="points">Points of a LineLoop</param>
         /// <param name="point">Point</param>
         /// <returns></returns>
         public static bool HitTestLineLoopPoint(ReadOnlySpan<Vector2> points, float thickness, Vector2 point)
@@ -105,6 +105,26 @@ namespace ToyStudio.GUI.util
             {
                 var p1 = points[i];
                 var p2 = points[(i + 1) % points.Length];
+                if (HitTestPointLine(point,
+                    p1, p2, thickness))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Does a collision check between a LineStrip and a point
+        /// </summary>
+        /// <param name="points">Points of a LineStrip</param>
+        /// <param name="point">Point</param>
+        /// <returns></returns>
+        public static bool HitTestLineStripPoint(ReadOnlySpan<Vector2> points, float thickness, Vector2 point)
+        {
+            for (int i = 0; i < points.Length - 1; i++)
+            {
+                var p1 = points[i];
+                var p2 = points[i + 1];
                 if (HitTestPointLine(point,
                     p1, p2, thickness))
                     return true;
@@ -138,6 +158,50 @@ namespace ToyStudio.GUI.util
             var prod2 = Vector3.Dot(rayVector, planeNormal);
             var prod3 = prod1 / prod2;
             return rayPoint - rayVector * prod3;
+        }
+
+        /// <summary>
+        /// Checks if <paramref name="p"/> is inside the triangle defined by 
+        /// <paramref name="a"/>, <paramref name="b"/> and <paramref name="c"/>
+        /// </summary>
+        public static bool IsPointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
+        {
+            float AP_x = p.X - a.X;
+            float AP_y = p.Y - a.Y;
+
+            float CP_x = p.X - b.X;
+            float CP_y = p.Y - b.Y;
+
+            bool s_ab = (b.X - a.X) * AP_y - (b.Y - a.Y) * AP_x > 0.0;
+
+            if (/*s_ac*/   (c.X - a.X) * AP_y - (c.Y - a.Y) * AP_x > 0.0 == s_ab) return false;
+
+            if (/*s_cb*/   (c.X - b.X) * CP_y - (c.Y - b.Y) * CP_x > 0.0 != s_ab) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Checks if <paramref name="p"/> is inside the quadrilateral defined by 
+        /// <paramref name="a"/>, <paramref name="b"/>, <paramref name="c"/> and <paramref name="d"/>
+        /// </summary>
+        public static bool IsPointInQuad(Vector2 p, Vector2 a, Vector2 b, Vector2 c, Vector2 d)
+        {
+            float AP_x = p.X - a.X;
+            float AP_y = p.Y - a.Y;
+
+            float CP_x = p.X - c.X;
+            float CP_y = p.Y - c.Y;
+
+            bool s_ab = (b.X - a.X) * AP_y - (b.Y - a.Y) * AP_x > 0.0;
+
+            if (/*s_ad*/   (d.X - a.X) * AP_y - (d.Y - a.Y) * AP_x > 0.0 == s_ab) return false;
+
+            if (/*s_cb*/   (b.X - c.X) * CP_y - (b.Y - c.Y) * CP_x > 0.0 == s_ab) return false;
+
+            if (/*s_cd*/   (d.X - c.X) * CP_y - (d.Y - c.Y) * CP_x > 0.0 != s_ab) return false;
+
+            return true;
         }
     }
 

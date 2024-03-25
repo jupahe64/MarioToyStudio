@@ -110,6 +110,7 @@ namespace ToyStudio.GUI.windows
                 }
             }
 
+            _activeLevelWorkSpace = null;
             return true;
         }
 
@@ -127,6 +128,7 @@ namespace ToyStudio.GUI.windows
                 if(await TryCloseWorkspace())
                 {
                     mSkipCloseTest = true;
+                    await ImageTextureLoader.DisposeAll(_glTaskScheduler);
                     _window.Close();
                 }
 

@@ -2,6 +2,7 @@
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -70,10 +71,8 @@ namespace ToyStudio.GUI.widgets
             SubLevelEditContext editContext,
             GLTaskScheduler glScheduler)
         {
-            //prepare glstuff here
-
-            //dummy remove asap
-            await Task.Delay(20); 
+            var texture = await ImageTextureLoader.LoadAsync(glScheduler, Path.Combine("res", "OrientationCubeTex.png"));
+            GizmoDrawer.SetOrientationCubeTexture((nint)texture);
 
             return new SubLevelViewport(subLevelScene, editContext, glScheduler);
         }
@@ -146,7 +145,7 @@ namespace ToyStudio.GUI.widgets
             var anyInvalid = float.IsNaN(res.X) || float.IsNaN(res.Y) || float.IsNaN(res.Z) ||
                 float.IsInfinity(res.X) || float.IsInfinity(res.Y) || float.IsInfinity(res.Z);
 
-            return anyInvalid ? null : res; 
+            return anyInvalid ? null : res;
         }
 
         public Vector3 GetCameraForwardDirection() => Vector3.Transform(-Vector3.UnitZ, _camera.Rotation);
@@ -256,21 +255,23 @@ namespace ToyStudio.GUI.widgets
                     newHoveredObject = (obj, newHitPoint.Value);
             });
 
+            Gizmos(dl, isViewportLeftClicked, out bool isAnyGizmoHovered);
+
             if (_draggedObject == null)
                 HoveredObject = newHoveredObject.GetValueOrDefault().obj;
 
-            if (!isViewportHovered)
+            if (!isViewportHovered || isAnyGizmoHovered)
                 HoveredObject = null;
 
             if (ActiveTool is null)
             {
-                if (isViewportHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                if (isViewportHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left) && !isAnyGizmoHovered)
                     _draggedObject = newHoveredObject;
 
                 if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && !ImGui.IsMouseDown(ImGuiMouseButton.Right))
                     _canStartNewTransformAction = true;
 
-                if (isViewportLeftClicked)
+                if (isViewportLeftClicked && !isAnyGizmoHovered)
                 {
                     if (HoveredObject is IViewportSelectable selectable)
                     {
@@ -322,6 +323,61 @@ namespace ToyStudio.GUI.widgets
             }
 
             ImGui.PopClipRect();
+        }
+
+        private void Gizmos(ImDrawListPtr dl, bool viewportClicked, out bool isAnyGizmoHovered)
+        {
+            var camForward = Vector3.Transform(-Vector3.UnitZ, _camera.Rotation);
+            var camUp = Vector3.Transform(Vector3.UnitY, _camera.Rotation);
+            GizmoDrawer.BeginGizmoDrawing("ViewportGizmos", dl, new SceneViewState(
+                new CameraState(_camera.Target - camForward * _camera.Distance, camForward, camUp, _camera.Rotation),
+                _camera.ViewProjectionMatrix, new Rect(_topLeft, _topLeft + _size), ImGui.GetMousePos(), GetMouseRay()
+                ));
+
+            if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                _isDraggingFromOrientationCube = false;
+
+            if (GizmoDrawer.OrientationCube(_topLeft + _size with { Y = 0 } + new Vector2(-40, 40), 40, out Vector3 facingDirection))
+            {
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                    _isDraggingFromOrientationCube = true;
+
+                facingDirection = Vector3.Normalize(facingDirection);
+                if (viewportClicked)
+                {
+                    if (MathF.Acos(Vector3.Dot(camForward, -facingDirection)) < 0.1f)
+                        _camera.IsOrthographic = !_camera.IsOrthographic;
+
+                    if (MathF.Abs(facingDirection.Y) == 1)
+                    {
+                        var upVec = Vector3.Cross(Vector3.UnitX, -facingDirection);
+                        _camera.Rotation =
+                        Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateWorld(Vector3.Zero, -facingDirection, upVec));
+                    }
+                    else
+                    {
+                        _camera.Rotation =
+                        Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateWorld(Vector3.Zero, -facingDirection, Vector3.UnitY));
+                    }
+                    
+                    _camera.UpdateMatrices();
+                }
+            }
+
+            if (_isDraggingFromOrientationCube)
+            {
+                var mouseDelta = ImGui.GetIO().MouseDelta;
+                _camera.Rotation =
+                    Quaternion.CreateFromAxisAngle(Vector3.UnitY, mouseDelta.X * -0.01f) * _camera.Rotation;
+
+                _camera.Rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, mouseDelta.Y * -0.01f);
+
+                Debug.WriteLine(mouseDelta);
+
+                _camera.UpdateMatrices();
+            }
+
+            GizmoDrawer.EndGizmoDrawing(out isAnyGizmoHovered);
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
@@ -470,6 +526,7 @@ namespace ToyStudio.GUI.widgets
         private Vector2 _size;
         private ulong _lastSelectionVersion = 0;
         private KeyboardModifiers _currentModifiers;
+        private bool _isDraggingFromOrientationCube = false;
 
         private const KeyboardModifiers NoModifiers = KeyboardModifiers.None;
         private const KeyboardModifiers Shift = KeyboardModifiers.Shift;
