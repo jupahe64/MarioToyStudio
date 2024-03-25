@@ -27,7 +27,6 @@ namespace ToyStudio.GUI.windows
     internal class LevelEditorWorkSpace
     {
         const int ViewportsHostDockspace = 0x100;
-        public SubLevel _activeSubLevel;
 
         public static async Task<LevelEditorWorkSpace> Create(Level level,
             RomFS romfs,
@@ -41,8 +40,13 @@ namespace ToyStudio.GUI.windows
             foreach (var subLevel in level.SubLevels)
                 await ws.AddSubLevel(subLevel);
 
+            ws.RequestActiveSubLevel(level.SubLevels[0]);
+
             return ws;
         }
+
+        public void RequestActiveSubLevel(SubLevel subLevel) => 
+            _requestedActiveSubLevel = subLevel;
 
         //for now
         public bool HasUnsavedChanges() => false;
@@ -78,11 +82,17 @@ namespace ToyStudio.GUI.windows
 
             foreach (var subLevel in _level.SubLevels)
             {
+                if (_requestedActiveSubLevel == subLevel)
+                {
+                    ImGui.SetNextWindowFocus();
+                    _requestedActiveSubLevel = null;
+                }
+
                 var viewport = _viewports[subLevel];
 
                 ImGui.SetNextWindowDockID(ViewportsHostDockspace, ImGuiCond.Once);
 
-                if (ImGui.Begin(subLevel.BcettName, ImGuiWindowFlags.NoNav))
+                if (ImGui.Begin(subLevel.BcettName, ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoFocusOnAppearing))
                 {
                     if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
                     {
@@ -102,9 +112,6 @@ namespace ToyStudio.GUI.windows
 
         private void ChangeActiveSubLevel(SubLevel subLevel)
         {
-            var inspectables = _scenes[_activeSubLevel].GetObjects<IInspectable>().Where(x=>x.IsSelected()).ToList();
-            SetupInspector(_editContexts[subLevel], inspectables);
-
             if (_activeSubLevel != null)
             {
                 _objectTrees[_activeSubLevel].Updated -= LevelObjectTree_Updated;
@@ -119,7 +126,10 @@ namespace ToyStudio.GUI.windows
             LevelObjectTree_Updated(_objectTrees[_activeSubLevel]);
 
             UpdateObjectPlacementHandlers();
-            _viewports[subLevel].ActiveToolChanged += UpdateObjectPlacementHandlers;
+            _viewports[_activeSubLevel].ActiveToolChanged += UpdateObjectPlacementHandlers;
+
+            var inspectables = _scenes[_activeSubLevel].GetObjects<IInspectable>().Where(x => x.IsSelected()).ToList();
+            SetupInspector(_editContexts[_activeSubLevel], inspectables);
         }
 
         private void LevelObjectTree_Updated(LevelObjectTree source)
@@ -200,6 +210,7 @@ namespace ToyStudio.GUI.windows
 
         private void UpdateObjectPlacementHandlers()
         {
+            Debug.Assert(_activeSubLevel != null);
             bool isClear = _viewports.GetValueOrDefault(_activeSubLevel)?.ActiveTool is not null;
 
             _actorPalette.ObjectPlacementHandler = isClear ? null :
@@ -211,6 +222,7 @@ namespace ToyStudio.GUI.windows
 
         private async Task ActorPlacementHandler(string gyaml)
         {
+            Debug.Assert(_activeSubLevel != null);
             _actorPalette.ObjectPlacementHandler = null;
 
             Vector3? pos;
@@ -246,10 +258,12 @@ namespace ToyStudio.GUI.windows
 
         private void RailPlacementHandler(IRailShapeTool shapeTool)
         {
+            Debug.Assert(_activeSubLevel != null);
             _viewports[_activeSubLevel].ActiveTool = new RailShapeViewportTool(shapeTool, this);
         }
 
-
+        private SubLevel? _activeSubLevel;
+        private SubLevel? _requestedActiveSubLevel;
         private readonly Dictionary<SubLevel, SubLevelViewport> _viewports = [];
         private readonly Dictionary<SubLevel, Scene<SubLevelSceneContext>> _scenes = [];
         private readonly Dictionary<SubLevel, LevelObjectTree> _objectTrees = [];
@@ -272,8 +286,6 @@ namespace ToyStudio.GUI.windows
             _glScheduler = glScheduler;
             _actorPackCache = actorPackCache;
             _popupModalHost = popupModalHost;
-
-            _activeSubLevel = level.SubLevels[0];
 
             _actorPalette = new("Actor Palette", romfs);
             _railPalette = new("Rail Palette");
