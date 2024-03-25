@@ -372,8 +372,6 @@ namespace ToyStudio.GUI.widgets
 
                 _camera.Rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, mouseDelta.Y * -0.01f);
 
-                Debug.WriteLine(mouseDelta);
-
                 _camera.UpdateMatrices();
             }
 

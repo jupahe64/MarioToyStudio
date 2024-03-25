@@ -55,8 +55,18 @@ namespace ToyStudio.GUI.windows
             _level.Save(romFS);
         });
 
-        public void Undo() => _editContexts[_activeSubLevel].Undo();
-        public void Redo() => _editContexts[_activeSubLevel].Redo();
+        public void Undo()
+        {
+            if (_activeSubLevel is not null)
+                _editContexts[_activeSubLevel].Undo();
+        }
+
+        public void Redo()
+        {
+            if (_activeSubLevel is not null)
+                _editContexts[_activeSubLevel].Redo();
+        }
+
         public void PreventFurtherRendering() { }
 
         public void DrawUI(GL gl, double deltaSeconds)
