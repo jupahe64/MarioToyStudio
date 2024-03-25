@@ -235,7 +235,7 @@ namespace ToyStudio.GUI.scene.objs
                     MultiValueInputs.Vector3("Position", position.Value);
 
                 if (_ctx.TryGetSharedProperty<Vector3>("Rotate", out var rotation))
-                    MultiValueInputs.Vector3("Rotation", rotation.Value);
+                    MultiValueInputs.Vector3("Rotation", rotation.Value, conversionFactor: 180/MathF.PI, format: "%.1f°");
 
                 if (_ctx.TryGetSharedProperty<Vector3>("Scale", out var scale))
                     MultiValueInputs.Vector3("Scale", scale.Value);

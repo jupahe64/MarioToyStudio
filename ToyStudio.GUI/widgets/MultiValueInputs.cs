@@ -108,13 +108,15 @@ namespace ToyStudio.GUI.widgets
                 sharedProp.UpdateAll((ref bool v) => v = value);
         }
 
-        public static void Vector3(string label, SharedProperty<Vector3> sharedProp)
+        public static void Vector3(string label, SharedProperty<Vector3> sharedProp, float conversionFactor = 1,
+            float v_speed = .1f, float v_min = float.MinValue, float v_max = float.MaxValue, string format = "%.3f", 
+            ImGuiSliderFlags flags = ImGuiSliderFlags.None)
         {
             _ = TryGetCommonVector3(sharedProp.Values, out var value, out var mask);
 
             var style = ImGui.GetStyle();
 
-            float[] valueComponents = [value.X, value.Y, value.Z];
+            float[] valueComponents = [value.X * conversionFactor, value.Y * conversionFactor, value.Z * conversionFactor];
 
             bool[] componentChanged = [false, false, false];
 
@@ -130,7 +132,7 @@ namespace ToyStudio.GUI.widgets
 
                 if (mask[i])
                 {
-                    componentChanged[i] = ImGui.DragFloat("", ref valueComponents[i]);
+                    componentChanged[i] = ImGui.DragFloat("", ref valueComponents[i], v_speed, v_min, v_max, format, flags);
                 }
                 else
                 {
@@ -156,11 +158,11 @@ namespace ToyStudio.GUI.widgets
                 sharedProp.UpdateAll((ref Vector3 v) =>
                 {
                     if (componentChanged[0])
-                        v.X = valueComponents[0];
+                        v.X = valueComponents[0] / conversionFactor;
                     if (componentChanged[1])
-                        v.Y = valueComponents[1];
+                        v.Y = valueComponents[1] / conversionFactor;
                     if (componentChanged[2])
-                        v.Z = valueComponents[2];
+                        v.Z = valueComponents[2] / conversionFactor;
                 });
         }
 
