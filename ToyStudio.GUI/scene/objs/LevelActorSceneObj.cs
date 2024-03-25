@@ -90,10 +90,6 @@ namespace ToyStudio.GUI.scene.objs
             {
                 Vector3 upVec = Vector3.Cross(rightVec, normal);
 
-                var camForward = viewport.GetCameraForwardDirection();
-                if (Vector3.Dot(Vector3.Transform(normal, quat), -camForward) <= 0.0001f)
-                    return; //backface culling
-
                 Span<Vector3> points =
                 [
                     Vector3.Transform(normal*.5f+rightVec*-.5f+upVec*+.5f, mtx),
@@ -102,25 +98,42 @@ namespace ToyStudio.GUI.scene.objs
                     Vector3.Transform(normal*.5f+rightVec*+.5f+upVec*-.5f, mtx),
                 ];
 
-                Span<Vector2> polygonPoints =
+                Span<Vector2> points2D =
                 [
-                    viewport.WorldToScreen(points[0]),
                     viewport.WorldToScreen(points[1]),
-                    viewport.WorldToScreen(points[3]),
+                    viewport.WorldToScreen(points[0]),
                     viewport.WorldToScreen(points[2]),
+                    viewport.WorldToScreen(points[3]),
                 ];
 
-                //will be replaced with accurate hittesting eventually
-                if (MathUtil.HitTestConvexPolygonPoint(polygonPoints, ImGui.GetMousePos()))
-                    hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
+                if (!MathUtil.HitTestConvexPolygonPoint(points2D,
+                    (points2D[0] + points2D[2]) / 2)) //center point
+                    return; //backface culling
 
-                dl.AddPolyline(ref polygonPoints[0], points.Length,
+                bool hovered = false;
+                if (MathUtil.HitTestConvexPolygonPoint(points2D, ImGui.GetMousePos()))
+                    hovered = true;
+
+                dl.AddPolyline(ref points2D[0], points.Length,
                 colorU32, ImDrawFlags.Closed, 1.5f);
 
-                dl.AddCircleFilled(polygonPoints[0], 4, colorU32);
-                dl.AddCircleFilled(polygonPoints[1], 4, colorU32);
-                dl.AddCircleFilled(polygonPoints[2], 4, colorU32);
-                dl.AddCircleFilled(polygonPoints[3], 4, colorU32);
+                var camForward = viewport.GetCameraForwardDirection();
+                if (Math.Asin(Vector3.Dot(Vector3.Transform(normal, quat), -camForward)) > Math.PI/4)
+                {
+                    dl.AddCircleFilled(points2D[0], 4, colorU32);
+                    dl.AddCircleFilled(points2D[1], 4, colorU32);
+                    dl.AddCircleFilled(points2D[2], 4, colorU32);
+                    dl.AddCircleFilled(points2D[3], 4, colorU32);
+                    if (
+                        Vector2.DistanceSquared(points2D[0], ImGui.GetMousePos()) < 4 * 4 ||
+                        Vector2.DistanceSquared(points2D[1], ImGui.GetMousePos()) < 4 * 4 ||
+                        Vector2.DistanceSquared(points2D[2], ImGui.GetMousePos()) < 4 * 4 ||
+                        Vector2.DistanceSquared(points2D[3], ImGui.GetMousePos()) < 4 * 4) 
+                        hovered = true;
+                }
+
+                if (hovered)
+                    hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
             }
 
             Face(Vector3.UnitX, Vector3.UnitZ, ref hitPoint);

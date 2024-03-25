@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.GUI.gl.Culling;
+using ToyStudio.GUI.util;
 
 namespace ToyStudio.GUI.gl
 {
@@ -16,14 +17,14 @@ namespace ToyStudio.GUI.gl
         public Vector3 Target = Vector3.Zero;
         public float Distance = 10;
 
-        public float Fov = MathF.PI / 2;
+        public float Fov = MathUtil.Deg2Rad * 70;
 
         public float Width;
         public float Height;
 
         public float AspectRatio => Width / Height;
 
-        public bool IsOrthographic = true;
+        public bool IsOrthographic = false;
 
         public Matrix4x4 ProjectionMatrix { get; private set; }
         public Matrix4x4 ViewMatrix { get; private set; }
@@ -43,15 +44,22 @@ namespace ToyStudio.GUI.gl
 
             if (IsOrthographic)
             {
-                ProjectionMatrix = Matrix4x4.CreateOrthographic(AspectRatio * tanFOV * Distance, tanFOV * Distance,
+                ProjectionMatrix = Matrix4x4.CreateOrthographic(AspectRatio * tanFOV*2 * Distance, tanFOV*2 * Distance,
                         -10000, 10000);
 
-                ViewMatrix = Matrix4x4.CreateTranslation(-Target + new Vector3(0, 0, -10));
+                ViewMatrix =
+                    Matrix4x4.CreateTranslation(-Target) *
+                    Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(Rotation)) *
+                    Matrix4x4.CreateTranslation(0, 0, -10);
+                    
             }
             else
             {
                 ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(Fov, AspectRatio, 1.0f, 10000);
-                ViewMatrix = Matrix4x4.CreateTranslation(-Target) * Matrix4x4.CreateTranslation(0, 0, -Distance / 2);
+                ViewMatrix = 
+                    Matrix4x4.CreateTranslation(-Target) *
+                    Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(Rotation)) *
+                    Matrix4x4.CreateTranslation(0, 0, -Distance);
             }
 
             ViewProjectionMatrix = ViewMatrix * ProjectionMatrix;

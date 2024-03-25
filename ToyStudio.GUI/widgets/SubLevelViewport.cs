@@ -125,16 +125,22 @@ namespace ToyStudio.GUI.widgets
         }
 
         public (Vector3 rayOrigin, Vector3 rayDirection) GetMouseRay()
+            => GetMouseRay(ImGui.GetMousePos());
+
+        public (Vector3 rayOrigin, Vector3 rayDirection) GetMouseRay(Vector2 mousePos)
         {
-            var mouseRayBegin = ScreenToWorld(ImGui.GetMousePos(), -1);
-            var mouseRayEnd = ScreenToWorld(ImGui.GetMousePos(), 1);
+            var mouseRayBegin = ScreenToWorld(mousePos, -1);
+            var mouseRayEnd = ScreenToWorld(mousePos, 1);
 
             return (mouseRayBegin, Vector3.Normalize(mouseRayEnd - mouseRayBegin));
         }
 
         public Vector3? HitPointOnPlane(Vector3 planePoint, Vector3 planeNormal)
+            => HitPointOnPlane(planePoint, planeNormal, ImGui.GetMousePos());
+
+        public Vector3? HitPointOnPlane(Vector3 planePoint, Vector3 planeNormal, Vector2 mousePos)
         {
-            (Vector3 rayOrigin, Vector3 rayDirection) = GetMouseRay();
+            (Vector3 rayOrigin, Vector3 rayDirection) = GetMouseRay(mousePos);
             var res = MathUtil.IntersectPlaneRay(rayDirection, rayOrigin, planeNormal, planePoint);
 
             var anyInvalid = float.IsNaN(res.X) || float.IsNaN(res.Y) || float.IsNaN(res.Z) ||
@@ -143,7 +149,7 @@ namespace ToyStudio.GUI.widgets
             return anyInvalid ? null : res; 
         }
 
-        public Vector3 GetCameraForwardDirection() => Vector3.Transform(Vector3.UnitZ, _camera.Rotation);
+        public Vector3 GetCameraForwardDirection() => Vector3.Transform(-Vector3.UnitZ, _camera.Rotation);
 
         public Task<(object? picked, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
             Predicate<object?> predicate)
@@ -325,8 +331,12 @@ namespace ToyStudio.GUI.widgets
 
             if (isViewportActive && isPanGesture)
             {
-                _camera.Target += ScreenToWorld(ImGui.GetMousePos() - ImGui.GetIO().MouseDelta) -
-                    ScreenToWorld(ImGui.GetMousePos());
+                var planeOrigin = _camera.Target;
+                var planeNormal = -GetCameraForwardDirection();
+                var prevMousePos = ImGui.GetMousePos() - ImGui.GetIO().MouseDelta;
+                _camera.Target += 
+                    HitPointOnPlane(planeOrigin, planeNormal, prevMousePos) -
+                    HitPointOnPlane(planeOrigin, planeNormal) ?? Vector3.One;
             }
 
             if (isViewportHovered)
@@ -496,7 +506,7 @@ namespace ToyStudio.GUI.widgets
             _subLevelScene = subLevelScene;
             _editContext = editContext;
             _glScheduler = glScheduler;
-            _camera = new Camera { Distance = 10 };
+            _camera = new Camera { Distance = 10, IsOrthographic = true };
 
             _subLevelScene.AfterRebuild += () =>
             {
