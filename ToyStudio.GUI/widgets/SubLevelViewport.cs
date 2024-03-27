@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
@@ -54,6 +55,12 @@ namespace ToyStudio.GUI.widgets
                     ctx.Select(selectable);
             });
         }
+    }
+
+    interface IViewportTransformable : ITransformable
+    {
+        Transform GetTransform();
+        bool IsSelected();
     }
 
     interface IViewportTool
@@ -148,7 +155,11 @@ namespace ToyStudio.GUI.widgets
             return anyInvalid ? null : res;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetCameraForwardDirection() => Vector3.Transform(-Vector3.UnitZ, _camera.Rotation);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3 GetCameraPosition() => _camera.Target - GetCameraForwardDirection() * _camera.Distance;
 
         public Task<(object? picked, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
             Predicate<object?> predicate)
@@ -172,20 +183,144 @@ namespace ToyStudio.GUI.widgets
                 ImGui.EndChild();
                 return;
             }
-            ImGui.SetCursorPos(ImGui.GetCursorPos() + ImGui.GetStyle().FramePadding);
-            if (ImGui.Button("Select All"))
-                 _editContext.SelectAll();
-            ImGui.SameLine();
-            if (ImGui.Button("Deselect"))
-                _editContext.DeselectAll();
-            ImGui.SameLine();
-            if (ImGui.Button("Delete"))
-                _editContext.DeleteSelectedObjects();
-            ImGui.SameLine();
-            if (ImGui.Button("Duplicate"))
-                _editContext.DuplicateSelectedObjects();
+            DrawViewport(gl, deltaSeconds, hasFocus, out bool isViewportHovered);
 
-            DrawViewport(gl, deltaSeconds, hasFocus);
+            ImGui.SetCursorScreenPos(_topLeft + ImGui.GetStyle().FramePadding);
+            if (ImGui.BeginChild("TopBar", Vector2.Zero, ImGuiChildFlags.AutoResizeX | ImGuiChildFlags.AutoResizeY))
+            {
+                if (ImGui.Button("Select All"))
+                    _editContext.SelectAll();
+                ImGui.SameLine();
+                if (ImGui.Button("Deselect"))
+                    _editContext.DeselectAll();
+                ImGui.SameLine();
+                if (ImGui.Button("Delete"))
+                    _editContext.DeleteSelectedObjects();
+                ImGui.SameLine();
+                if (ImGui.Button("Duplicate"))
+                    _editContext.DuplicateSelectedObjects();
+            }
+            ImGui.EndChild();
+
+            ImGui.PushStyleColor(ImGuiCol.Button, 0x00_00_00_00);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, 0x55_55_55_55);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 0x22_55_55_55);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, Math.Max(5, ImGui.GetStyle().FrameRounding));
+            ImGui.SetCursorPos(ImGui.GetCursorPos() + ImGui.GetStyle().FramePadding);
+            if (ImGui.BeginChild("ToolBar", Vector2.Zero, ImGuiChildFlags.AutoResizeX | ImGuiChildFlags.AutoResizeY))
+            {
+                //TODO move drawing code somewhere else or use images
+
+                var s = ImGui.GetFrameHeight() * 3;
+
+                {
+                    uint color = _activeGizmoType == TransformType.Move ? 0xFF_FF_FF_FF : 0xFF_99_99_99;
+
+                    bool clicked = ImGui.Button("##Move Gizmo", new Vector2(s));
+
+                    var min = ImGui.GetItemRectMin();
+                    var max = ImGui.GetItemRectMax();
+                    var dl = ImGui.GetWindowDrawList();
+
+                    var center = (min + max) / 2;
+                    center += s * new Vector2(-0.15f, 0.15f);
+                    var tipA = center + s * new Vector2(0.3f, 0);
+                    var tipB = center - s * new Vector2(0, 0.3f);
+                    dl.AddLine(center, tipA, color, s * 0.03f);
+                    dl.AddLine(center, tipB, color, s * 0.03f);
+                    dl.AddTriangleFilled(
+                        tipA + s * new Vector2(0, -.03f),
+                        tipA + s * new Vector2(0, +.03f),
+                        tipA + s * new Vector2(.06f, 0),
+                        color);
+
+                    dl.AddTriangleFilled(
+                        tipB + s * new Vector2(-.03f, 0),
+                        tipB + s * new Vector2(+.03f, 0),
+                        tipB - s * new Vector2(0, .06f),
+                        color);
+
+                    dl.AddCircleFilled(center, s * 0.05f, color);
+                    dl.AddRect(center, center + s * new Vector2(0.15f, -0.15f), color, 0, default, s * 0.02f);
+
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Move Gizmo");
+                    if (clicked)
+                        _activeGizmoType = TransformType.Move;
+                }
+
+                {
+                    uint color = _activeGizmoType == TransformType.Rotate ? 0xFF_FF_FF_FF : 0xFF_99_99_99;
+
+                    bool clicked = ImGui.Button("##Rotate Gizmo", new Vector2(s));
+
+                    var min = ImGui.GetItemRectMin();
+                    var max = ImGui.GetItemRectMax();
+                    var dl = ImGui.GetWindowDrawList();
+
+                    var center = (min + max) / 2;
+
+                    Span<Vector2> points = stackalloc Vector2[16+1];
+                    for (int i = 0; i <= 16; i++)
+                    {
+                        float angle = i / 16f * MathF.PI;
+                        points[i] = center + new Vector2(MathF.Sin(angle), MathF.Cos(angle)) * s * 0.3f;
+                    }
+
+                    dl.AddCircle(center, s * 0.33f, color, 0, s * 0.02f);
+                    dl.AddPolyline(ref points[0], points.Length, color, ImDrawFlags.Closed, s * 0.03f);
+                    dl.AddLine(center + s * new Vector2(-0.33f, 0), center + s * new Vector2(0.3f, 0),
+                        color, s * 0.03f);
+
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Rotate Gizmo");
+                    if (clicked)
+                        _activeGizmoType = TransformType.Rotate;
+                }
+
+                {
+                    uint color = _activeGizmoType == TransformType.Scale ? 0xFF_FF_FF_FF : 0xFF_99_99_99;
+
+                    bool clicked = ImGui.Button("##Scale Gizmo", new Vector2(s));
+
+                    var min = ImGui.GetItemRectMin();
+                    var max = ImGui.GetItemRectMax();
+                    var dl = ImGui.GetWindowDrawList();
+
+                    var center = (min + max) / 2;
+                    center += s * new Vector2(-0.15f, 0.15f);
+                    var tipA = center + s * new Vector2(0.3f, 0);
+                    var tipB = center - s * new Vector2(0, 0.3f);
+                    dl.AddLine(center, tipA, color, s * 0.03f);
+                    dl.AddLine(center, tipB, color, s * 0.03f);
+
+                    dl.AddCircleFilled(tipA, s * 0.05f, color);
+                    dl.AddCircleFilled(tipB, s * 0.05f, color);
+
+                    dl.AddCircleFilled(center, s * 0.05f, color);
+                    dl.AddTriangle(center, 
+                        center + s * new Vector2(+0.15f, 0),
+                        center + s * new Vector2(0, -0.15f),
+                        color, s * 0.02f);
+
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Scale Gizmo");
+                    if (clicked)
+                        _activeGizmoType = TransformType.Scale;
+                }
+            }
+            ImGui.PopStyleVar();
+            ImGui.PopStyleColor(3);
+            ImGui.EndChild();
+
+            //draw mouse coords
+            {
+                var mouseCoords = HitPointOnPlane(Vector3.Zero, Vector3.UnitZ);
+                var text = isViewportHovered && mouseCoords.HasValue ? 
+                    $"x: {mouseCoords?.X:F3}\ny: {mouseCoords?.Y:F3}" : "x:\ny: ";
+                ImGui.GetWindowDrawList().AddText(ImGui.GetCursorScreenPos() + ImGui.GetStyle().FramePadding,
+                    ImGui.GetColorU32(ImGuiCol.Text), text);
+            }
 
             if (!hasFocus)
                 ImGui.GetWindowDrawList().AddRectFilled(_topLeft, _topLeft + _size, 0x44000000);
@@ -193,7 +328,7 @@ namespace ToyStudio.GUI.widgets
             ImGui.EndChild();
         }
 
-        private void DrawViewport(GL gl, double deltaSeconds, bool hasFocus)
+        private void DrawViewport(GL gl, double deltaSeconds, bool hasFocus, out bool isViewportHovered)
         {
             ImGui.InvisibleButton("Viewport", ImGui.GetContentRegionAvail(),
                 ImGuiButtonFlags.MouseButtonLeft |
@@ -219,18 +354,10 @@ namespace ToyStudio.GUI.widgets
 
 
             bool isViewportActive = ImGui.IsItemActive();
-            bool isViewportHovered = ImGui.IsItemHovered();
+            isViewportHovered = ImGui.IsItemHovered();
             bool isViewportLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
                 ImGui.GetMouseDragDelta().Length() < 5;
             bool isMultiSelect = (_currentModifiers & (Shift | CtrlCmd)) > 0;
-
-            //draw mouse coordinates
-            {
-                var mouseCoords = ScreenToWorld(ImGui.GetMousePos());
-                var text = isViewportHovered ? $"x: {mouseCoords.X:F3}\ny: {mouseCoords.Y:F3}" : "x:\ny: ";
-                ImGui.GetWindowDrawList().AddText(_topLeft + ImGui.GetStyle().FramePadding,
-                    ImGui.GetColorU32(ImGuiCol.Text), text);
-            }
 
             if (_camera.Width != _size.X || _camera.Height != _size.Y)
             {
@@ -255,7 +382,7 @@ namespace ToyStudio.GUI.widgets
                     newHoveredObject = (obj, newHitPoint.Value);
             });
 
-            Gizmos(dl, isViewportLeftClicked, out bool isAnyGizmoHovered);
+            Gizmos(dl, isViewportHovered, isViewportLeftClicked, out bool isAnyGizmoHovered);
 
             if (_draggedObject == null)
                 HoveredObject = newHoveredObject.GetValueOrDefault().obj;
@@ -325,14 +452,16 @@ namespace ToyStudio.GUI.widgets
             ImGui.PopClipRect();
         }
 
-        private void Gizmos(ImDrawListPtr dl, bool viewportClicked, out bool isAnyGizmoHovered)
+        private void Gizmos(ImDrawListPtr dl, bool viewportHovered, bool viewportClicked, out bool isAnyGizmoHovered)
         {
             var camForward = Vector3.Transform(-Vector3.UnitZ, _camera.Rotation);
             var camUp = Vector3.Transform(Vector3.UnitY, _camera.Rotation);
             GizmoDrawer.BeginGizmoDrawing("ViewportGizmos", dl, new SceneViewState(
-                new CameraState(_camera.Target - camForward * _camera.Distance, camForward, camUp, _camera.Rotation),
+                new CameraState(GetCameraPosition(), camForward, camUp, _camera.Rotation),
                 _camera.ViewProjectionMatrix, new Rect(_topLeft, _topLeft + _size), ImGui.GetMousePos(), GetMouseRay()
                 ));
+
+            DrawTransformGizmo(viewportHovered);
 
             if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
                 _isDraggingFromOrientationCube = false;
@@ -376,6 +505,58 @@ namespace ToyStudio.GUI.widgets
             }
 
             GizmoDrawer.EndGizmoDrawing(out isAnyGizmoHovered);
+        }
+
+        private void DrawTransformGizmo(bool isViewportHovered)
+        {
+            BoundingBox3D bb = BoundingBox3D.Empty;
+            var transformables = _subLevelScene.GetObjects<IViewportTransformable>().Where(x => x.IsSelected());
+            var enumerator = transformables.GetEnumerator();
+            Matrix4x4 mtx;
+
+            if (!enumerator.MoveNext())
+                return;
+
+            var firstTransfrom = enumerator.Current.GetTransform();
+            bb.Include(firstTransfrom.Position);
+
+            if (enumerator.MoveNext())
+            {
+                do
+                {
+                    bb.Include(enumerator.Current.GetTransform().Position);
+                } while (enumerator.MoveNext());
+
+                mtx = Matrix4x4.CreateTranslation(bb.Center);
+            }
+            else
+            {
+                mtx = Matrix4x4.CreateFromQuaternion(firstTransfrom.Orientation) *
+                    Matrix4x4.CreateTranslation(firstTransfrom.Position);
+            }
+
+            var gizmoPosition = mtx.Translation;
+
+            var hoveredGizmoPart = GizmoPart.NONE;
+            switch (_activeGizmoType)
+            {
+                case TransformType.Move:
+                    GizmoDrawer.MoveGizmo(in mtx, 40, out hoveredGizmoPart);
+                    break;
+                case TransformType.Rotate:
+                    GizmoDrawer.RotationGizmo(in mtx, 40, out hoveredGizmoPart);
+                    break;
+                case TransformType.Scale:
+                    GizmoDrawer.ScaleGizmo(in mtx, 40, out hoveredGizmoPart);
+                    break;
+            }
+
+            if (hoveredGizmoPart == GizmoPart.NONE || !_canStartNewTransformAction || 
+                _activeTool is not null || !isViewportHovered || !ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                return;
+
+            _activeTool = TransformTool.CreateFromHoveredGizmoPart(this, _activeGizmoType, hoveredGizmoPart,
+                gizmoPosition, transformables);
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
@@ -426,6 +607,16 @@ namespace ToyStudio.GUI.widgets
             }
         }
 
+        private ITransformAction.CameraInfo GetCameraInfo()
+        {
+            var (rayOrigin, rayDirection) = GetMouseRay();
+            return new ITransformAction.CameraInfo(
+                ViewDirection: GetCameraForwardDirection(),
+                MouseRayOrigin: rayOrigin,
+                MouseRayDirection: rayDirection
+            );
+        }
+
         private void HandleTransformAction(bool isActive)
         {
             var (rayOrigin, rayDirection) = GetMouseRay();
@@ -435,67 +626,23 @@ namespace ToyStudio.GUI.widgets
                 MouseRayDirection: rayDirection
             );
 
-            if (_activeTransformAction is not null)
-            {
-                bool isPlane = ImGui.GetIO().KeyShift;
-
-                if (ImGui.IsKeyPressed(ImGuiKey.X))
-                {
-                    _activeTransformAction.ToggleAxisRestriction(
-                        isPlane ? AxisRestriction.PlaneYZ : AxisRestriction.AxisX);
-                }
-                else if (ImGui.IsKeyPressed(ImGuiKey.Y))
-                {
-                    _activeTransformAction.ToggleAxisRestriction(
-                        isPlane ? AxisRestriction.PlaneXZ : AxisRestriction.AxisY);
-                }
-                else if (ImGui.IsKeyPressed(ImGuiKey.Z))
-                {
-                    _activeTransformAction.ToggleAxisRestriction(
-                        isPlane ? AxisRestriction.PlaneXY : AxisRestriction.AxisZ);
-                }
-
-                bool isSnapping = ImGui.GetIO().KeyCtrl;
-
-                _activeTransformAction.Update(camInfo, isSnapping);
-
-                if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-                {
-                    ApplyTransformAction(_activeTransformAction);
-                    _activeTransformAction = null;
-                }
-                else if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
-                {
-                    _activeTransformAction.Cancel();
-                    _activeTransformAction = null;
-                    _canStartNewTransformAction = false;
-                    HoveredObject = null;
-                }
-
+            if (!isActive || !_canStartNewTransformAction || _activeTool is not null)
                 return;
-            }
 
-            if (isActive && _canStartNewTransformAction && 
-                ImGui.GetMouseDragDelta(ImGuiMouseButton.Left).Length() > 5)
-            {
-                var dragStartObj = _draggedObject.GetValueOrDefault().obj;
+            var dragStartObj = _draggedObject.GetValueOrDefault().obj;
 
-                if (_draggedObject == null ||
-                    dragStartObj is not ITransformable transformable ||
-                    dragStartObj is not IViewportSelectable selectable ||
-                    !selectable.IsSelected())
-                    return;
+            if (_draggedObject == null ||
+                dragStartObj is not IViewportTransformable transformable ||
+                !transformable.IsSelected())
+                return;
 
-                var objects = _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected())
+            var pivot = _draggedObject.Value.hitPoint;
+
+            var objects = _subLevelScene.GetObjects<IViewportSelectable>().Where(x => x.IsSelected())
                     .OfType<ITransformable>();
 
-                _activeTransformAction = new MoveAction(camInfo,
-                    objects,
-                    pivot: _draggedObject.Value.hitPoint)
-                {
-                    SnapIncrement = 0.5f
-                };
-            }
+            ActiveTool = TransformTool.CreateFreeMove(this, pivot, objects);
+            _canStartNewTransformAction = false;
         }
 
         private void ApplyTransformAction(ITransformAction action)
@@ -517,7 +664,6 @@ namespace ToyStudio.GUI.widgets
         private readonly SubLevelEditContext _editContext;
         private readonly GLTaskScheduler _glScheduler;
         private readonly Camera _camera;
-        private ITransformAction? _activeTransformAction = null;
         private bool _canStartNewTransformAction = true;
         public (IViewportDrawable obj, Vector3 hitPoint)? _draggedObject = null;
         private Vector2 _topLeft;
@@ -532,6 +678,7 @@ namespace ToyStudio.GUI.widgets
         private const KeyboardModifiers Alt = KeyboardModifiers.Alt;
         private Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
         private IViewportTool? _activeTool;
+        private TransformType _activeGizmoType = TransformType.Move;
 
         private bool IsHotkeyPressed(KeyboardModifiers modifiers, ImGuiKey key) =>
             _currentModifiers == modifiers && ImGui.IsKeyPressed(key);
@@ -567,6 +714,13 @@ namespace ToyStudio.GUI.widgets
             {
                 SelectionChanged?.Invoke();
             };
+        }
+
+        private enum TransformType
+        {
+            Move,
+            Rotate,
+            Scale
         }
 
         private class ObjectPickingTool(string message, Predicate<object?> predicate,
@@ -627,6 +781,94 @@ namespace ToyStudio.GUI.widgets
             }
 
             public void Cancel() => promise.SetCanceled();
+        }
+
+        private class TransformTool : IViewportTool
+        {
+            public static TransformTool CreateFreeMove(SubLevelViewport viewport, Vector3 pivot, IEnumerable<ITransformable> transformables)
+            {
+                return new TransformTool(new MoveAction(viewport.GetCameraInfo(), transformables, pivot));
+            }
+
+            public static TransformTool CreateFromHoveredGizmoPart(SubLevelViewport viewport, TransformType gizmoType, GizmoPart gizmoPart,
+                Vector3 pivot, IEnumerable<ITransformable> transformables)
+            {
+                return gizmoType switch
+                {
+                    TransformType.Move => new TransformTool(new MoveAction(viewport.GetCameraInfo(), transformables, pivot, gizmoPart switch
+                    {
+                        GizmoPart.X_AXIS => AxisRestriction.AxisX,
+                        GizmoPart.Y_AXIS => AxisRestriction.AxisY,
+                        GizmoPart.Z_AXIS => AxisRestriction.AxisZ,
+                        GizmoPart.XY_PLANE => AxisRestriction.PlaneXY,
+                        GizmoPart.XZ_PLANE => AxisRestriction.PlaneXZ,
+                        GizmoPart.YZ_PLANE => AxisRestriction.PlaneYZ,
+                        _ => AxisRestriction.None
+                    })),
+                    TransformType.Rotate => null!, //for now
+                    TransformType.Scale => null!,
+                    _ => throw new ArgumentOutOfRangeException($"Invalid {nameof(TransformType)} {gizmoType}"),
+                };
+            }
+
+            public void Cancel() =>_action.Cancel();
+
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+            {
+                if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                {
+                    if (_isStarted)
+                        viewport.ApplyTransformAction(_action);
+                    else
+                        _action.Cancel();
+
+                    activeTool = null;
+                    return;
+                }
+
+                if (_isStarted &&
+                    (ImGui.IsMouseClicked(ImGuiMouseButton.Left) ||
+                    ImGui.IsMouseClicked(ImGuiMouseButton.Right)))
+                {
+                    _action.Cancel();
+                    activeTool = null;
+                    return;
+                }
+
+                if (ImGui.IsMouseDragging(ImGuiMouseButton.Left, 5))
+                    _isStarted = true;
+
+                bool isPlane = ImGui.GetIO().KeyShift;
+
+                if (ImGui.IsKeyPressed(ImGuiKey.X))
+                {
+                    _action.ToggleAxisRestriction(
+                        isPlane ? AxisRestriction.PlaneYZ : AxisRestriction.AxisX);
+                }
+                else if (ImGui.IsKeyPressed(ImGuiKey.Y))
+                {
+                    _action.ToggleAxisRestriction(
+                        isPlane ? AxisRestriction.PlaneXZ : AxisRestriction.AxisY);
+                }
+                else if (ImGui.IsKeyPressed(ImGuiKey.Z))
+                {
+                    _action.ToggleAxisRestriction(
+                        isPlane ? AxisRestriction.PlaneXY : AxisRestriction.AxisZ);
+                }
+
+                bool isSnapping = ImGui.GetIO().KeyCtrl;
+
+                if (_isStarted)
+                    _action.Update(viewport.GetCameraInfo(), isSnapping);
+            }
+
+            private TransformTool(ITransformAction action)
+            {
+                _action = action;
+            }
+
+            private readonly ITransformAction _action;
+            private bool _isStarted = false;
         }
     }
 }

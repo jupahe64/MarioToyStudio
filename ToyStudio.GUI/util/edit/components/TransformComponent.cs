@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using ToyStudio.Core.level;
@@ -50,13 +51,22 @@ namespace ToyStudio.GUI.util.edit.components
         private Property<TObject, Vector3>? RotationProperty => transformProperties.RotationProperty;
         private Property<TObject, Vector3>? ScaleProperty => transformProperties.ScaleProperty;
 
-        public ITransformable.InitialTransform OnBeginTransform()
+        public ITransformable.Transform GetTransform() 
+            => TransformComponent<TObject>.ConvertToTransformable(transformProperties.GetTransformValue(dataObject));
+
+        public ITransformable.Transform OnBeginTransform()
         {
             _preTransform = transformProperties.GetTransformValue(dataObject);
 
+            return TransformComponent<TObject>.ConvertToTransformable(_preTransform);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ITransformable.Transform ConvertToTransformable(Transform transform)
+        {
             var orientation = Quaternion.Identity; //TODO calculate EulerAngles -> Quaternion
 
-            return new(_preTransform.Position, orientation, _preTransform.Scale);
+            return new(transform.Position, orientation, transform.Scale);
         }
 
         public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)

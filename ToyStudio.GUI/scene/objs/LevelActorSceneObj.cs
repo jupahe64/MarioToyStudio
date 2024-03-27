@@ -26,7 +26,7 @@ using ToyStudio.GUI.windows.panels;
 namespace ToyStudio.GUI.scene.objs
 {
     internal class LevelActorSceneObj :
-        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, ITransformable, IInspectable, IViewportPickable
+        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, IViewportTransformable, IInspectable, IViewportPickable
     {
         public LevelActorSceneObj(LevelActor actor, SubLevelSceneContext sceneContext, LevelActorsListSceneObj visibilityParent)
         {
@@ -144,11 +144,13 @@ namespace ToyStudio.GUI.scene.objs
             Face(-Vector3.UnitZ, -Vector3.UnitX, ref hitPoint);
         }
 
+        public ITransformable.Transform GetTransform() => _transformComponent.GetTransform();
+
         #region ITransformable
         public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)
             => _transformComponent.UpdateTransform(newPosition, newOrientation, newScale);
 
-        public ITransformable.InitialTransform OnBeginTransform() => _transformComponent.OnBeginTransform();
+        public ITransformable.Transform OnBeginTransform() => _transformComponent.OnBeginTransform();
 
         public void OnEndTransform(bool isCancel) => _transformComponent.OnEndTransform(isCancel, _sceneContext.Commit, 
             $"Transform {nameof(LevelActor)} {_actor.Hash}");
@@ -163,6 +165,7 @@ namespace ToyStudio.GUI.scene.objs
         bool IInspectable.IsMainInspectable() => _sceneContext.ActiveObject == _actor;
 
         bool IViewportSelectable.IsSelected() => _sceneContext.IsSelected(_actor);
+        bool IViewportTransformable.IsSelected() => _sceneContext.IsSelected(_actor);
         bool IInspectable.IsSelected() => _sceneContext.IsSelected(_actor);
 
         void ISceneObject<SubLevelSceneContext>.Update(

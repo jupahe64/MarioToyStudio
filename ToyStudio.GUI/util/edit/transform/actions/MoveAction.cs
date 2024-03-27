@@ -25,9 +25,15 @@ namespace ToyStudio.GUI.util.edit.transform.actions
 
             _transformables = transformables.Select(x => (x, x.OnBeginTransform())).ToList();
 
-            _pivot = pivot;
-            _inintialCam = cameraInfo;
             _axes = [Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ];
+
+            Vector3 planeNormal = CalcInteractionPlaneNormal(in cameraInfo);
+
+            Vector3 intersection = MathUtil.IntersectPlaneRay(
+                cameraInfo.MouseRayDirection, cameraInfo.MouseRayOrigin,
+                planeNormal, pivot);
+
+            _pivot = intersection;
         }
 
         public AxisRestriction AxisRestriction { get; private set; } = AxisRestriction.None;
@@ -122,9 +128,8 @@ namespace ToyStudio.GUI.util.edit.transform.actions
         }
 
         private readonly List<(ITransformable transformable, 
-            ITransformable.InitialTransform transform)> _transformables;
+            ITransformable.Transform transform)> _transformables;
         private readonly Vector3 _pivot;
-        private readonly CameraInfo _inintialCam;
         private readonly Vector3[] _axes;
     }
 }

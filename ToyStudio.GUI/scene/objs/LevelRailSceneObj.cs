@@ -96,7 +96,7 @@ namespace ToyStudio.GUI.scene.objs
 
     internal class LevelRailSegmentSceneObj :
         ISceneObject<SubLevelSceneContext>, IViewportDrawable,
-        IViewportSelectable, ITransformable
+        IViewportSelectable, IViewportTransformable
     {
         public LevelRailSegmentSceneObj(LevelRail rail, int pointIdxA, int pointIdxB,
             SubLevelSceneContext sceneContext, LevelRailSceneObj railObj)
@@ -151,6 +151,7 @@ namespace ToyStudio.GUI.scene.objs
         bool IViewportSelectable.IsActive() => false;
 
         bool IViewportSelectable.IsSelected() => _sceneContext.IsSelected(_pointA) && _sceneContext.IsSelected(_pointB);
+        bool IViewportTransformable.IsSelected() => _sceneContext.IsSelected(_pointA) && _sceneContext.IsSelected(_pointB);
 
         public void OnSelect(EditContextBase editContext, bool isMultiSelect)
         {
@@ -169,15 +170,17 @@ namespace ToyStudio.GUI.scene.objs
             editContext.Select(_pointA);
         }
 
-        public ITransformable.InitialTransform OnBeginTransform()
+        public ITransformable.Transform GetTransform()
         {
-            return new ITransformable.InitialTransform
+            return new ITransformable.Transform
             {
-                Position = _pointB.Translate -  _pointA.Translate,
+                Position = (_pointA.Translate + _pointB.Translate) / 2,
                 Orientation = Quaternion.Identity,
                 Scale = Vector3.One
             };
         }
+
+        public ITransformable.Transform OnBeginTransform() => GetTransform();
 
         public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)
         {
@@ -208,7 +211,7 @@ namespace ToyStudio.GUI.scene.objs
 
     internal class LevelRailPointSceneObj :
         ISceneObject<SubLevelSceneContext>, IViewportDrawable,
-        IViewportSelectable, IInspectable, ITransformable
+        IViewportSelectable, IInspectable, ITransformable, IViewportTransformable
     {
         private readonly LevelRail.Point _point;
         private readonly LevelRail _rail;
@@ -258,11 +261,13 @@ namespace ToyStudio.GUI.scene.objs
                 hitPoint = viewport.HitPointOnPlane(Position, viewport.GetCameraForwardDirection());
         }
 
+        public ITransformable.Transform GetTransform() => _transformComponent.GetTransform();
+
         #region ITransformable
         public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)
             => _transformComponent.UpdateTransform(newPosition, newOrientation, newScale);
 
-        public ITransformable.InitialTransform OnBeginTransform() => _transformComponent.OnBeginTransform();
+        public ITransformable.Transform OnBeginTransform() => _transformComponent.OnBeginTransform();
 
         public void OnEndTransform(bool isCancel) => _transformComponent.OnEndTransform(isCancel, _sceneContext.Commit,
             $"Transform {nameof(LevelRail.Point)} {_point.Hash}");
@@ -272,6 +277,7 @@ namespace ToyStudio.GUI.scene.objs
         bool IInspectable.IsMainInspectable() => _sceneContext.ActiveObject == _point;
 
         bool IViewportSelectable.IsSelected() => _sceneContext.IsSelected(_point);
+        bool IViewportTransformable.IsSelected() => _sceneContext.IsSelected(_point);
         bool IInspectable.IsSelected() => _sceneContext.IsSelected(_point);
 
         public void OnSelect(EditContextBase editContext, bool isMultiSelect)

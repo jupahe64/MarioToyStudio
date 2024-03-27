@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace ToyStudio.GUI.util.edit
 {
     [Flags]
-    public enum HoveredAxis
+    public enum GizmoPart
     {
         NONE = 0,
         X_AXIS = 1,
@@ -22,7 +22,7 @@ namespace ToyStudio.GUI.util.edit
         XZ_PLANE = X_AXIS | Z_AXIS,
         YZ_PLANE = Y_AXIS | Z_AXIS,
         ALL_AXES = X_AXIS | Y_AXIS | Z_AXIS,
-        FREE = ALL_AXES,
+        FREE_MOVE = ALL_AXES,
         VIEW_AXIS = 8,
         TRACKBALL = 16
     }
@@ -71,22 +71,22 @@ namespace ToyStudio.GUI.util.edit
     public static class GizmoResultHelper
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsSingleAxis(HoveredAxis hoveredAxis, int axis)
+        public static bool IsSingleAxis(GizmoPart hoveredPart, int axis)
         {
-            return (int)hoveredAxis == 1 << axis;
+            return (int)hoveredPart == 1 << axis;
         }
 
-        public static bool IsSingleAxis(HoveredAxis hoveredAxis, out int axis)
+        public static bool IsSingleAxis(GizmoPart hoveredPart, out int axis)
         {
-            switch (hoveredAxis)
+            switch (hoveredPart)
             {
-                case HoveredAxis.X_AXIS:
+                case GizmoPart.X_AXIS:
                     axis = 0;
                     return true;
-                case HoveredAxis.Y_AXIS:
+                case GizmoPart.Y_AXIS:
                     axis = 1;
                     return true;
-                case HoveredAxis.Z_AXIS:
+                case GizmoPart.Z_AXIS:
                     axis = 2;
                     return true;
                 default:
@@ -96,24 +96,24 @@ namespace ToyStudio.GUI.util.edit
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPlane(HoveredAxis hoveredAxis, int axisA, int axisB)
+        public static bool IsPlane(GizmoPart hoveredPart, int axisA, int axisB)
         {
-            return (int)hoveredAxis == (1 << axisA | 1 << axisB);
+            return (int)hoveredPart == (1 << axisA | 1 << axisB);
         }
 
-        public static bool IsPlane(HoveredAxis hoveredAxis, out int axisA, out int axisB)
+        public static bool IsPlane(GizmoPart hoveredPart, out int axisA, out int axisB)
         {
-            switch (hoveredAxis)
+            switch (hoveredPart)
             {
-                case HoveredAxis.XY_PLANE:
+                case GizmoPart.XY_PLANE:
                     axisA = 0;
                     axisB = 1;
                     return true;
-                case HoveredAxis.XZ_PLANE:
+                case GizmoPart.XZ_PLANE:
                     axisA = 0;
                     axisB = 2;
                     return true;
-                case HoveredAxis.YZ_PLANE:
+                case GizmoPart.YZ_PLANE:
                     axisA = 1;
                     axisB = 2;
                     return true;
@@ -124,17 +124,17 @@ namespace ToyStudio.GUI.util.edit
             }
         }
 
-        public static bool IsPlane(HoveredAxis hoveredAxis, out int orthogonalAxis)
+        public static bool IsPlane(GizmoPart hoveredPart, out int orthogonalAxis)
         {
-            switch (hoveredAxis)
+            switch (hoveredPart)
             {
-                case HoveredAxis.XY_PLANE:
+                case GizmoPart.XY_PLANE:
                     orthogonalAxis = 2;
                     return true;
-                case HoveredAxis.XZ_PLANE:
+                case GizmoPart.XZ_PLANE:
                     orthogonalAxis = 1;
                     return true;
-                case HoveredAxis.YZ_PLANE:
+                case GizmoPart.YZ_PLANE:
                     orthogonalAxis = 0;
                     return true;
                 default:
@@ -596,13 +596,13 @@ namespace ToyStudio.GUI.util.edit
         /// </summary>
         /// <param name="transformMatrix">The Transform Matrix of the object the Transform Gizmo is used for</param>
         /// <param name="radius">The radius of the Gizmo in screen(2d) space</param>
-        /// <param name="hoveredAxis">The associated axis of the hovered part, use <see cref="GizmoResultHelper"/>
+        /// <param name="hoveredPart">The associated axis of the hovered part, use <see cref="GizmoResultHelper"/>
         /// to help interpreting it</param>
         /// 
         /// <returns><see langword="true"/> if the gizmo is hovered, <see langword="false"/> if not</returns>
-        public static bool RotationGizmo(in Matrix4x4 transformMatrix, float radius, out HoveredAxis hoveredAxis)
+        public static bool RotationGizmo(in Matrix4x4 transformMatrix, float radius, out GizmoPart hoveredPart)
         {
-            hoveredAxis = HoveredAxis.NONE;
+            hoveredPart = GizmoPart.NONE;
 
             var mtx = transformMatrix;
             s_transformMatVectors[0] = Vector3.Normalize(new(mtx.M11, mtx.M12, mtx.M13));
@@ -657,22 +657,22 @@ namespace ToyStudio.GUI.util.edit
 
 
             if (HoverableCircle(center2d, radius, 0x55_FF_FF_FF, 0x88_FF_FF_FF))
-                hoveredAxis = HoveredAxis.TRACKBALL;
+                hoveredPart = GizmoPart.TRACKBALL;
             Drawlist.AddCircle(center2d, radius, 0xFF_FF_FF_FF, 32, 1.5f);
 
 
             if (AxisGimbal(0))
-                hoveredAxis = HoveredAxis.X_AXIS;
+                hoveredPart = GizmoPart.X_AXIS;
             if (AxisGimbal(1))
-                hoveredAxis = HoveredAxis.Y_AXIS;
+                hoveredPart = GizmoPart.Y_AXIS;
             if (AxisGimbal(2))
-                hoveredAxis = HoveredAxis.Z_AXIS;
+                hoveredPart = GizmoPart.Z_AXIS;
 
 
             if (HoverableRing(center2d, radius + 10, 3, true, 0x55_FF_FF_FF, 0x88_FF_FF_FF))
-                hoveredAxis = HoveredAxis.VIEW_AXIS;
+                hoveredPart = GizmoPart.VIEW_AXIS;
 
-            return hoveredAxis != HoveredAxis.NONE;
+            return hoveredPart != GizmoPart.NONE;
         }
 
         private static bool TryGetBillboardPlaneMatrix2d(int axis, in Vector3 planeOrigin3d, float scaling, out Vector2 row0, out Vector2 row1)
@@ -764,11 +764,11 @@ namespace ToyStudio.GUI.util.edit
         /// </summary>
         /// <param name="transformMatrix">The Transform Matrix of the object the Transform Gizmo is used for</param>
         /// <param name="radius">The radius of the Gizmo in screen(2d) space</param>
-        /// <param name="hoveredAxis">The associated axis of the hovered part, use <see cref="GizmoResultHelper"/>
+        /// <param name="hoveredPart">The associated axis of the hovered part, use <see cref="GizmoResultHelper"/>
         /// to help interpreting it</param>
         /// 
         /// <returns><see langword="true"/> if the gizmo is hovered, <see langword="false"/> if not</returns>
-        public static bool ScaleGizmo(in Matrix4x4 transformMatrix, float radius, out HoveredAxis hoveredAxis)
+        public static bool ScaleGizmo(in Matrix4x4 transformMatrix, float radius, out GizmoPart hoveredPart)
         {
             var mousePos = ImGui.GetMousePos();
 
@@ -804,33 +804,33 @@ namespace ToyStudio.GUI.util.edit
                 return hovered;
             }
 
-            hoveredAxis = HoveredAxis.NONE;
+            hoveredPart = GizmoPart.NONE;
 
             var axisVecX = s_transformMatVectors[0];
             var axisVecY = s_transformMatVectors[1];
             var axisVecZ = s_transformMatVectors[2];
 
             #region best effort depth sorting
-            Span<(float sortKey, (AxisPlaneUnion apu, HoveredAxis ha) value)> items =
+            Span<(float sortKey, (AxisPlaneUnion apu, GizmoPart ha) value)> items =
             [
                 (Vector3.Dot(-s_view.CamForwardVector, axisVecX * 0.5f) + 0.5f,
-                (AxisPlaneUnion.Axis(0), HoveredAxis.X_AXIS)),
+                (AxisPlaneUnion.Axis(0), GizmoPart.X_AXIS)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, axisVecY * 0.5f) + 0.5f,
-                (AxisPlaneUnion.Axis(1), HoveredAxis.Y_AXIS)),
+                (AxisPlaneUnion.Axis(1), GizmoPart.Y_AXIS)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, axisVecZ * 0.5f) + 0.5f,
-                (AxisPlaneUnion.Axis(2), HoveredAxis.Z_AXIS)),
+                (AxisPlaneUnion.Axis(2), GizmoPart.Z_AXIS)),
 
 
                 (Vector3.Dot(-s_view.CamForwardVector, (axisVecX+axisVecY)*0.5f),
-                (AxisPlaneUnion.Plane(0, 1), HoveredAxis.XY_PLANE)),
+                (AxisPlaneUnion.Plane(0, 1), GizmoPart.XY_PLANE)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, (axisVecX + axisVecZ) * 0.5f),
-                (AxisPlaneUnion.Plane(0, 2), HoveredAxis.XZ_PLANE)),
+                (AxisPlaneUnion.Plane(0, 2), GizmoPart.XZ_PLANE)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, (axisVecY + axisVecZ) * 0.5f),
-                (AxisPlaneUnion.Plane(1, 2), HoveredAxis.YZ_PLANE))
+                (AxisPlaneUnion.Plane(1, 2), GizmoPart.YZ_PLANE))
             ];
 
             Sort(items);
@@ -838,23 +838,23 @@ namespace ToyStudio.GUI.util.edit
 
             for (int i = 0; i < items.Length; i++)
             {
-                (AxisPlaneUnion apu, HoveredAxis ha) = items[i].value;
+                (AxisPlaneUnion apu, GizmoPart ha) = items[i].value;
                 if (apu.IsAxis(out int axis))
                 {
                     if (GizmoAxisHandle(in center, in center2d, in mousePos, radius, gizmoScaleFactor, axis))
-                        hoveredAxis = ha;
+                        hoveredPart = ha;
                 }
                 else if (apu.IsPlane(out int axisA, out int axisB))
                 {
                     if (Plane(axisA, axisB))
-                        hoveredAxis = ha;
+                        hoveredPart = ha;
                 }
             }
 
             if (HoverableRing(center2d, radius + 10, 6f, false, 0x55_FF_FF_FF, 0x88_FF_FF_FF))
-                hoveredAxis = HoveredAxis.ALL_AXES;
+                hoveredPart = GizmoPart.ALL_AXES;
 
-            return hoveredAxis != HoveredAxis.NONE;
+            return hoveredPart != GizmoPart.NONE;
         }
 
 
@@ -864,11 +864,11 @@ namespace ToyStudio.GUI.util.edit
         /// </summary>
         /// <param name="transformMatrix">The Transform Matrix of the object the Transform Gizmo is used for</param>
         /// <param name="radius">The radius of the Gizmo in screen(2d) space</param>
-        /// <param name="hoveredAxis">The associated axis of the hovered part, use <see cref="GizmoResultHelper"/>
+        /// <param name="hoveredPart">The associated axis of the hovered part, use <see cref="GizmoResultHelper"/>
         /// to help interpreting it</param>
         /// 
         /// <returns><see langword="true"/> if the gizmo is hovered, <see langword="false"/> if not</returns>
-        public static bool MoveGizmo(in Matrix4x4 transformMatrix, float lineLength, out HoveredAxis hoveredAxis)
+        public static bool MoveGizmo(in Matrix4x4 transformMatrix, float lineLength, out GizmoPart hoveredPart)
         {
             var mousePos = ImGui.GetMousePos();
 
@@ -907,33 +907,33 @@ namespace ToyStudio.GUI.util.edit
                 return hovered;
             }
 
-            hoveredAxis = HoveredAxis.NONE;
+            hoveredPart = GizmoPart.NONE;
 
             var axisVecX = s_transformMatVectors[0];
             var axisVecY = s_transformMatVectors[1];
             var axisVecZ = s_transformMatVectors[2];
 
             #region best effort depth sorting
-            Span<(float sortKey, (AxisPlaneUnion apu, HoveredAxis ha) value)> items =
+            Span<(float sortKey, (AxisPlaneUnion apu, GizmoPart ha) value)> items =
             [
                 (Vector3.Dot(-s_view.CamForwardVector, axisVecX * 0.5f) + 0.5f,
-                (AxisPlaneUnion.Axis(0), HoveredAxis.X_AXIS)),
+                (AxisPlaneUnion.Axis(0), GizmoPart.X_AXIS)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, axisVecY * 0.5f) + 0.5f,
-                (AxisPlaneUnion.Axis(1), HoveredAxis.Y_AXIS)),
+                (AxisPlaneUnion.Axis(1), GizmoPart.Y_AXIS)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, axisVecZ * 0.5f) + 0.5f,
-                (AxisPlaneUnion.Axis(2), HoveredAxis.Z_AXIS)),
+                (AxisPlaneUnion.Axis(2), GizmoPart.Z_AXIS)),
 
 
                 (Vector3.Dot(-s_view.CamForwardVector, (axisVecX + axisVecY) * 0.5f),
-                (AxisPlaneUnion.Plane(0, 1), HoveredAxis.XY_PLANE)),
+                (AxisPlaneUnion.Plane(0, 1), GizmoPart.XY_PLANE)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, (axisVecX + axisVecZ) * 0.5f),
-                (AxisPlaneUnion.Plane(0, 2), HoveredAxis.XZ_PLANE)),
+                (AxisPlaneUnion.Plane(0, 2), GizmoPart.XZ_PLANE)),
 
                 (Vector3.Dot(-s_view.CamForwardVector, (axisVecY + axisVecZ) * 0.5f),
-                (AxisPlaneUnion.Plane(1, 2), HoveredAxis.YZ_PLANE))
+                (AxisPlaneUnion.Plane(1, 2), GizmoPart.YZ_PLANE))
             ];
 
             Sort(items);
@@ -941,23 +941,23 @@ namespace ToyStudio.GUI.util.edit
 
             for (int i = 0; i < items.Length; i++)
             {
-                (AxisPlaneUnion apu, HoveredAxis ha) = items[i].value;
+                (AxisPlaneUnion apu, GizmoPart ha) = items[i].value;
                 if (apu.IsAxis(out int axis))
                 {
                     if (GizmoAxisHandle(in center, in center2d, in mousePos, lineLength, gizmoScaleFactor, axis, true))
-                        hoveredAxis = ha;
+                        hoveredPart = ha;
                 }
                 else if (apu.IsPlane(out int axisA, out int axisB))
                 {
                     if (Plane(axisA, axisB))
-                        hoveredAxis = ha;
+                        hoveredPart = ha;
                 }
             }
 
             if (HoverableCircle(center2d, 5, 0xFF_FF_FF_FF, HOVER_COLOR))
-                hoveredAxis = HoveredAxis.FREE;
+                hoveredPart = GizmoPart.FREE_MOVE;
 
-            return hoveredAxis != HoveredAxis.NONE;
+            return hoveredPart != GizmoPart.NONE;
         }
     }
 }

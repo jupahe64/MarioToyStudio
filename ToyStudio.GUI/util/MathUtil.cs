@@ -207,18 +207,22 @@ namespace ToyStudio.GUI.util
 
     struct BoundingBox2D(Vector2 min, Vector2 max)
     {
-        public readonly Vector2 Min => mMin;
-        public readonly Vector2 Max => mMax;
+        public readonly Vector2 Min => _min;
+        public readonly Vector2 Max => _max;
         public static readonly BoundingBox2D Empty =
             new(new Vector2(float.PositiveInfinity), new Vector2(float.NegativeInfinity));
 
+        public readonly bool IsEmpty() => _min == Empty._min && _max == Empty._max;
+        public readonly Vector2 Center => (_min + _max) / 2;
+        public readonly Vector2 Size => _max - _min;
+
         public void Include(Vector2 point)
         {
-            mMin.X = MathF.Min(point.X, mMin.X);
-            mMin.Y = MathF.Min(point.Y, mMin.Y);
+            _min.X = MathF.Min(point.X, _min.X);
+            _min.Y = MathF.Min(point.Y, _min.Y);
 
-            mMax.X = MathF.Max(point.X, mMax.X);
-            mMax.Y = MathF.Max(point.Y, mMax.Y);
+            _max.X = MathF.Max(point.X, _max.X);
+            _max.Y = MathF.Max(point.Y, _max.Y);
         }
 
         public void Include(BoundingBox2D other)
@@ -227,25 +231,29 @@ namespace ToyStudio.GUI.util
             Include(other.Max);
         }
 
-        private Vector2 mMin = min, mMax = max;
+        private Vector2 _min = min, _max = max;
     }
 
     struct BoundingBox3D(Vector3 min, Vector3 max)
     {
-        public readonly Vector3 Min => mMin;
-        public readonly Vector3 Max => mMax;
+        public readonly Vector3 Min => _min;
+        public readonly Vector3 Max => _max;
         public static readonly BoundingBox3D Empty =
             new(new Vector3(float.PositiveInfinity), new Vector3(float.NegativeInfinity));
 
+        public readonly bool IsEmpty() => _min == Empty._min && _max == Empty._max;
+        public readonly Vector3 Center => (_min + _max) / 2;
+        public readonly Vector3 Size => _max - _min;
+
         public void Include(Vector3 point)
         {
-            mMin.X = MathF.Min(point.X, mMin.X);
-            mMin.Y = MathF.Min(point.Y, mMin.Y);
-            mMin.Z = MathF.Min(point.Z, mMin.Z);
+            _min.X = MathF.Min(point.X, _min.X);
+            _min.Y = MathF.Min(point.Y, _min.Y);
+            _min.Z = MathF.Min(point.Z, _min.Z);
 
-            mMax.X = MathF.Max(point.X, mMax.X);
-            mMax.Y = MathF.Max(point.Y, mMax.Y);
-            mMax.Z = MathF.Max(point.Z, mMax.Z);
+            _max.X = MathF.Max(point.X, _max.X);
+            _max.Y = MathF.Max(point.Y, _max.Y);
+            _max.Z = MathF.Max(point.Z, _max.Z);
         }
 
         public void Include(BoundingBox3D other)
@@ -254,6 +262,6 @@ namespace ToyStudio.GUI.util
             Include(other.Max);
         }
 
-        private Vector3 mMin = min, mMax = max;
+        private Vector3 _min = min, _max = max;
     }
 }
