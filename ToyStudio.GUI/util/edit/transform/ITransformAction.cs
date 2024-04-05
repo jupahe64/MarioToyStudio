@@ -9,11 +9,9 @@ namespace ToyStudio.GUI.util.edit.transform
 {
     internal interface ITransformAction
     {
-        public record struct CameraInfo(Vector3 ViewDirection, Vector3 MouseRayOrigin, Vector3 MouseRayDirection);
-
         IEnumerable<ITransformable> Transformables { get; }
 
-        void Update(CameraInfo cameraInfo, bool isSnapping);
+        void Update(in SceneViewState sceneView, bool isSnapping);
         void ToggleAxisRestriction(AxisRestriction axisRestriction);
         AxisRestriction AxisRestriction { get; }
         void Apply();

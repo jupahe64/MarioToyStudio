@@ -16,7 +16,9 @@ namespace ToyStudio.GUI.util.edit.transform.actions
 
         public IEnumerable<ITransformable> Transformables => _transformables.Select(x => x.transformable);
 
-        public MoveAction(CameraInfo cameraInfo, IEnumerable<ITransformable> transformables, Vector3 pivot,
+        public AxisRestriction AxisRestriction { get; private set; } = AxisRestriction.None;
+
+        public MoveAction(SceneViewState sceneView, IEnumerable<ITransformable> transformables, Quaternion orientation, Vector3 pivot,
         AxisRestriction axisRestriction = AxisRestriction.None)
         {
             if (axisRestriction.IsSingleAxis(out _) ||
@@ -25,18 +27,20 @@ namespace ToyStudio.GUI.util.edit.transform.actions
 
             _transformables = transformables.Select(x => (x, x.OnBeginTransform())).ToList();
 
-            _axes = [Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ];
+            _axes = [
+                Vector3.Transform(Vector3.UnitX, orientation), 
+                Vector3.Transform(Vector3.UnitY, orientation), 
+                Vector3.Transform(Vector3.UnitZ, orientation)
+            ];
 
-            Vector3 planeNormal = CalcInteractionPlaneNormal(in cameraInfo);
+            Vector3 planeNormal = CalcInteractionPlaneNormal(in sceneView);
 
             Vector3 intersection = MathUtil.IntersectPlaneRay(
-                cameraInfo.MouseRayDirection, cameraInfo.MouseRayOrigin,
+                sceneView.MouseRay.direction, sceneView.MouseRay.origin,
                 planeNormal, pivot);
 
             _pivot = intersection;
         }
-
-        public AxisRestriction AxisRestriction { get; private set; } = AxisRestriction.None;
 
         public void ToggleAxisRestriction(AxisRestriction axisRestriction)
         {
@@ -51,12 +55,12 @@ namespace ToyStudio.GUI.util.edit.transform.actions
                 AxisRestriction = axisRestriction;
         }
 
-        public void Update(CameraInfo cameraInfo, bool isSnapping)
+        public void Update(in SceneViewState sceneView, bool isSnapping)
         {
-            Vector3 planeNormal = CalcInteractionPlaneNormal(in cameraInfo);
+            Vector3 planeNormal = CalcInteractionPlaneNormal(in sceneView);
 
             Vector3 intersection = MathUtil.IntersectPlaneRay(
-                cameraInfo.MouseRayDirection, cameraInfo.MouseRayOrigin,
+                sceneView.MouseRay.direction, sceneView.MouseRay.origin,
                 planeNormal, _pivot);
 
             if (AxisRestriction.IsSingleAxis(out int axis))
@@ -85,17 +89,17 @@ namespace ToyStudio.GUI.util.edit.transform.actions
                 transformable.OnEndTransform(isCancel: true);
         }
 
-        private Vector3 CalcInteractionPlaneNormal(in CameraInfo cameraInfo)
+        private Vector3 CalcInteractionPlaneNormal(in SceneViewState sceneView)
         {
             if (AxisRestriction == AxisRestriction.None)
-                return -cameraInfo.ViewDirection;
+                return -sceneView.CamForwardVector;
 
             if (AxisRestriction.IsPlane(out int orthogonalAxis))
                 return _axes[orthogonalAxis];
 
             Debug.Assert(AxisRestriction.IsSingleAxis(out int axis));
             Vector3 tangent = _axes[axis];
-            Vector3 bitangent = Vector3.Cross(tangent, cameraInfo.ViewDirection);
+            Vector3 bitangent = Vector3.Cross(tangent, sceneView.CamForwardVector);
             bitangent = Vector3.Normalize(bitangent);
 
             return Vector3.Cross(tangent, bitangent);

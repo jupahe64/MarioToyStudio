@@ -513,6 +513,7 @@ namespace ToyStudio.GUI.widgets
             var transformables = _subLevelScene.GetObjects<IViewportTransformable>().Where(x => x.IsSelected());
             var enumerator = transformables.GetEnumerator();
             Matrix4x4 mtx;
+            Quaternion orientation;
 
             if (!enumerator.MoveNext())
                 return;
@@ -528,11 +529,14 @@ namespace ToyStudio.GUI.widgets
                 } while (enumerator.MoveNext());
 
                 mtx = Matrix4x4.CreateTranslation(bb.Center);
+                orientation = Quaternion.Identity;
             }
             else
             {
                 mtx = Matrix4x4.CreateFromQuaternion(firstTransfrom.Orientation) *
                     Matrix4x4.CreateTranslation(firstTransfrom.Position);
+
+                orientation = firstTransfrom.Orientation;
             }
 
             var gizmoPosition = mtx.Translation;
@@ -556,7 +560,7 @@ namespace ToyStudio.GUI.widgets
                 return;
 
             _activeTool = TransformTool.CreateFromHoveredGizmoPart(this, _activeGizmoType, hoveredGizmoPart,
-                gizmoPosition, transformables);
+                orientation, gizmoPosition, transformables);
         }
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
@@ -607,25 +611,27 @@ namespace ToyStudio.GUI.widgets
             }
         }
 
-        private ITransformAction.CameraInfo GetCameraInfo()
+        private CameraState GetCameraState()
         {
-            var (rayOrigin, rayDirection) = GetMouseRay();
-            return new ITransformAction.CameraInfo(
-                ViewDirection: GetCameraForwardDirection(),
-                MouseRayOrigin: rayOrigin,
-                MouseRayDirection: rayDirection
+            return CameraState.FromEyeRotation(
+                GetCameraPosition(),
+                _camera.Rotation
+            );
+        }
+
+        private SceneViewState GetSceneViewState()
+        {
+            return new SceneViewState(
+                GetCameraState(),
+                _camera.ViewProjectionMatrix,
+                new Rect(_topLeft, _topLeft + _size),
+                ImGui.GetMousePos(),
+                GetMouseRay()
             );
         }
 
         private void HandleTransformAction(bool isActive)
         {
-            var (rayOrigin, rayDirection) = GetMouseRay();
-            var camInfo = new ITransformAction.CameraInfo(
-                ViewDirection: GetCameraForwardDirection(),
-                MouseRayOrigin: rayOrigin,
-                MouseRayDirection: rayDirection
-            );
-
             if (!isActive || !_canStartNewTransformAction || _activeTool is not null)
                 return;
 
@@ -785,17 +791,19 @@ namespace ToyStudio.GUI.widgets
 
         private class TransformTool : IViewportTool
         {
-            public static TransformTool CreateFreeMove(SubLevelViewport viewport, Vector3 pivot, IEnumerable<ITransformable> transformables)
-            {
-                return new TransformTool(new MoveAction(viewport.GetCameraInfo(), transformables, pivot));
-            }
-
-            public static TransformTool CreateFromHoveredGizmoPart(SubLevelViewport viewport, TransformType gizmoType, GizmoPart gizmoPart,
+            public static TransformTool CreateFreeMove(SubLevelViewport viewport, 
                 Vector3 pivot, IEnumerable<ITransformable> transformables)
             {
-                return gizmoType switch
+                return new TransformTool(new MoveAction(viewport.GetSceneViewState(), transformables, Quaternion.Identity, pivot));
+            }
+
+            public static TransformTool CreateFromHoveredGizmoPart(SubLevelViewport viewport, 
+                TransformType gizmoType, GizmoPart gizmoPart,
+                Quaternion orientation, Vector3 pivot, IEnumerable<ITransformable> transformables)
+            {
+                ITransformAction action = gizmoType switch
                 {
-                    TransformType.Move => new TransformTool(new MoveAction(viewport.GetCameraInfo(), transformables, pivot, gizmoPart switch
+                    TransformType.Move => new MoveAction(viewport.GetSceneViewState(), transformables, orientation, pivot, gizmoPart switch
                     {
                         GizmoPart.X_AXIS => AxisRestriction.AxisX,
                         GizmoPart.Y_AXIS => AxisRestriction.AxisY,
@@ -804,11 +812,16 @@ namespace ToyStudio.GUI.widgets
                         GizmoPart.XZ_PLANE => AxisRestriction.PlaneXZ,
                         GizmoPart.YZ_PLANE => AxisRestriction.PlaneYZ,
                         _ => AxisRestriction.None
-                    })),
+                    }),
                     TransformType.Rotate => null!, //for now
                     TransformType.Scale => null!,
                     _ => throw new ArgumentOutOfRangeException($"Invalid {nameof(TransformType)} {gizmoType}"),
                 };
+
+                if (action == null)
+                    return null!;
+
+                return new TransformTool(action);
             }
 
             public void Cancel() =>_action.Cancel();
@@ -859,7 +872,7 @@ namespace ToyStudio.GUI.widgets
                 bool isSnapping = ImGui.GetIO().KeyCtrl;
 
                 if (_isStarted)
-                    _action.Update(viewport.GetCameraInfo(), isSnapping);
+                    _action.Update(viewport.GetSceneViewState(), isSnapping);
             }
 
             private TransformTool(ITransformAction action)
