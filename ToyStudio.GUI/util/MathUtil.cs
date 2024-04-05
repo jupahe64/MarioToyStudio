@@ -1,17 +1,24 @@
-﻿using System;
+﻿using Silk.NET.Maths;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using YamlDotNet.Core;
 
 namespace ToyStudio.GUI.util
 {
     internal static class MathUtil
     {
-        public const float Deg2Rad = (float)Math.PI / 180.0f;
-        public const float Rad2Deg = 180.0f / (float)Math.PI;
+        public const float Deg2Rad = MathF.PI / 180.0f;
+        public const float Rad2Deg = 180.0f / MathF.PI;
+
+        public const double Deg2RadD = Math.PI / 180.0;
+        public const double Rad2DegD = 180.0 / Math.PI;
 
         [Pure]
         public static float Clamp(float value, float min, float max)
@@ -203,6 +210,54 @@ namespace ToyStudio.GUI.util
 
             return true;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Quaternion QuatFromEulerXYZ(Vector3 eulerAngles)
+        {
+            // adapted from https://github.com/Unity-Technologies/Unity.Mathematics/blob/master/src/Unity.Mathematics/quaternion.cs#L113
+            (float s_x, float c_x) = MathF.SinCos(0.5f * eulerAngles.X);
+            (float s_y, float c_y) = MathF.SinCos(0.5f * eulerAngles.Y);
+            (float s_z, float c_z) = MathF.SinCos(0.5f * eulerAngles.Z);
+            return new Quaternion(
+                s_x * c_y * c_z - s_y * s_z * c_x,
+                s_y * c_x * c_z + s_x * s_z * c_y,
+                s_z * c_x * c_y - s_x * s_y * c_z,
+                c_x * c_y * c_z + s_y * s_z * s_x
+                );
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 QuatToEulerXYZ(Quaternion q)
+        {
+            //no idea where this code is originally from but it works
+
+            static bool CompareEpsilon(float a, float b) => Math.Abs(a - b) <= 0.00001;
+
+            double x, y, z;
+
+            var mtx = Matrix4x4.CreateFromQuaternion(q);
+
+            if (CompareEpsilon(mtx.M13, 1f))
+            {
+                x = Math.Atan2(-mtx.M21, -mtx.M31);
+                y = -Math.PI / 2;
+                z = 0.0;
+            }
+            else if (CompareEpsilon(mtx.M13, -1f))
+            {
+                x = Math.Atan2(mtx.M21, mtx.M31);
+                y = Math.PI / 2;
+                z = 0.0;
+            }
+            else
+            {
+                x = Math.Atan2(mtx.M23, mtx.M33);
+                y = -Math.Asin(mtx.M13);
+                z = Math.Atan2(mtx.M12, mtx.M11);
+            }
+
+            return new Vector3((float)x, (float)y, (float)z);
+        }
     }
 
     struct BoundingBox2D(Vector2 min, Vector2 max)
@@ -210,7 +265,7 @@ namespace ToyStudio.GUI.util
         public readonly Vector2 Min => _min;
         public readonly Vector2 Max => _max;
         public static readonly BoundingBox2D Empty =
-            new(new Vector2(float.PositiveInfinity), new Vector2(float.NegativeInfinity));
+                new(new Vector2(float.PositiveInfinity), new Vector2(float.NegativeInfinity));
 
         public readonly bool IsEmpty() => _min == Empty._min && _max == Empty._max;
         public readonly Vector2 Center => (_min + _max) / 2;

@@ -51,6 +51,14 @@ namespace ToyStudio.GUI.util.edit.components
         private Property<TObject, Vector3>? RotationProperty => transformProperties.RotationProperty;
         private Property<TObject, Vector3>? ScaleProperty => transformProperties.ScaleProperty;
 
+        private Quaternion? _immediateQuat = null;
+
+        public bool TryGetImmediateQuat(out Quaternion rotation)
+        {
+            rotation = _immediateQuat.GetValueOrDefault();
+            return _immediateQuat.HasValue;
+        }
+
         public ITransformable.Transform GetTransform() 
             => TransformComponent<TObject>.ConvertToTransformable(transformProperties.GetTransformValue(dataObject));
 
@@ -64,9 +72,8 @@ namespace ToyStudio.GUI.util.edit.components
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ITransformable.Transform ConvertToTransformable(Transform transform)
         {
-            var orientation = Quaternion.Identity; //TODO calculate EulerAngles -> Quaternion
-
-            return new(transform.Position, orientation, transform.Scale);
+            return new(transform.Position, MathUtil.QuatFromEulerXYZ(transform.Rotation), 
+                transform.Scale);
         }
 
         public void UpdateTransform(Vector3? newPosition, Quaternion? newOrientation, Vector3? newScale)
@@ -76,7 +83,8 @@ namespace ToyStudio.GUI.util.edit.components
 
             if (newOrientation.HasValue && RotationProperty != null)
             {
-                //TODO calculate Quaternion -> EulerAngles
+                RotationProperty.SetValue(dataObject, MathUtil.QuatToEulerXYZ(newOrientation.Value));
+                _immediateQuat = newOrientation;
             }
 
             if (newScale.HasValue && ScaleProperty != null)
@@ -85,6 +93,7 @@ namespace ToyStudio.GUI.util.edit.components
 
         public void OnEndTransform(bool isCancel, Action<IRevertable> commit, string actionName = "Transforming Object(s)")
         {
+            _immediateQuat = null;
             if (isCancel)
             {
                 transformProperties.SetTransformValue(dataObject, _preTransform);

@@ -76,10 +76,11 @@ namespace ToyStudio.GUI.scene.objs
 
             var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-            var quat =
-                Quaternion.CreateFromAxisAngle(Vector3.UnitX, _actor.Rotate.X) *
-                Quaternion.CreateFromAxisAngle(Vector3.UnitY, _actor.Rotate.Y) *
-                Quaternion.CreateFromAxisAngle(Vector3.UnitZ, _actor.Rotate.Z);
+            Quaternion quat;
+            if (!_transformComponent.TryGetImmediateQuat(out quat))
+            {
+                quat = MathUtil.QuatFromEulerXYZ(_actor.Rotate);
+            }
 
             var mtx =
                 Matrix4x4.CreateScale(_actor.Scale) *

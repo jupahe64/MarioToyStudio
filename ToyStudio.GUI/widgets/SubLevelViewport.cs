@@ -813,8 +813,15 @@ namespace ToyStudio.GUI.widgets
                         GizmoPart.YZ_PLANE => AxisRestriction.PlaneYZ,
                         _ => AxisRestriction.None
                     }),
-                    TransformType.Rotate => null!, //for now
-                    TransformType.Scale => null!,
+                    TransformType.Rotate when gizmoPart == GizmoPart.TRACKBALL => null!, //for now
+                    TransformType.Rotate => new RotateAction(viewport.GetSceneViewState(), transformables, orientation, pivot, gizmoPart switch
+                    {
+                        GizmoPart.X_AXIS => AxisRestriction.AxisX,
+                        GizmoPart.Y_AXIS => AxisRestriction.AxisY,
+                        GizmoPart.Z_AXIS => AxisRestriction.AxisZ,
+                        _ => AxisRestriction.None
+                    }),
+                    TransformType.Scale => null!, //for now
                     _ => throw new ArgumentOutOfRangeException($"Invalid {nameof(TransformType)} {gizmoType}"),
                 };
 
