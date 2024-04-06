@@ -9,40 +9,25 @@ using System.Diagnostics;
 
 namespace ToyStudio.GUI.util.edit.transform.actions
 {
-    internal class MoveAction : ITransformAction
+    internal class MoveAction : TransformActionBase
     {
         public float SnapIncrement { get; set; } = 1f;
         public Vector3 Translation { get; private set; }
 
-        public IEnumerable<ITransformable> Transformables => _transformables.Select(x => x.transformable);
-
-        public AxisRestriction AxisRestriction { get; private set; } = AxisRestriction.None;
-
         public MoveAction(SceneViewState sceneView, IEnumerable<ITransformable> transformables, Quaternion orientation, Vector3 pivot,
         AxisRestriction axisRestriction = AxisRestriction.None)
+            : base(transformables, orientation)
         {
             if (axisRestriction.IsSingleAxis(out _) ||
                 axisRestriction.IsPlane(out _))
                 AxisRestriction = axisRestriction;
 
-            _transformables = transformables.Select(x => (x, x.OnBeginTransform())).ToList();
+            _pivot = pivot;
 
-            _axes = [
-                Vector3.Transform(Vector3.UnitX, orientation), 
-                Vector3.Transform(Vector3.UnitY, orientation), 
-                Vector3.Transform(Vector3.UnitZ, orientation)
-            ];
-
-            Vector3 planeNormal = CalcInteractionPlaneNormal(in sceneView);
-
-            Vector3 intersection = MathUtil.IntersectPlaneRay(
-                sceneView.MouseRay.direction, sceneView.MouseRay.origin,
-                planeNormal, pivot);
-
-            _pivot = intersection;
+            _pivot += CalcTranslation(in sceneView, false);
         }
 
-        public void ToggleAxisRestriction(AxisRestriction axisRestriction)
+        public override void ToggleAxisRestriction(AxisRestriction axisRestriction)
         {
             if (axisRestriction == AxisRestriction)
             {
@@ -55,85 +40,58 @@ namespace ToyStudio.GUI.util.edit.transform.actions
                 AxisRestriction = axisRestriction;
         }
 
-        public void Update(in SceneViewState sceneView, bool isSnapping)
+        protected override void OnInteraction(in SceneViewState sceneView, bool isSnapping)
         {
-            Vector3 planeNormal = CalcInteractionPlaneNormal(in sceneView);
+            Translation = CalcTranslation(in sceneView, isSnapping);
+        }
 
-            Vector3 intersection = MathUtil.IntersectPlaneRay(
-                sceneView.MouseRay.direction, sceneView.MouseRay.origin,
-                planeNormal, _pivot);
-
+        private Vector3 CalcTranslation(in SceneViewState sceneView, bool isSnapping)
+        {
             if (AxisRestriction.IsSingleAxis(out int axis))
             {
-                var axisVec = _axes[axis];
-                Translation = axisVec * 
-                    ApplySnapping(isSnapping, Vector3.Dot(intersection - _pivot, axisVec));
+                var axisVec = Axes[axis];
+                var hitPoint = RayPlaneHit(in sceneView,
+                    (_pivot, GetAxisBillboardVec(in sceneView, axisVec)));
+
+                return axisVec *
+                    ApplySnapping(isSnapping, Vector3.Dot(hitPoint - _pivot, axisVec));
+            }
+            else if (AxisRestriction.IsPlane(out axis))
+            {
+                var hitPoint = RayPlaneHit(in sceneView,
+                    (_pivot, Axes[axis]));
+
+                return ApplySnapping(isSnapping, hitPoint - _pivot);
             }
             else
             {
-                Translation = ApplySnapping(isSnapping, intersection - _pivot);
+                var hitPoint = RayPlaneHit(in sceneView,
+                    (_pivot, -sceneView.CamForwardVector));
+
+                return ApplySnapping(isSnapping, hitPoint - _pivot);
             }
-
-            UpdateTransformables();
         }
 
-        public void Apply()
+        protected override void UpdateTransformables(IEnumerable<(ITransformable transformable,
+            ITransformable.Transform initialTransform)> transformables)
         {
-            foreach (var (transformable, _) in _transformables)
-                transformable.OnEndTransform(isCancel: false);
-        }
-
-        public void Cancel()
-        {
-            foreach (var (transformable, _) in _transformables)
-                transformable.OnEndTransform(isCancel: true);
-        }
-
-        private Vector3 CalcInteractionPlaneNormal(in SceneViewState sceneView)
-        {
-            if (AxisRestriction == AxisRestriction.None)
-                return -sceneView.CamForwardVector;
-
-            if (AxisRestriction.IsPlane(out int orthogonalAxis))
-                return _axes[orthogonalAxis];
-
-            Debug.Assert(AxisRestriction.IsSingleAxis(out int axis));
-            Vector3 tangent = _axes[axis];
-            Vector3 bitangent = Vector3.Cross(tangent, sceneView.CamForwardVector);
-            bitangent = Vector3.Normalize(bitangent);
-
-            return Vector3.Cross(tangent, bitangent);
-        }
-
-        private void UpdateTransformables()
-        {
-            foreach (var (transformable, (initialPos, _, _)) in _transformables)
+            foreach (var (transformable, (initialPos, _, _)) in transformables)
             {
-                transformable.UpdateTransform(initialPos + Translation, 
+                transformable.UpdateTransform(initialPos + Translation,
                     null, null);
             }
         }
 
-        private float ApplySnapping(bool isSnapping, float value)
-        {
-            if (isSnapping)
-                return MathF.Round(value / SnapIncrement) * SnapIncrement;
-            else
-                return value;
-        }
+        private float ApplySnapping(bool isSnapping, float value) => 
+            isSnapping ? MathUtil.SnapToIncrement(value, SnapIncrement) : value;
 
-        private Vector3 ApplySnapping(bool isSnapping, Vector3 vec)
-        {
-            return new Vector3(
+        private Vector3 ApplySnapping(bool isSnapping, Vector3 vec) => 
+            new(
                 ApplySnapping(isSnapping, vec.X),
                 ApplySnapping(isSnapping, vec.Y),
                 ApplySnapping(isSnapping, vec.Z)
             );
-        }
 
-        private readonly List<(ITransformable transformable, 
-            ITransformable.Transform transform)> _transformables;
         private readonly Vector3 _pivot;
-        private readonly Vector3[] _axes;
     }
 }

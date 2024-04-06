@@ -9,48 +9,25 @@ using System.Transactions;
 
 namespace ToyStudio.GUI.util.edit.transform.actions
 {
-    internal class RotateAction : ITransformAction
+    internal class RotateAction : TransformActionBase
     {
         public float SnapAngleDegrees { get; set; } = 45f;
         public (Vector3 axis, double angleDegrees) AxisAngle { get; private set; }
 
-        public IEnumerable<ITransformable> Transformables => _transformables.Select(x => x.transformable);
-
-        public AxisRestriction AxisRestriction { get; private set; } = AxisRestriction.None;
-
         public RotateAction(SceneViewState sceneView, IEnumerable<ITransformable> transformables, Quaternion orientation, Vector3 pivot,
         AxisRestriction axisRestriction = AxisRestriction.None)
+            : base(transformables, orientation)
         {
             if (axisRestriction.IsSingleAxis(out _) ||
                 axisRestriction.IsPlane(out _))
                 AxisRestriction = axisRestriction;
-
-            _transformables = transformables.Select(x => (x, x.OnBeginTransform())).ToList();
-
-            _axes = [
-                Vector3.Transform(Vector3.UnitX, orientation),
-                Vector3.Transform(Vector3.UnitY, orientation),
-                Vector3.Transform(Vector3.UnitZ, orientation)
-            ];
 
             _pivot = pivot;
             var axisVector = GetAxisVector(in sceneView);
             _previousAngleDegrees = CalcAngleDegrees(in axisVector, in sceneView);
         }
 
-        public void Apply()
-        {
-            foreach (var (transformable, _) in _transformables)
-                transformable.OnEndTransform(isCancel: false);
-        }
-
-        public void Cancel()
-        {
-            foreach (var (transformable, _) in _transformables)
-                transformable.OnEndTransform(isCancel: true);
-        }
-
-        public void ToggleAxisRestriction(AxisRestriction axisRestriction)
+        public override void ToggleAxisRestriction(AxisRestriction axisRestriction)
         {
             if (axisRestriction.IsPlane(out _))
                 return;
@@ -64,16 +41,15 @@ namespace ToyStudio.GUI.util.edit.transform.actions
             AxisRestriction = axisRestriction;
         }
 
-        public void Update(in SceneViewState sceneView, bool isSnapping)
+        protected override void OnInteraction(in SceneViewState sceneView, bool isSnapping)
         {
             var axisVector = GetAxisVector(in sceneView);
 
             var angleDegrees = CalcAngleDegrees(in axisVector, in sceneView);
-            var deltaAngle = GetShortestRotationBetweenDegrees(_previousAngleDegrees, angleDegrees);
+            var deltaAngle = MathUtil.GetShortestRotationBetweenDegrees(_previousAngleDegrees, angleDegrees);
 
             _sumAngleDegrees += deltaAngle;
             AxisAngle = (axisVector, ApplySnapping(isSnapping, _sumAngleDegrees));
-            UpdateTransformables();
 
             _previousAngleDegrees = angleDegrees;
         }
@@ -106,48 +82,26 @@ namespace ToyStudio.GUI.util.edit.transform.actions
                 return -sceneView.CamForwardVector;
 
             Debug.Assert(AxisRestriction.IsSingleAxis(out int axis));
-            return _axes[axis];
+            return Axes[axis];
         }
 
-        private void UpdateTransformables()
+        protected override void UpdateTransformables(IEnumerable<(ITransformable transformable,
+            ITransformable.Transform initialTransform)> transformables)
         {
             var quat = Quaternion.CreateFromAxisAngle(AxisAngle.axis, (float)(AxisAngle.angleDegrees * MathUtil.Deg2RadD));
 
-            foreach (var (transformable, (initialPos, initialQuat, _)) in _transformables)
+            foreach (var (transformable, (initialPos, initialQuat, _)) in transformables)
             {
                 transformable.UpdateTransform(Vector3.Transform(initialPos - _pivot, quat) + _pivot,
                     quat * initialQuat, null);
             }
         }
 
-        private double ApplySnapping(bool isSnapping, double angle)
-        {
-            if (isSnapping)
-                return Math.Round(angle / SnapAngleDegrees) * SnapAngleDegrees;
-            else
-                return angle;
-        }
+        private double ApplySnapping(bool isSnapping, double angle) => 
+            isSnapping ? MathUtil.SnapToIncrement(angle, SnapAngleDegrees) : angle;
 
-        private readonly List<(ITransformable transformable,
-            ITransformable.Transform transform)> _transformables;
         private readonly Vector3 _pivot;
-        private readonly Vector3[] _axes;
         private double _previousAngleDegrees;
         private double _sumAngleDegrees;
-
-        private static double GetShortestRotationBetweenDegrees(double angleA, double angleB)
-        {
-            double oldR = (angleA % 360 + 360) % 360;
-            double newR = (angleB % 360 + 360) % 360;
-
-            double delta = newR - oldR;
-            double abs = Math.Abs(delta);
-            double sign = Math.Sign(delta);
-
-            if (abs > 180)
-                return -(360 - abs) * sign;
-            else
-                return delta;
-        }
     }
 }

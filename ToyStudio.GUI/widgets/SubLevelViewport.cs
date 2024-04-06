@@ -655,11 +655,13 @@ namespace ToyStudio.GUI.widgets
         {
             _editContext.BatchAction(() =>
             {
-                action.Apply();
-                int count = action.Transformables.Count();
+                action.Apply(out IEnumerable<ITransformable> affectedObjects);
+                int count = affectedObjects.Count();
                 return action switch
                 {
                     MoveAction => $"Moved {count} objects",
+                    RotateAction or RotateTrackballAction => $"Rotated {count} objects",
+                    ScaleAction => $"Scaled {count} objects",
                     _ => $"Transformed {count} objects",
                 };
             });
@@ -801,9 +803,10 @@ namespace ToyStudio.GUI.widgets
                 TransformType gizmoType, GizmoPart gizmoPart,
                 Quaternion orientation, Vector3 pivot, IEnumerable<ITransformable> transformables)
             {
+                var sceneView = viewport.GetSceneViewState();
                 ITransformAction action = gizmoType switch
                 {
-                    TransformType.Move => new MoveAction(viewport.GetSceneViewState(), transformables, orientation, pivot, gizmoPart switch
+                    TransformType.Move => new MoveAction(sceneView, transformables, orientation, pivot, gizmoPart switch
                     {
                         GizmoPart.X_AXIS => AxisRestriction.AxisX,
                         GizmoPart.Y_AXIS => AxisRestriction.AxisY,
@@ -813,15 +816,25 @@ namespace ToyStudio.GUI.widgets
                         GizmoPart.YZ_PLANE => AxisRestriction.PlaneYZ,
                         _ => AxisRestriction.None
                     }),
-                    TransformType.Rotate when gizmoPart == GizmoPart.TRACKBALL => null!, //for now
-                    TransformType.Rotate => new RotateAction(viewport.GetSceneViewState(), transformables, orientation, pivot, gizmoPart switch
+                    TransformType.Rotate when gizmoPart == GizmoPart.TRACKBALL 
+                        => new RotateTrackballAction(sceneView, transformables, orientation, pivot),
+                    TransformType.Rotate => new RotateAction(sceneView, transformables, orientation, pivot, gizmoPart switch
                     {
                         GizmoPart.X_AXIS => AxisRestriction.AxisX,
                         GizmoPart.Y_AXIS => AxisRestriction.AxisY,
                         GizmoPart.Z_AXIS => AxisRestriction.AxisZ,
                         _ => AxisRestriction.None
                     }),
-                    TransformType.Scale => null!, //for now
+                    TransformType.Scale => new ScaleAction(sceneView, transformables, orientation, pivot, gizmoPart switch
+                    {
+                        GizmoPart.X_AXIS => AxisRestriction.AxisX,
+                        GizmoPart.Y_AXIS => AxisRestriction.AxisY,
+                        GizmoPart.Z_AXIS => AxisRestriction.AxisZ,
+                        GizmoPart.XY_PLANE => AxisRestriction.PlaneXY,
+                        GizmoPart.XZ_PLANE => AxisRestriction.PlaneXZ,
+                        GizmoPart.YZ_PLANE => AxisRestriction.PlaneYZ,
+                        _ => AxisRestriction.None
+                    }),
                     _ => throw new ArgumentOutOfRangeException($"Invalid {nameof(TransformType)} {gizmoType}"),
                 };
 

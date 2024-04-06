@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Numerics;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -20,16 +21,12 @@ namespace ToyStudio.GUI.util
         public const double Deg2RadD = Math.PI / 180.0;
         public const double Rad2DegD = 180.0 / Math.PI;
 
-        [Pure]
-        public static float Clamp(float value, float min, float max)
-        {
-            return value < min ? min : value > max ? max : value;
-        }
+        public static float Lerp(float a, float b, float t) => a * (1 - t) + b * t;
 
-        public static float Lerp(float a, float b, float t)
-        {
-            return a * (1 - t) + b * t;
-        }
+        public static float SnapToIncrement(float value, float increment)
+            => MathF.Round(value / increment) * increment;
+        public static double SnapToIncrement(double value, double increment)
+            => Math.Round(value / increment) * increment;
 
         public static int PolygonWindingNumber(Vector2 p, Span<Vector2> points)
         {
@@ -257,6 +254,31 @@ namespace ToyStudio.GUI.util
             }
 
             return new Vector3((float)x, (float)y, (float)z);
+        }
+
+        public static float GetShortestRotationBetweenDegrees(float angleA, float angleB)
+            => GetShortestRotationBetweenAngles(angleA, angleB, 180, 360);
+        public static double GetShortestRotationBetweenDegrees(double angleA, double angleB)
+            => GetShortestRotationBetweenAngles(angleA, angleB, 180, 360);
+        public static float GetShortestRotationBetweenRadians(float angleA, float angleB)
+            => GetShortestRotationBetweenAngles(angleA, angleB, MathF.PI, MathF.Tau);
+        public static double GetShortestRotationBetweenRadians(double angleA, double angleB)
+            => GetShortestRotationBetweenAngles(angleA, angleB, Math.PI, Math.Tau);
+
+        private static T GetShortestRotationBetweenAngles<T>(T angleA, T angleB, T halfRot, T fullRot)
+            where T : IFloatingPoint<T>
+        {
+            T oldR = (angleA % fullRot + fullRot) % fullRot;
+            T newR = (angleB % fullRot + fullRot) % fullRot;
+
+            T delta = newR - oldR;
+            T abs = T.Abs(delta);
+            T sign = T.CreateTruncating(T.Sign(delta));
+
+            if (abs > halfRot)
+                return -(halfRot - abs) * sign;
+            else
+                return delta;
         }
     }
 

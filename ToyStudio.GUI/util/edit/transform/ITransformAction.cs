@@ -9,12 +9,10 @@ namespace ToyStudio.GUI.util.edit.transform
 {
     internal interface ITransformAction
     {
-        IEnumerable<ITransformable> Transformables { get; }
-
         void Update(in SceneViewState sceneView, bool isSnapping);
         void ToggleAxisRestriction(AxisRestriction axisRestriction);
         AxisRestriction AxisRestriction { get; }
-        void Apply();
+        void Apply(out IEnumerable<ITransformable> affectedObjects);
         void Cancel();
     }
 }
