@@ -25,13 +25,13 @@ namespace ToyStudio.GUI.util.edit.transform.actions
             _pivot = pivot;
             _orientation = orientation;
 
-            _pivotOrientationMatrix = 
-                Matrix4x4.CreateTranslation(pivot) *
-                Matrix4x4.CreateFromQuaternion(orientation);
+            _pivotOrientationMatrix =
+                Matrix4x4.CreateFromQuaternion(orientation) *
+                Matrix4x4.CreateTranslation(pivot);
 
-            _pivotOrientationMatrixInv = 
-                Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(orientation)) *
-                Matrix4x4.CreateTranslation(-pivot);
+            _pivotOrientationMatrixInv =
+                Matrix4x4.CreateTranslation(-pivot) *
+                Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(orientation));
 
             _startHitPoint = GetHitPoint(in sceneView);
 
