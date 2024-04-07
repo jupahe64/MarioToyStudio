@@ -97,6 +97,7 @@ namespace ToyStudio.GUI
         public static void AppendModPath(string modname, string path)
         {
             AppSettings.ModPaths.Add(modname, path);
+            SaveSettings();
         }
 
         public static void AppendRecentCourse(string courseName)
@@ -105,6 +106,7 @@ namespace ToyStudio.GUI
                 AppSettings.RecentCourses.RemoveAt(0);
 
             AppSettings.RecentCourses.Add(courseName);
+            SaveSettings();
         }
 
         public static string? GetLatestCourse()
