@@ -76,6 +76,7 @@ namespace ToyStudio.GUI.windows
             _actorPalette.Draw();
             _railPalette.Draw();
             _objectTreeView.Draw();
+            _aiGroupsPanel.Draw();
         }
 
         private void ViewportsHostPanel(GL gl, double deltaSeconds)
@@ -140,6 +141,7 @@ namespace ToyStudio.GUI.windows
 
             var inspectables = _scenes[_activeSubLevel].GetObjects<IInspectable>().Where(x => x.IsSelected()).ToList();
             SetupInspector(_editContexts[_activeSubLevel], inspectables);
+            _aiGroupsPanel.SetSubLevel(subLevel, _editContexts[_activeSubLevel]);
         }
 
         private void LevelObjectTree_Updated(LevelObjectTree source)
@@ -286,6 +288,7 @@ namespace ToyStudio.GUI.windows
         private readonly ActorPaletteWindow _actorPalette;
         private readonly RailPaletteWindow _railPalette;
         private readonly ObjectTreeViewWindow _objectTreeView;
+        private readonly AiGroupsWindow _aiGroupsPanel;
         private SubLevelEditContext? _inspectorEditContext;
         private ActorPackCache _actorPackCache;
 
@@ -304,6 +307,7 @@ namespace ToyStudio.GUI.windows
             _inspector.PropertyChanged += Inspector_PropertyChanged;
 
             _objectTreeView = new("Objects");
+            _aiGroupsPanel = new("Ai Groups", romfs);
         }
 
         private class LevelObjectTree
