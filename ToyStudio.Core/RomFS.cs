@@ -232,19 +232,32 @@ namespace ToyStudio.Core
             return false;
         }
 
-        public List<string> GetAllActorPackNames()
+        public IEnumerable<string> EnumerateFiles(string[] directoryPath, string searchPattern)
         {
-            var fileInfos = BaseGameDirectory.GetSubDirectoryInfo(["Pack", "Actor"])
-                .EnumerateFileSystemInfos("*.pack.zs").OfType<FileInfo>();
+            var fileInfos = BaseGameDirectory.GetSubDirectoryInfo(directoryPath)
+                .EnumerateFileSystemInfos(searchPattern).OfType<FileInfo>();
 
             if (ModDirectory is not null)
             {
-                fileInfos = fileInfos.Concat(ModDirectory.GetSubDirectoryInfo(["Pack", "Actor"])
-                    .EnumerateFileSystemInfos("*.pack.zs").OfType<FileInfo>()
-                );
+                var subDir = ModDirectory.GetSubDirectoryInfo(directoryPath);
+                if (subDir.Exists)
+                {
+                    fileInfos = fileInfos.Concat(
+                        subDir
+                        .EnumerateFileSystemInfos(searchPattern)
+                        .OfType<FileInfo>()
+                    );
+                }
+                
             }
 
-            return fileInfos.Select(x => x.Name[..^".pack.zs".Length]).Distinct().ToList();
+            return fileInfos.Select(x => x.Name).Distinct();
+        }
+
+        public List<string> GetAllActorPackNames()
+        {
+            return EnumerateFiles(["Pack", "Actor"], "*.pack.zs")
+                .Select(x=>x[.. ^".pack.zs".Length]).ToList();
         }
 
         public static Span<byte> Decompress(byte[] data) => s_zsDecompressor.Unwrap(data);

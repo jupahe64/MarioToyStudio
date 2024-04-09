@@ -141,6 +141,12 @@ namespace ToyStudio.GUI.level_editing
             return GenerateUniqueHash(usedHashes);
         }
 
+        public ulong GenerateUniqueAiGroupHash()
+        {
+            var usedHashes = subLevel.AiGroups.Select(x => x.Hash).ToHashSet();
+            return GenerateUniqueHash(usedHashes);
+        }
+
         private ulong GenerateUniqueHash(HashSet<ulong> usedHashes)
         {
             ulong hash;

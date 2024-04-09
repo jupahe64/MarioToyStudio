@@ -72,13 +72,16 @@ namespace ToyStudio.GUI.windows.panels
 
             foreach (var aiGroup in _subLevel?.AiGroups ?? [])
             {
-                string groupAin = aiGroup.Meta!.Split('/')[^1];
+                var groupAin = GetGroupTypeFromMeta(aiGroup.Meta);
 
                 var flags =
                     ImGuiTreeNodeFlags.SpanFullWidth |
                     ImGuiTreeNodeFlags.FramePadding |
                     ImGuiTreeNodeFlags.OpenOnArrow |
                     ImGuiTreeNodeFlags.NoTreePushOnOpen;
+
+                if (_justCreatedGroup == aiGroup)
+                    ImGui.SetNextItemOpen(true);
 
                 if (_selectedGroups.Contains(aiGroup))
                     flags |= ImGuiTreeNodeFlags.Selected;
@@ -182,6 +185,13 @@ namespace ToyStudio.GUI.windows.panels
                     ImGui.BeginDisabled(AddActorRefHandler is null);
                     if (ImGui.Button("Add Actor Reference"))
                         AddActorRefHandler!(aiGroup);
+
+                    if (_justCreatedGroup == aiGroup)
+                    {
+                        ImGui.SetScrollHereY();
+                        _justCreatedGroup = null;
+                    }
+
                     ImGui.EndDisabled();
 
                     ImGui.Unindent();
@@ -234,11 +244,29 @@ namespace ToyStudio.GUI.windows.panels
             ImGui.SetNextItemWidth(availWidth);
             if (ImGui.BeginCombo("##Add AiGroup", "Add AiGroup"))
             {
-                ImGui.Selectable("Option1");
-                ImGui.Selectable("Option2");
-                ImGui.Selectable("Option3");
+                foreach (var name in romfs.EnumerateFiles(["AI"], "*.root.ainb"))
+                {
+                    if (ImGui.Selectable(name.AsSpan(..^1))) //ainb -> ain
+                        AiGroupToAddSelected(name[..^".root.ainb".Length]);
+                }
                 ImGui.EndCombo();
             }
+        }
+
+        private void AiGroupToAddSelected(string name)
+        {
+            var newAiGroup = new LevelAiGroup
+            {
+                Hash = _editContext!.GenerateUniqueAiGroupHash(),
+                Meta = $"AI/Root/{name}.root.ain"
+            };
+
+            _editContext.Commit(
+                _subLevel!.AiGroups.RevertableAdd(newAiGroup,
+                $"Adding {GetGroupTypeFromMeta(newAiGroup.Meta)} AiGroup")
+            );
+
+            _justCreatedGroup = newAiGroup;
         }
 
         private void GroupClicked(LevelAiGroup aiGroup)
@@ -384,11 +412,10 @@ namespace ToyStudio.GUI.windows.panels
 
         private void GroupDeleteClicked(LevelAiGroup aiGroup)
         {
-            var groupType = aiGroup.Meta?.Split('/')[^1] ?? "<Unkown>";
             _queuedAction = () =>
             {
                 _editContext!.Commit(_subLevel!.AiGroups.RevertableRemove(aiGroup,
-                    $"Deleting {aiGroup.Meta} AiGroup"));
+                    $"Deleting {GetGroupTypeFromMeta(aiGroup.Meta)} AiGroup"));
 
                 _selectedGroups.Remove(aiGroup);
                 _selectedRefs.ExceptWith(aiGroup.References);
@@ -402,5 +429,18 @@ namespace ToyStudio.GUI.windows.panels
         private float _lastMeassuredBottomHeight;
         private object? _rangeSelectStartItem = null;
         private Action? _queuedAction = null;
+        private LevelAiGroup? _justCreatedGroup = null;
+
+        private static ReadOnlySpan<char> GetGroupTypeFromMeta(string? meta)
+        {
+            if (meta == null)
+                return "<Unknown>";
+
+            int index = meta.LastIndexOf('/');
+            if (index == -1)
+                return "<Unknown>";
+            else
+                return meta.AsSpan(index+1);
+        }
     }
 }
