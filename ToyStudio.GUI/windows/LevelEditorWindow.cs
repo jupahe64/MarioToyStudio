@@ -10,6 +10,8 @@ using ToyStudio.GUI.util;
 using ToyStudio.GUI.util.gl;
 using ToyStudio.GUI.util.modal;
 using ToyStudio.GUI.util.windowing;
+using static ToyStudio.GUI.util.HotkeyHelper.Modifiers;
+using static ImGuiNET.ImGuiKey;
 
 namespace ToyStudio.GUI.windows
 {
@@ -278,15 +280,13 @@ namespace ToyStudio.GUI.windows
                     //    _ = LoadParamDBWithProgressBar(this);
                     //}
 
-                    if (ImGui.MenuItem("Undo"))
-                    {
-                        _activeLevelWorkSpace?.Undo();
-                    }
+                    if (ImGui.MenuItem("Undo", GetShortCutString(sHotkeyUndo), false, 
+                        _activeLevelWorkSpace?.CanUndo() ?? false))
+                        sHotkeyUndo.ExecuteAction(this);
 
-                    if (ImGui.MenuItem("Redo"))
-                    {
-                        _activeLevelWorkSpace?.Redo();
-                    }
+                    if (ImGui.MenuItem("Redo", GetShortCutString(sHotkeyRedo), false,
+                        _activeLevelWorkSpace?.CanRedo() ?? false))
+                        sHotkeyRedo.ExecuteAction(this);
 
                     /* end Edit menu */
                     ImGui.EndMenu();
@@ -336,6 +336,12 @@ namespace ToyStudio.GUI.windows
             }
 
             _modalHost.DrawHostedModals();
+
+            foreach (var hotkey in s_registeredHotkeys)
+            {
+                if (HotkeyHelper.IsHotkeyPressed(hotkey.Modifiers, hotkey.Key))
+                    hotkey.ExecuteAction(this);
+            }
 
             //Update viewport from any framebuffers being used
             gl.Viewport(_window.FramebufferSize);
@@ -412,6 +418,34 @@ namespace ToyStudio.GUI.windows
         private RomFS? _romfs;
         private (string baseGame, string mod) _lastUpdatedRomFSPaths = ("", "");
         private bool _shouldCheckForRomFSPathChanges = false;
+
+        private static readonly List<Hotkey> s_registeredHotkeys = [];
+
+        private record Hotkey(HotkeyHelper.Modifiers Modifiers, ImGuiKey Key, 
+            Action<LevelEditorWindow> Action)
+        {
+            public void ExecuteAction(LevelEditorWindow w) => Action.Invoke(w);
+        }
+
+        private static Hotkey RegisterHotkey(HotkeyHelper.Modifiers modifiers, ImGuiKey key,
+            Action<LevelEditorWindow> action)
+        {
+            var hotkey = new Hotkey(modifiers, key, action);
+            s_registeredHotkeys.Add(hotkey);
+            return hotkey;
+        }
+
+        private static string GetShortCutString(Hotkey hotkey)
+            => HotkeyHelper.GetString(hotkey.Modifiers, hotkey.Key);
+        private static bool IsHotkeyPressed(Hotkey hotKey)
+            => HotkeyHelper.IsHotkeyPressed(hotKey.Modifiers, hotKey.Key);
+
+        private static readonly Hotkey sHotkeyUndo = RegisterHotkey(CtrlCmd, Z, w => w._activeLevelWorkSpace?.Undo());
+        private static readonly Hotkey sHotkeyRedo = RegisterHotkey(CtrlCmd, Y, w => w._activeLevelWorkSpace?.Redo());
+        private static readonly Hotkey sHotkeyRedoAlt =
+            RegisterHotkey(CtrlCmd|Shift, Z, w => w._activeLevelWorkSpace?.Redo());
+
+
 
         class WelcomeMessage : OkDialog
         {

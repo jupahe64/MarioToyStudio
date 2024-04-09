@@ -57,12 +57,18 @@ namespace ToyStudio.GUI.windows
 
         public void Undo()
         {
+            if (ImGui.IsAnyItemActive() || ImGui.IsAnyItemFocused())
+                return;
+
             if (_activeSubLevel is not null)
                 _editContexts[_activeSubLevel].Undo();
         }
 
         public void Redo()
         {
+            if (ImGui.IsAnyItemActive() || ImGui.IsAnyItemFocused())
+                return;
+
             if (_activeSubLevel is not null)
                 _editContexts[_activeSubLevel].Redo();
         }
@@ -238,7 +244,7 @@ namespace ToyStudio.GUI.windows
             _actorPalette.ObjectPlacementHandler = null;
 
             Vector3? pos;
-            KeyboardModifiers modifiers;
+            SubLevelViewport.KeyboardModifiers modifiers;
             do
             {
                 (pos, modifiers) =
@@ -265,13 +271,27 @@ namespace ToyStudio.GUI.windows
                 }, $"Add {gyaml}"));
 
 
-            } while ((modifiers & KeyboardModifiers.Shift) > 0);
+            } while ((modifiers & SubLevelViewport.KeyboardModifiers.Shift) > 0);
         }
 
         private void RailPlacementHandler(IRailShapeTool shapeTool)
         {
             Debug.Assert(_activeSubLevel != null);
             _viewports[_activeSubLevel].ActiveTool = new RailShapeViewportTool(shapeTool, this);
+        }
+
+        internal bool CanUndo()
+        {
+            if (_activeSubLevel is null)
+                return false;
+            return _editContexts[_activeSubLevel].GetUndoStack().Any();
+        }
+
+        internal bool CanRedo()
+        {
+            if (_activeSubLevel is null)
+                return false;
+            return _editContexts[_activeSubLevel].GetRedoUndoStack().Any();
         }
 
         private SubLevel? _activeSubLevel;
@@ -350,7 +370,8 @@ namespace ToyStudio.GUI.windows
             public void Cancel() { }
 
             public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, 
-                bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+                bool isLeftClicked, SubLevelViewport.KeyboardModifiers keyboardModifiers, 
+                ref IViewportTool? activeTool)
             {
                 var hitCoords = viewport.HitPointOnPlane(Vector3.Zero, Vector3.UnitZ) ?? Vector3.Zero;
 
@@ -381,7 +402,7 @@ namespace ToyStudio.GUI.windows
 
                         }, $"Add Rail [{shape.Points.Count} points]"));
 
-                    if ((keyboardModifiers & KeyboardModifiers.Shift) > 0)
+                    if ((keyboardModifiers & SubLevelViewport.KeyboardModifiers.Shift) > 0)
                         _shapeTool = _shapeTool.CreateNew();
                     else
                         activeTool = null;

@@ -418,7 +418,8 @@ namespace ToyStudio.GUI.scene.objs
                 _point.Translate = _initialPosition;
             }
 
-            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked,
+                SubLevelViewport.KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
             {
                 Vector3 hitPoint = viewport.HitPointOnPlane(_initialPosition, viewport.GetCameraForwardDirection())!.Value;
 

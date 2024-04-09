@@ -18,6 +18,8 @@ using ToyStudio.GUI.util.edit;
 using ToyStudio.GUI.util.edit.transform;
 using ToyStudio.GUI.util.edit.transform.actions;
 using ToyStudio.GUI.util.gl;
+using static ToyStudio.GUI.util.HotkeyHelper.Modifiers;
+using static ImGuiNET.ImGuiKey;
 
 namespace ToyStudio.GUI.widgets
 {
@@ -66,12 +68,19 @@ namespace ToyStudio.GUI.widgets
     interface IViewportTool
     {
         void Draw(SubLevelViewport viewport, ImDrawListPtr dl, 
-            bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool);
+            bool isLeftClicked, SubLevelViewport.KeyboardModifiers keyboardModifiers, 
+            ref IViewportTool? activeTool);
         void Cancel();
     }
 
     internal class SubLevelViewport
     {
+        public enum KeyboardModifiers
+        {
+            None,
+            Shift, Alt, Ctrl
+        }
+
         public event Action? SelectionChanged;
         public event Action? ActiveToolChanged;
         public static async Task<SubLevelViewport> Create(Scene<SubLevelSceneContext> subLevelScene,
@@ -340,14 +349,17 @@ namespace ToyStudio.GUI.widgets
             _topLeft = ImGui.GetItemRectMin();
             _size = ImGui.GetItemRectSize();
 
-            _currentModifiers = NoModifiers;
+            _currentModifiers = KeyboardModifiers.None;
 
-            if (ImGui.GetIO().KeyShift)
-                _currentModifiers |= Shift;
-            if (ImGui.GetIO().KeyAlt)
-                _currentModifiers |= Alt;
-            if (OperatingSystem.IsMacOS() ? ImGui.GetIO().KeySuper : ImGui.GetIO().KeyCtrl)
-                _currentModifiers |= CtrlCmd;
+            bool isShift = ImGui.GetIO().KeyShift;
+            bool isAlt = ImGui.GetIO().KeyAlt;
+            bool isCtrl = ImGui.GetIO().KeyCtrl;
+            if (isShift)
+                _currentModifiers |= KeyboardModifiers.Shift;
+            if (isAlt)
+                _currentModifiers |= KeyboardModifiers.Alt;
+            if (isCtrl)
+                _currentModifiers |= KeyboardModifiers.Ctrl;
 
             if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
                 _draggedObject = null;
@@ -357,7 +369,7 @@ namespace ToyStudio.GUI.widgets
             isViewportHovered = ImGui.IsItemHovered();
             bool isViewportLeftClicked = ImGui.IsItemDeactivated() && ImGui.IsMouseReleased(ImGuiMouseButton.Left) &&
                 ImGui.GetMouseDragDelta().Length() < 5;
-            bool isMultiSelect = (_currentModifiers & (Shift | CtrlCmd)) > 0;
+            bool isMultiSelect = isCtrl || isShift;
 
             if (_camera.Width != _size.X || _camera.Height != _size.Y)
             {
@@ -426,20 +438,14 @@ namespace ToyStudio.GUI.widgets
                 }
                 else
                 {
-                    if (IsHotkeyPressed(CtrlCmd, ImGuiKey.A))
+                    if (IsHotkeyPressed(CtrlCmd, A))
                         _editContext.SelectAll();
-                    if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.A))
+                    if (IsHotkeyPressed(CtrlCmd | Shift, A))
                         _editContext.DeselectAll();
-                    if (IsHotkeyPressed(NoModifiers, ImGuiKey.Delete))
+                    if (IsHotkeyPressed(Delete))
                         _editContext.DeleteSelectedObjects();
-                    if (IsHotkeyPressed(CtrlCmd, ImGuiKey.D))
+                    if (IsHotkeyPressed(CtrlCmd, D))
                         _editContext.DuplicateSelectedObjects();
-
-                    if (IsHotkeyPressed(CtrlCmd, ImGuiKey.Z))
-                        _editContext.Undo();
-                    if (IsHotkeyPressed(CtrlCmd | Shift, ImGuiKey.Z) ||
-                        IsHotkeyPressed(CtrlCmd, ImGuiKey.Y))
-                        _editContext.Redo();
                 }
             }
 
@@ -565,8 +571,11 @@ namespace ToyStudio.GUI.widgets
 
         private void HandleCameraControls(double deltaSeconds, bool isViewportActive, bool isViewportHovered)
         {
-            bool isPanGesture = ImGui.IsMouseDragging(ImGuiMouseButton.Middle) ||
-                (ImGui.IsMouseDragging(ImGuiMouseButton.Left) && _currentModifiers == Shift && ActiveTool is null);
+            bool isPanGesture = ImGui.IsMouseDragging(ImGuiMouseButton.Middle);
+
+            if ((ImGui.IsMouseDragging(ImGuiMouseButton.Left) &&
+                _currentModifiers == KeyboardModifiers.Shift && ActiveTool is null))
+                isPanGesture = true;
 
             if (isViewportActive && isPanGesture)
             {
@@ -589,22 +598,22 @@ namespace ToyStudio.GUI.widgets
                 var zoomedCameraSpeed = MathF.Floor(zoomSpeedFactor) * baseCameraSpeed;
                 var dt = (float)deltaSeconds;
 
-                if (IsKeyDown(ImGuiKey.LeftArrow) || IsKeyDown(ImGuiKey.A))
+                if (IsKeyDown(LeftArrow) || IsKeyDown(A))
                 {
                     _camera.Target.X -= zoomedCameraSpeed * dt;
                 }
 
-                if (IsKeyDown(ImGuiKey.RightArrow) || IsKeyDown(ImGuiKey.D))
+                if (IsKeyDown(RightArrow) || IsKeyDown(D))
                 {
                     _camera.Target.X += zoomedCameraSpeed * dt;
                 }
 
-                if (IsKeyDown(ImGuiKey.UpArrow) || IsKeyDown(ImGuiKey.W))
+                if (IsKeyDown(UpArrow) || IsKeyDown(W))
                 {
                     _camera.Target.Y += zoomedCameraSpeed * dt;
                 }
 
-                if (IsKeyDown(ImGuiKey.DownArrow) || IsKeyDown(ImGuiKey.S))
+                if (IsKeyDown(DownArrow) || IsKeyDown(S))
                 {
                     _camera.Target.Y -= zoomedCameraSpeed * dt;
                 }
@@ -680,18 +689,16 @@ namespace ToyStudio.GUI.widgets
         private KeyboardModifiers _currentModifiers;
         private bool _isDraggingFromOrientationCube = false;
 
-        private const KeyboardModifiers NoModifiers = KeyboardModifiers.None;
-        private const KeyboardModifiers Shift = KeyboardModifiers.Shift;
-        private const KeyboardModifiers CtrlCmd = KeyboardModifiers.CtrlCmd;
-        private const KeyboardModifiers Alt = KeyboardModifiers.Alt;
         private Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
         private IViewportTool? _activeTool;
         private TransformType _activeGizmoType = TransformType.Move;
 
-        private bool IsHotkeyPressed(KeyboardModifiers modifiers, ImGuiKey key) =>
-            _currentModifiers == modifiers && ImGui.IsKeyPressed(key);
+        private static bool IsHotkeyPressed(ImGuiKey key)
+            => HotkeyHelper.IsHotkeyPressed(HotkeyHelper.Modifiers.None, key);
+        private static bool IsHotkeyPressed(HotkeyHelper.Modifiers modifiers, ImGuiKey key)
+            => HotkeyHelper.IsHotkeyPressed(modifiers, key);
 
-        private bool IsKeyDown(ImGuiKey key, KeyboardModifiers allowedModifiers = NoModifiers)
+        private bool IsKeyDown(ImGuiKey key, KeyboardModifiers allowedModifiers = KeyboardModifiers.None)
         {
             if (!ImGui.IsKeyDown(key))
             {
