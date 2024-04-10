@@ -435,7 +435,7 @@ namespace ToyStudio.GUI.windows.panels
         private Action? _queuedAction = null;
         private LevelAiGroup? _justCreatedGroup = null;
 
-        private static ReadOnlySpan<char> GetGroupTypeFromMeta(string? meta)
+        public static ReadOnlySpan<char> GetGroupTypeFromMeta(string? meta)
         {
             if (meta == null)
                 return "<Unknown>";

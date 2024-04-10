@@ -233,9 +233,47 @@ namespace ToyStudio.GUI.windows
 
             _actorPalette.ObjectPlacementHandler = isClear ? null : ActorPlacementHandler;
             _railPalette.ObjectPlacementHandler = isClear ? null : RailPlacementHandler;
+            _aiGroupsPanel.AddActorRefHandler = isClear ? null : AddActorToGroupHandler;
+        }
 
-            _railPalette.ObjectPlacementHandler = isClear ? null : RailPlacementHandler;
+        private void AddActorToGroupHandler(LevelAiGroup group)
+        {
+            Debug.Assert(_activeSubLevel != null);
+            _aiGroupsPanel.AddActorRefHandler = null;
 
+            var groupType = AiGroupsWindow.GetGroupTypeFromMeta(group.Meta).ToString();
+
+            Task.Run(async () =>
+            {
+                object? obj;
+                bool canceled;
+                SubLevelViewport.KeyboardModifiers modifiers;
+                do
+                {
+                    (obj, canceled, modifiers) = await _viewports[_activeSubLevel].PickObject(
+                        $"Pick an actor to add to {groupType}\nHold shift to pick multiple", 
+                        x => x is LevelActor);
+
+                    if (canceled)
+                        break;
+
+                    var actor = (LevelActor)obj!;
+
+                    var ctx = _editContexts[_activeSubLevel];
+                    var rng = new Random();
+                    var path = $"{actor.Name}_{Random.Shared.Next(0xFFFF):x}"; //should be good enough
+                    ctx.Commit(
+                    group.References.RevertableAdd(new LevelAiGroup.Reference
+                    {
+                        Id = path,
+                        Path = path,
+                        Ref = actor.Hash
+                    },
+                    $"Add {actor.Name} to {groupType}"));
+
+
+                } while ((modifiers & SubLevelViewport.KeyboardModifiers.Shift) > 0);
+            });
         }
 
         private void ActorPlacementHandler(string gyaml)
@@ -247,35 +285,35 @@ namespace ToyStudio.GUI.windows
             {
                 Vector3 pos;
                 bool canceled;
-            SubLevelViewport.KeyboardModifiers modifiers;
-            do
-            {
+                SubLevelViewport.KeyboardModifiers modifiers;
+                do
+                {
                     (pos, canceled, modifiers) =
-                    await _viewports[_activeSubLevel].PickPosition(
+                        await _viewports[_activeSubLevel].PickPosition(
                             $"Pick a position to place {gyaml}\nHold shift to place multiple",
                             (Vector3.Zero, Vector3.UnitZ));
 
                     if (canceled)
-                    break;
+                        break;
 
-                var ctx = _editContexts[_activeSubLevel];
-                ctx.Commit(
-                _activeSubLevel.Actors.RevertableAdd(new LevelActor()
-                {
-                    Dynamic = PropertyDict.Empty,
-                    Gyaml = gyaml,
-                    Name = gyaml,
-                        Translate = pos with { Z = 0 },
-                    Hash = ctx.GenerateUniqueActorHash(),
-                    Phive = new LevelActor.PhiveParameter 
+                    var ctx = _editContexts[_activeSubLevel];
+                    ctx.Commit(
+                    _activeSubLevel.Actors.RevertableAdd(new LevelActor()
                     {
-                        //TODO figure out what this ID needs to be set to and if it's even necessary
+                        Dynamic = PropertyDict.Empty,
+                        Gyaml = gyaml,
+                        Name = gyaml,
+                        Translate = pos with { Z = 0 },
+                        Hash = ctx.GenerateUniqueActorHash(),
+                        Phive = new LevelActor.PhiveParameter
+                        {
+                            //TODO figure out what this ID needs to be set to and if it's even necessary
                             Placement = new() { ID = 0 }
-                    }
-                }, $"Add {gyaml}"));
+                        }
+                    }, $"Add {gyaml}"));
 
 
-            } while ((modifiers & SubLevelViewport.KeyboardModifiers.Shift) > 0);
+                } while ((modifiers & SubLevelViewport.KeyboardModifiers.Shift) > 0);
             });
         }
 
