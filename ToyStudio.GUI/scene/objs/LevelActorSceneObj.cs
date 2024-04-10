@@ -71,16 +71,16 @@ namespace ToyStudio.GUI.scene.objs
             if (viewport.HoveredObject == this)
             {
                 color = Vector4.Lerp(color, Vector4.One, 0.8f);
-                ImGui.SetTooltip(_actor.Name);
+
+                var label = _actor.Name ?? _actor.Gyaml;
+                if (!string.IsNullOrEmpty(label))
+                    viewport.SetTooltip(label);
             }
 
             var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-            Quaternion quat;
-            if (!_transformComponent.TryGetImmediateQuat(out quat))
-            {
+            if (!_transformComponent.TryGetImmediateQuat(out Quaternion quat))
                 quat = MathUtil.QuatFromEulerXYZ(_actor.Rotate);
-            }
 
             var mtx =
                 Matrix4x4.CreateScale(_actor.Scale) *

@@ -231,27 +231,31 @@ namespace ToyStudio.GUI.windows
             Debug.Assert(_activeSubLevel != null);
             bool isClear = _viewports.GetValueOrDefault(_activeSubLevel)?.ActiveTool is not null;
 
-            _actorPalette.ObjectPlacementHandler = isClear ? null :
-                async gyaml => await ActorPlacementHandler(gyaml);
+            _actorPalette.ObjectPlacementHandler = isClear ? null : ActorPlacementHandler;
+            _railPalette.ObjectPlacementHandler = isClear ? null : RailPlacementHandler;
 
             _railPalette.ObjectPlacementHandler = isClear ? null : RailPlacementHandler;
 
         }
 
-        private async Task ActorPlacementHandler(string gyaml)
+        private void ActorPlacementHandler(string gyaml)
         {
             Debug.Assert(_activeSubLevel != null);
             _actorPalette.ObjectPlacementHandler = null;
 
-            Vector3? pos;
+            Task.Run(async () =>
+            {
+                Vector3 pos;
+                bool canceled;
             SubLevelViewport.KeyboardModifiers modifiers;
             do
             {
-                (pos, modifiers) =
+                    (pos, canceled, modifiers) =
                     await _viewports[_activeSubLevel].PickPosition(
-                        $"Pick a position to place {gyaml}\nHold shift to place multiple");
+                            $"Pick a position to place {gyaml}\nHold shift to place multiple",
+                            (Vector3.Zero, Vector3.UnitZ));
 
-                if (!pos.HasValue)
+                    if (canceled)
                     break;
 
                 var ctx = _editContexts[_activeSubLevel];
@@ -261,17 +265,18 @@ namespace ToyStudio.GUI.windows
                     Dynamic = PropertyDict.Empty,
                     Gyaml = gyaml,
                     Name = gyaml,
-                    Translate = pos.Value with { Z = 0 },
+                        Translate = pos with { Z = 0 },
                     Hash = ctx.GenerateUniqueActorHash(),
                     Phive = new LevelActor.PhiveParameter 
                     {
                         //TODO figure out what this ID needs to be set to and if it's even necessary
-                        Placement = new() { ID = 0}
+                            Placement = new() { ID = 0 }
                     }
                 }, $"Add {gyaml}"));
 
 
             } while ((modifiers & SubLevelViewport.KeyboardModifiers.Shift) > 0);
+            });
         }
 
         private void RailPlacementHandler(IRailShapeTool shapeTool)

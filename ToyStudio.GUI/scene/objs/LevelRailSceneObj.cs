@@ -367,7 +367,7 @@ namespace ToyStudio.GUI.scene.objs
             if (viewport.HoveredObject == this)
             {
                 color = Vector4.Lerp(color, Vector4.One, 0.8f);
-                ImGui.SetTooltip("Insert point");
+                viewport.SetTooltip("Insert point");
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
                     var point = _sceneContext.InsertRailPoint(_rail, _pointIdxA+1, pos, out IRevertable insertUndo);

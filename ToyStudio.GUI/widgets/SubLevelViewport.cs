@@ -109,6 +109,8 @@ namespace ToyStudio.GUI.widgets
 
         public IViewportDrawable? HoveredObject { get; private set; }
 
+        public void SetTooltip(string tooltip) => _tooltip = tooltip;
+
         public Vector2 WorldToScreen(Vector3 pos) => WorldToScreen(pos, out _);
         public Vector2 WorldToScreen(Vector3 pos, out float ndcDepth)
         {
@@ -158,10 +160,9 @@ namespace ToyStudio.GUI.widgets
             (Vector3 rayOrigin, Vector3 rayDirection) = GetMouseRay(mousePos);
             var res = MathUtil.IntersectPlaneRay(rayDirection, rayOrigin, planeNormal, planePoint);
 
-            var anyInvalid = float.IsNaN(res.X) || float.IsNaN(res.Y) || float.IsNaN(res.Z) ||
-                float.IsInfinity(res.X) || float.IsInfinity(res.Y) || float.IsInfinity(res.Z);
+            var depth = Vector3.Dot(res - GetCameraPosition(), GetCameraForwardDirection());
 
-            return anyInvalid ? null : res;
+            return (depth > 10_000 || depth < 0) ? null : res;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -170,18 +171,19 @@ namespace ToyStudio.GUI.widgets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 GetCameraPosition() => _camera.Target - GetCameraForwardDirection() * _camera.Distance;
 
-        public Task<(object? picked, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
+        public Task<(object? picked, bool canceled, KeyboardModifiers modifiers)> PickObject(string tooltipMessage,
             Predicate<object?> predicate)
         {
-            var promise = new TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)>();
+            var promise = new TaskCompletionSource<(object? picked, bool canceled, KeyboardModifiers modifiers)>();
             ActiveTool = new ObjectPickingTool(tooltipMessage, predicate, promise);
             return promise.Task;
         }
 
-        public Task<(Vector3? picked, KeyboardModifiers modifiers)> PickPosition(string tooltipMessage)
+        public Task<(Vector3 picked, bool canceled, KeyboardModifiers modifiers)> PickPosition(string tooltipMessage, 
+            (Vector3 origin, Vector3 normal)? hitPlane = null)
         {
-            var promise = new TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)>();
-            ActiveTool = new PositionPickingTool(tooltipMessage, promise);
+            var promise = new TaskCompletionSource<(Vector3 picked, bool canceled, KeyboardModifiers modifiers)>();
+            ActiveTool = new PositionPickingTool(tooltipMessage, hitPlane, promise);
             return promise.Task;
         }
 
@@ -192,6 +194,8 @@ namespace ToyStudio.GUI.widgets
                 ImGui.EndChild();
                 return;
             }
+
+            _tooltip = null;
             DrawViewport(gl, deltaSeconds, hasFocus, out bool isViewportHovered);
 
             ImGui.SetCursorScreenPos(_topLeft + ImGui.GetStyle().FramePadding);
@@ -330,6 +334,9 @@ namespace ToyStudio.GUI.widgets
                 ImGui.GetWindowDrawList().AddText(ImGui.GetCursorScreenPos() + ImGui.GetStyle().FramePadding,
                     ImGui.GetColorU32(ImGuiCol.Text), text);
             }
+
+            if (_tooltip is not null)
+                ImGui.SetTooltip(_tooltip);
 
             if (!hasFocus)
                 ImGui.GetWindowDrawList().AddRectFilled(_topLeft, _topLeft + _size, 0x44000000);
@@ -689,9 +696,10 @@ namespace ToyStudio.GUI.widgets
         private KeyboardModifiers _currentModifiers;
         private bool _isDraggingFromOrientationCube = false;
 
-        private Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
+        private readonly Dictionary<ImGuiKey, KeyboardModifiers> _keyDownModifiers = [];
         private IViewportTool? _activeTool;
         private TransformType _activeGizmoType = TransformType.Move;
+        private string? _tooltip;
 
         private static bool IsHotkeyPressed(ImGuiKey key)
             => HotkeyHelper.IsHotkeyPressed(HotkeyHelper.Modifiers.None, key);
@@ -739,57 +747,71 @@ namespace ToyStudio.GUI.widgets
         }
 
         private class ObjectPickingTool(string message, Predicate<object?> predicate,
-            TaskCompletionSource<(object? picked, KeyboardModifiers modifiers)> promise) : IViewportTool
+            TaskCompletionSource<(object? picked, bool canceled, KeyboardModifiers modifiers)> promise) : IViewportTool
         {
             public void Draw(SubLevelViewport viewport, ImDrawListPtr dl,
                 bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
             {
-                object pickedObj;
-                if (viewport.HoveredObject is not IViewportPickable pickable ||
-                    !predicate(pickedObj = pickable.GetPickedObject(out string label)))
-                {
-                    return;
-                }
+                object? pickedObj = null;
+                string label = null!;
 
-                string currentlyHoveredObjText = "";
+                if (viewport.HoveredObject is IViewportPickable pickable)
+                    pickedObj = pickable.GetPickedObject(out label);
+
+                bool isValid = predicate(pickedObj);
+
                 if (!string.IsNullOrEmpty(label))
-                    currentlyHoveredObjText = $"\n\nCurrently Hovered: {label}";
+                {
+                    if (isValid)
+                        viewport.SetTooltip(message + "\nPress Escape to cancel" +
+                            $"\n\nCurrently Hovered: {label}");
+                    else
+                        viewport.SetTooltip(message + "\nPress Escape to cancel" +
+                            $"\n\nInvalid object {label}");
+                }
+                else if (viewport.HoveredObject != null)
+                    viewport.SetTooltip(message + "\nPress Escape to cancel\n\nInvalid object ");
+                else
+                    viewport.SetTooltip(message + "\nPress Escape to cancel");
 
-                ImGui.SetTooltip(message + "\nPress Escape to cancel" +
-                    currentlyHoveredObjText);
-                if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+                if (ImGui.IsKeyPressed(Escape))
                 {
                     activeTool = null;
-                    promise.SetResult((null, keyboardModifiers));
+                    promise.SetResult((null, true, keyboardModifiers));
                 }
-                else if (isLeftClicked)
+                else if (isLeftClicked && isValid)
                 {
                     activeTool = null;
-                    promise.SetResult((pickedObj, keyboardModifiers));
+                    promise.SetResult((pickedObj, false, keyboardModifiers));
                 }
-
-                return;
             }
 
             public void Cancel() => promise.SetCanceled();
         }
 
-        private class PositionPickingTool(string message, 
-            TaskCompletionSource<(Vector3? picked, KeyboardModifiers modifiers)> promise) : IViewportTool
+        private class PositionPickingTool(string message, (Vector3 origin, Vector3 normal)? hitPlane,
+            TaskCompletionSource<(Vector3 picked, bool canceled, KeyboardModifiers modifiers)> promise) : IViewportTool
         {
             public void Draw(SubLevelViewport viewport, ImDrawListPtr dl,
                 bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
             {
-                ImGui.SetTooltip(message + "\nPress Escape to cancel");
-                if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+                var (point, normal) = hitPlane ?? (viewport._camera.Target, -viewport.GetCameraForwardDirection());
+                var pos = viewport.HitPointOnPlane(point, normal);
+
+                if (pos == null)
+                    viewport.SetTooltip(message + "\nPress Escape to cancel\n\nNot a valid position");
+                else
+                    viewport.SetTooltip(message + "\nPress Escape to cancel\n");
+
+                if (ImGui.IsKeyPressed(Escape))
                 {
                     activeTool = null;
-                    promise.SetResult((null, keyboardModifiers));
+                    promise.SetResult((default, true, keyboardModifiers));
                 }
-                else if (isLeftClicked)
+                else if (isLeftClicked && pos.HasValue)
                 {
                     activeTool = null;
-                    promise.SetResult((viewport.ScreenToWorld(ImGui.GetMousePos()), keyboardModifiers));
+                    promise.SetResult((pos.Value, false, keyboardModifiers));
                 }
 
                 return;
