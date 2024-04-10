@@ -214,11 +214,7 @@ namespace ToyStudio.GUI.scene.objs
             {
                 ImGui.InputText("Name", ref _actor.Name, 100);
 
-
-                string text = _actor.Hash.ToString(CultureInfo.InvariantCulture);
-                ImGui.InputText("Hash", ref text, (uint)text.Length, 
-                    ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
-
+                ExtraWidgets.CopyableHashInput("Hash", _actor.Hash);
             },
             drawSharedUI: _ctx =>
             {

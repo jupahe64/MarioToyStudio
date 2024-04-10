@@ -294,10 +294,7 @@ namespace ToyStudio.GUI.scene.objs
             },
             drawNonSharedUI: _ctx =>
             {
-                string text = _point.Hash.ToString(CultureInfo.InvariantCulture);
-                ImGui.InputText("Hash", ref text, (uint)text.Length,
-                    ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
-
+                ExtraWidgets.CopyableHashInput("Hash", _point.Hash);
             },
             drawSharedUI: _ctx =>
             {
@@ -312,9 +309,7 @@ namespace ToyStudio.GUI.scene.objs
             },
             drawNonSharedUI: _ctx =>
             {
-                string text = _rail.Hash.ToString(CultureInfo.InvariantCulture);
-                ImGui.InputText("Hash", ref text, (uint)text.Length,
-                    ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
+                ExtraWidgets.CopyableHashInput("Hash", _rail.Hash);
 
             },
             drawSharedUI: _ctx =>

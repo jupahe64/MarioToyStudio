@@ -10,6 +10,7 @@ using ToyStudio.Core;
 using ToyStudio.Core.level;
 using ToyStudio.GUI.level_editing;
 using ToyStudio.GUI.util.edit.undo_redo;
+using ToyStudio.GUI.widgets;
 
 namespace ToyStudio.GUI.windows.panels
 {
@@ -44,14 +45,20 @@ namespace ToyStudio.GUI.windows.panels
 
             ImGui.BeginChild("Top", minSize,
                 ImGuiChildFlags.AlwaysUseWindowPadding | ImGuiChildFlags.AutoResizeY);
+
+            ImGui.PopStyleVar();
             Top();
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0));
+
             ImGui.EndChild();
             ImGui.Spacing();
             ImGui.Separator();
             if (ImGui.BeginChild("Bottom", minSize, 
                 ImGuiChildFlags.AlwaysUseWindowPadding | ImGuiChildFlags.AutoResizeY))
             {
+                ImGui.PopStyleVar();
                 Bottom();
+                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0));
                 _lastMeassuredBottomHeight = ImGui.GetWindowContentRegionMax().Y;
             }
             ImGui.EndChild();
@@ -149,10 +156,7 @@ namespace ToyStudio.GUI.windows.panels
                         ImGui.AlignTextToFramePadding();
                         ImGui.Text("Ref");
                         ImGui.SameLine(alignX);
-                        str = reference.Ref.ToString("X");
-                        ImGui.InputText("##Ref", ref str, (uint)str.Length,
-                            ImGuiInputTextFlags.ReadOnly |
-                            ImGuiInputTextFlags.AutoSelectAll);
+                        ExtraWidgets.CopyableHashInput("##Ref", reference.Ref);
 
                         ImGui.PopClipRect();
                         ImGui.Unindent(framePadding.X);

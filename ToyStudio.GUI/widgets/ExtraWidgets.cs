@@ -1,11 +1,9 @@
 ﻿using ImGuiNET;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ToyStudio.GUI.widgets
 {
@@ -87,6 +85,23 @@ namespace ToyStudio.GUI.widgets
                 toggle = !toggle;
 
             return pressed;
+        }
+
+        public static void CopyableHashInput(string label, ulong value)
+        {
+            byte[] buf = new byte[16];
+            Debug.Assert(value.TryFormat(buf, out _, "X16"));
+
+            ImGui.InputText(label, buf, (uint)buf.Length,
+            ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
+            if (ImGui.BeginPopupContextItem())
+            {
+                if (ImGui.Selectable("Copy Decimal"))
+                    ImGui.SetClipboardText(value.ToString(CultureInfo.InvariantCulture));
+                if (ImGui.Selectable("Copy Hex"))
+                    ImGui.SetClipboardText(value.ToString("X16"));
+                ImGui.EndPopup();
+            }
         }
     }
 }
