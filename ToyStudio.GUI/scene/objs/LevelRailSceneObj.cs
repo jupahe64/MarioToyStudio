@@ -64,7 +64,10 @@ namespace ToyStudio.GUI.scene.objs
             using var pointObjs = SpanOwner<LevelRailPointSceneObj>.Allocate(pointCount);
             using var segmentObjs = SpanOwner<LevelRailSegmentSceneObj>.Allocate(segmentCount);
             using var addButtonObjs = SpanOwner<LevelRailPointAddButtonObj>.Allocate(segmentCount);
-            
+
+            LevelRailPointAddButtonObj? addToStartBtn = null, addToEndBtn = null;
+
+
             for (int i = 0; i < segmentCount; i++)
             {
                 int idxA = i, idxB = (i + 1) % pointCount;
@@ -74,6 +77,17 @@ namespace ToyStudio.GUI.scene.objs
                 updateContext.AddSceneObject(addButtonObj);
                 segmentObjs.Span[i] = segmentObj;
                 addButtonObjs.Span[i] = addButtonObj;
+            }
+
+            if (!rail.IsClosed)
+            {
+                addToStartBtn = new LevelRailPointAddButtonObj(rail, 
+                    -1, 0, sceneContext, this);
+                addToEndBtn = new LevelRailPointAddButtonObj(rail, 
+                    pointCount-1, pointCount, sceneContext, this);
+
+                updateContext.AddSceneObject(addToStartBtn);
+                updateContext.AddSceneObject(addToEndBtn);
             }
 
             for (int i = 0; i < pointCount; i++)
@@ -91,6 +105,8 @@ namespace ToyStudio.GUI.scene.objs
                 segmentObjs.Span[i].UpdatePointObjects(pointObjs.Span);
                 addButtonObjs.Span[i].UpdatePointObjects(pointObjs.Span);
             }
+            addToStartBtn?.UpdatePointObjects(pointObjs.Span);
+            addToEndBtn?.UpdatePointObjects(pointObjs.Span);
         }
     }
 
@@ -338,8 +354,6 @@ namespace ToyStudio.GUI.scene.objs
             _pointIdxB = pointIdxB;
             _sceneContext = sceneContext;
             _railObj = railObj;
-            _pointA = rail.Points[pointIdxA];
-            _pointB = rail.Points[pointIdxB];
         }
 
         /// <summary>
@@ -347,8 +361,8 @@ namespace ToyStudio.GUI.scene.objs
         /// </summary>
         public void UpdatePointObjects(ReadOnlySpan<LevelRailPointSceneObj> pointObjs)
         {
-            _pointAObj = pointObjs[_pointIdxA];
-            _pointBObj = pointObjs[_pointIdxB];
+            _pointAObj = pointObjs[Math.Clamp(_pointIdxA, 0, pointObjs.Length - 1)];
+            _pointBObj = pointObjs[Math.Clamp(_pointIdxB, 0, pointObjs.Length - 1)];
         }
 
         public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref Vector3? hitPoint)
@@ -359,7 +373,7 @@ namespace ToyStudio.GUI.scene.objs
                 _pointBObj?.IsVisible == false)
                 return;
 
-            var pos = (_pointA.Translate + _pointB.Translate) / 2;
+            var pos = (_pointAObj!.Position + _pointBObj!.Position) / 2;
             var pos2D = viewport.WorldToScreen(pos);
 
             var color = new Vector4(1f, 0, 0.8f, 1);
@@ -375,10 +389,12 @@ namespace ToyStudio.GUI.scene.objs
                 }
             }
 
-            color.W *= 0.5f;
-            dl.AddCircleFilled(pos2D, 5.5f, ImGui.ColorConvertFloat4ToU32(color));
+            var radius = _pointAObj == _pointBObj ? 10.5f : 5.5f;
 
-            if (Vector2.Distance(ImGui.GetMousePos(), pos2D) < 5.5f)
+            color.W *= 0.5f;
+            dl.AddCircleFilled(pos2D, radius, ImGui.ColorConvertFloat4ToU32(color));
+
+            if (Vector2.Distance(ImGui.GetMousePos(), pos2D) < radius)
                 hitPoint = viewport.HitPointOnPlane(pos, viewport.GetCameraForwardDirection());
         }
 
@@ -392,8 +408,6 @@ namespace ToyStudio.GUI.scene.objs
         private readonly int _pointIdxB;
         private readonly SubLevelSceneContext _sceneContext;
         private readonly LevelRailSceneObj _railObj;
-        private readonly LevelRail.Point _pointA;
-        private readonly LevelRail.Point _pointB;
 
         private LevelRailPointSceneObj? _pointAObj;
         private LevelRailPointSceneObj? _pointBObj;
