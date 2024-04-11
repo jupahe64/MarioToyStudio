@@ -21,7 +21,7 @@ namespace ToyStudio.GUI.windows.panels
         void OnMouseDown(Vector3 worldCoords);
         void OnMouseUp(Vector3 worldCoords);
         void OnMouseMove(Vector3 worldCoords);
-        void OnEnter();
+        void OnEnterKeyPressed();
         bool TryGetFinishedShape([NotNullWhen(true)] out RailShape? shape);
     }
 
@@ -42,13 +42,12 @@ namespace ToyStudio.GUI.windows.panels
             ];
 
             for (int i = 0; i < points.Length; i++)
-                dl.AddLine(points[i], points[(i + 1) % points.Length], 
-                    0xFF_FF_FF_FF, LineThickness);
+                DrawLine(dl, points[i], points[(i + 1) % points.Length]);
 
-            dl.AddCircleFilled(points[0], PointRadius, 0xFF_FF_FF_FF);
-            dl.AddCircleFilled(points[1], PointRadius, 0xFF_FF_FF_FF);
-            dl.AddCircleFilled(points[2], PointRadius, 0xFF_FF_FF_FF);
-            dl.AddCircleFilled(points[3], PointRadius, 0xFF_FF_FF_FF);
+            DrawPoint(dl, points[0]);
+            DrawPoint(dl, points[1]);
+            DrawPoint(dl, points[2]);
+            DrawPoint(dl, points[3]);
         }
 
         protected override RailShape Finish(Vector3 s, Vector3 e)
@@ -72,16 +71,77 @@ namespace ToyStudio.GUI.windows.panels
                 return;
 
             var (s, e) = (worldToScreen(StartPoint.Value), worldToScreen(EndPoint.Value));
-            dl.AddLine(s, e, 0xFF_FF_FF_FF, LineThickness);
+            DrawLine(dl, s, e);
 
-            dl.AddCircleFilled(s, PointRadius, 0xFF_FF_FF_FF);
-            dl.AddCircleFilled(e, PointRadius, 0xFF_FF_FF_FF);
+            DrawPoint(dl, s);
+            DrawPoint(dl, e);
         }
 
         protected override RailShape Finish(Vector3 s, Vector3 e)
         {
             return new RailShape([s, e], IsClosed: false);
         }
+    }
+
+    internal class CustomShapeTool : ShapeToolBase
+    {
+        protected override IRailShapeTool CreateNew() => new CustomShapeTool();
+
+        public override void Draw(ImDrawListPtr dl, Func<Vector3, Vector2> worldToScreen)
+        {
+            Span<Vector2> points = stackalloc Vector2[_points.Count];
+
+            _hoveredIndex = null;
+            for (int i = 0; i < _points.Count; i++)
+            {
+                points[i] = worldToScreen(_points[i]);
+                if (IsPointHovered(points[i]))
+                    _hoveredIndex = i;
+            }
+
+            for (int i = 0; i < points.Length - 1; i++)
+                DrawLine(dl, points[i], points[i + 1]);
+
+            for (int i = 0; i < points.Length; i++)
+                DrawPoint(dl, points[i]);
+
+            if (FinishedShape is not null)
+                return;
+
+
+            Vector2 nextPos = ImGui.GetMousePos();
+
+            if (_hoveredIndex == 0)
+            {
+                ImGui.SetTooltip("Click to close shape");
+                nextPos = points[0];
+            }
+
+            if (points.Length > 0)
+            {
+                DrawLine(dl, points[^1], nextPos);
+                DrawPoint(dl, nextPos, isSmall: true);
+            }
+        }
+
+        public override void OnMouseDown(Vector3 worldCoords)
+        {
+            if (_hoveredIndex == 0)
+            {
+                FinishedShape = new RailShape(_points, true);
+                return;
+            }
+
+            _points.Add(worldCoords);
+        }
+
+        public override void OnEnterKeyPressed()
+        {
+            FinishedShape = new RailShape(_points, false);
+        }
+
+        private readonly List<Vector3> _points = [];
+        private int? _hoveredIndex = null;
     }
 
     internal abstract class ShapeToolSimpleDragBase : ShapeToolBase
@@ -157,6 +217,17 @@ namespace ToyStudio.GUI.windows.panels
 
         public abstract void Draw(ImDrawListPtr dl, Func<Vector3, Vector2> worldToScreen);
 
+        protected void DrawPoint(ImDrawListPtr dl, Vector2 point, bool isSmall = false) =>
+            dl.AddCircleFilled(point, isSmall ? PointRadius/2 : PointRadius, 0xFF_FF_FF_FF);
+
+        protected void DrawLine(ImDrawListPtr dl, Vector2 pointA, Vector2 pointB) =>
+            dl.AddLine(pointA, pointB, 0xFF_FF_FF_FF, LineThickness);
+
+        protected bool IsPointHovered(Vector2 point)
+        {
+            return Vector2.Distance(point, ImGui.GetMousePos()) <= PointRadius;
+        }
+
         public bool TryGetFinishedShape([NotNullWhen(true)] out RailShape? shape)
         {
             shape = FinishedShape;
@@ -174,7 +245,7 @@ namespace ToyStudio.GUI.windows.panels
         }
         protected virtual void OnMouseUp() { }
 
-        public void OnEnter() { }
+        public virtual void OnEnterKeyPressed() { }
 
         public void Setup(float lineThickness, float pointRadius)
         {

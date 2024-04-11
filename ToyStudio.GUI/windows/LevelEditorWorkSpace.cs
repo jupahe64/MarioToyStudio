@@ -425,6 +425,9 @@ namespace ToyStudio.GUI.windows
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
                     _shapeTool.OnMouseUp(hitCoords);
 
+                if (ImGui.IsKeyPressed(ImGuiKey.Enter))
+                    _shapeTool.OnEnterKeyPressed();
+
                 _shapeTool.Draw(dl, viewport.WorldToScreen);
 
                 if (_shapeTool.TryGetFinishedShape(out RailShape? shape))

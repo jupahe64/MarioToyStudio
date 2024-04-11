@@ -32,6 +32,16 @@ namespace ToyStudio.GUI.windows.panels
                 preview.OnMouseUp(new Vector3(3, -3, 0));
                 _shapeTools.Add(preview);
             }
+
+            {
+                var preview = new CustomShapeTool();
+                preview.OnMouseDown(new Vector3(-3, 3, 0));
+                preview.OnMouseDown(new Vector3(2, 1, 0));
+                preview.OnMouseDown(new Vector3(-2, -2, 0));
+                preview.OnMouseDown(new Vector3(2, -3, 0));
+                preview.OnEnterKeyPressed();
+                _shapeTools.Add(preview);
+            }
         }
 
         public void Draw()
