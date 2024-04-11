@@ -189,6 +189,14 @@ namespace ToyStudio.GUI.widgets
 
         public void Draw(Vector2 size, GL gl, double deltaSeconds, bool hasFocus)
         {
+            void SetGizmoType(TransformType gizmoType)
+            {
+                if (_activeGizmoType == gizmoType) 
+                    _activeGizmoType = TransformType.None;
+                else
+                    _activeGizmoType = gizmoType;
+            }
+
             if (!ImGui.BeginChild("LevelViewport", size))
             {
                 ImGui.EndChild();
@@ -259,7 +267,7 @@ namespace ToyStudio.GUI.widgets
                     if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Move Gizmo");
                     if (clicked)
-                        _activeGizmoType = TransformType.Move;
+                        SetGizmoType(TransformType.Move);
                 }
 
                 {
@@ -288,7 +296,7 @@ namespace ToyStudio.GUI.widgets
                     if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Rotate Gizmo");
                     if (clicked)
-                        _activeGizmoType = TransformType.Rotate;
+                        SetGizmoType(TransformType.Rotate);
                 }
 
                 {
@@ -319,7 +327,7 @@ namespace ToyStudio.GUI.widgets
                     if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Scale Gizmo");
                     if (clicked)
-                        _activeGizmoType = TransformType.Scale;
+                        SetGizmoType(TransformType.Scale);
                 }
             }
             ImGui.PopStyleVar();
@@ -741,6 +749,7 @@ namespace ToyStudio.GUI.widgets
 
         private enum TransformType
         {
+            None,
             Move,
             Rotate,
             Scale
