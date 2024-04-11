@@ -1,14 +1,7 @@
 ﻿using CommunityToolkit.HighPerformance.Buffers;
 using ImGuiNET;
-using Silk.NET.Input;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using ToyStudio.Core.level;
 using ToyStudio.Core.util;
 using ToyStudio.Core.util.capture;
@@ -65,7 +58,7 @@ namespace ToyStudio.GUI.scene.objs
             using var segmentObjs = SpanOwner<LevelRailSegmentSceneObj>.Allocate(segmentCount);
             using var addButtonObjs = SpanOwner<LevelRailPointAddButtonObj>.Allocate(segmentCount);
 
-            LevelRailPointAddButtonObj? addToStartBtn = null, addToEndBtn = null;
+            LevelRailPointInsertEndButtonObj? addToStartBtn = null, addToEndBtn = null;
 
 
             for (int i = 0; i < segmentCount; i++)
@@ -81,10 +74,10 @@ namespace ToyStudio.GUI.scene.objs
 
             if (!rail.IsClosed)
             {
-                addToStartBtn = new LevelRailPointAddButtonObj(rail, 
-                    -1, 0, sceneContext, this);
-                addToEndBtn = new LevelRailPointAddButtonObj(rail, 
-                    pointCount-1, pointCount, sceneContext, this);
+                addToStartBtn = new LevelRailPointInsertEndButtonObj(rail, 
+                    isAppend: false, sceneContext, this);
+                addToEndBtn = new LevelRailPointInsertEndButtonObj(rail, 
+                    isAppend: true, sceneContext, this);
 
                 updateContext.AddSceneObject(addToStartBtn);
                 updateContext.AddSceneObject(addToEndBtn);
@@ -361,8 +354,8 @@ namespace ToyStudio.GUI.scene.objs
         /// </summary>
         public void UpdatePointObjects(ReadOnlySpan<LevelRailPointSceneObj> pointObjs)
         {
-            _pointAObj = pointObjs[Math.Clamp(_pointIdxA, 0, pointObjs.Length - 1)];
-            _pointBObj = pointObjs[Math.Clamp(_pointIdxB, 0, pointObjs.Length - 1)];
+            _pointAObj = pointObjs[_pointIdxA];
+            _pointBObj = pointObjs[_pointIdxB];
         }
 
         public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref Vector3? hitPoint)
@@ -388,10 +381,11 @@ namespace ToyStudio.GUI.scene.objs
                     viewport.ActiveTool ??= new PointMoveTool(point, _sceneContext, (insertUndo, revertOnCancel: false));
                 }
             }
-
-            var radius = _pointAObj == _pointBObj ? 10.5f : 5.5f;
-
+            
             color.W *= 0.5f;
+
+            var radius = 5.5f;
+
             dl.AddCircleFilled(pos2D, radius, ImGui.ColorConvertFloat4ToU32(color));
 
             if (Vector2.Distance(ImGui.GetMousePos(), pos2D) < radius)
@@ -411,80 +405,184 @@ namespace ToyStudio.GUI.scene.objs
 
         private LevelRailPointSceneObj? _pointAObj;
         private LevelRailPointSceneObj? _pointBObj;
+    }
 
-        private class PointMoveTool : IViewportTool
+    internal class LevelRailPointInsertEndButtonObj :
+        ISceneObject<SubLevelSceneContext>, IViewportDrawable
+    {
+        public LevelRailPointInsertEndButtonObj(LevelRail rail, bool isAppend,
+            SubLevelSceneContext sceneContext, LevelRailSceneObj railObj)
         {
-            public PointMoveTool(LevelRail.Point point, SubLevelSceneContext sceneContext, (IRevertable revertable, bool revertOnCancel)? insertUndo)
+            _rail = rail;
+            _isAppend = isAppend;
+            _sceneContext = sceneContext;
+            _railObj = railObj;
+        }
+
+        /// <summary>
+        /// Should only be used in <see cref="LevelRailSceneObj.Update"/>
+        /// </summary>
+        public void UpdatePointObjects(ReadOnlySpan<LevelRailPointSceneObj> pointObjs)
+        {
+            int lastIdx = pointObjs.Length - 1;
+
+            if (_isAppend)
             {
-                _point = point;
-                _sceneContext = sceneContext;
-                _insertUndo = insertUndo;
-                _initialPosition = point.Translate;
+                _pointObj = pointObjs[lastIdx];
+                _pointNeighborObj = pointObjs[Math.Clamp(lastIdx-1, 0, lastIdx)];
+            }
+            else
+            {
+                _pointObj = pointObjs[0];
+                _pointNeighborObj = pointObjs[Math.Clamp(1, 0, lastIdx)];
+            }
+        }
+
+        public void Draw2D(SubLevelViewport viewport, ImDrawListPtr dl, ref Vector3? hitPoint)
+        {
+            Debug.Assert(_pointObj is not null && _pointNeighborObj is not null);
+            if (!_railObj.IsTransitiveVisible ||
+                _pointObj?.IsVisible == false)
+                return;
+
+            var pointPos2D = viewport.WorldToScreen(_pointObj!.Position);
+            var neighborPos2D = viewport.WorldToScreen(_pointNeighborObj!.Position);
+
+            var dir = Vector2.Normalize(pointPos2D - neighborPos2D);
+
+            if (_pointObj!.Position == _pointNeighborObj!.Position)
+            {
+                if (_isAppend)
+                    dir = Vector2.UnitX;
+                else
+                    dir = -Vector2.UnitX;
             }
 
-            public void Cancel()
+            var color = new Vector4(1f, 0, 0.8f, 1);
+
+            if (viewport.HoveredObject == this)
             {
-                _point.Translate = _initialPosition;
-            }
-
-            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked,
-                SubLevelViewport.KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
-            {
-                Vector3 hitPoint = viewport.HitPointOnPlane(_initialPosition, viewport.GetCameraForwardDirection())!.Value;
-
-                _point.Translate = hitPoint;
-
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+                color = Vector4.Lerp(color, Vector4.One, 0.8f);
+                viewport.SetTooltip("Insert point");
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
-                    Cancel();
-                    if (_insertUndo.HasValue)
-                    {
-                        if (_insertUndo.Value.revertOnCancel)
-                            _ = _insertUndo.Value.revertable.Revert();
-                        else
-                            _sceneContext.Commit(_insertUndo.Value.revertable);
-                    }
-                    
-                    _sceneContext.InvalidateScene();
-                    activeTool = null;
-                }
+                    var points = _rail.Points;
 
-                if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
-                {
-                    _sceneContext.Select(_point);
-
-                    var revertableMove = new RevertableMove(_point, _initialPosition);
-
-                    if (_insertUndo == null)
-                        _sceneContext.Commit(revertableMove);
+                    LevelRail.Point point;
+                    IRevertable insertUndo;
+                    if (_isAppend)
+                        point = _sceneContext.InsertRailPoint(_rail, points.Count, points[^1].Translate, out insertUndo);
                     else
-                        _sceneContext.BatchAction(() =>
-                        {
-                            _sceneContext.Commit(_insertUndo.Value.revertable);
-                            _sceneContext.Commit(revertableMove);
-                            return _insertUndo.Value.revertable.Name;
-                        });
+                        point = _sceneContext.InsertRailPoint(_rail, 0, points[0].Translate, out insertUndo);
 
-                    activeTool = null;
+                    viewport.ActiveTool ??= new PointMoveTool(point, _sceneContext, (insertUndo, revertOnCancel: false));
                 }
             }
 
-            private readonly LevelRail.Point _point;
-            private readonly SubLevelSceneContext _sceneContext;
-            private readonly (IRevertable revertable, bool revertOnCancel)? _insertUndo;
-            private readonly Vector3 _initialPosition;
+            var radius = 12.5f;
+            var halfArcAngle = 2.5f;
 
-            private class RevertableMove(LevelRail.Point point, Vector3 previousPos) : IRevertable
+            if (_pointObj!.Position == _pointNeighborObj!.Position)
+                halfArcAngle = 1.5f;
+
+            color.W *= 0.5f;
+            var angle = MathF.Atan2(dir.Y, dir.X);
+            dl.PathArcTo(pointPos2D, radius - 2, angle - halfArcAngle, angle + halfArcAngle);
+            dl.PathStroke(ImGui.ColorConvertFloat4ToU32(color), ImDrawFlags.RoundCornersAll, 4);
+
+            var diff = ImGui.GetMousePos() - pointPos2D;
+            var dist = diff.Length();
+
+            if (dist <= radius + 2 && Vector2.Dot(diff/dist, dir) >= Math.Cos(halfArcAngle))
+                hitPoint = viewport.HitPointOnPlane(_pointObj!.Position, viewport.GetCameraForwardDirection());
+        }
+
+        public void Update(ISceneUpdateContext<SubLevelSceneContext> updateContext, SubLevelSceneContext sceneContext, ref bool isValid)
+        {
+
+        }
+
+        private readonly LevelRail _rail;
+        private readonly bool _isAppend;
+        private readonly SubLevelSceneContext _sceneContext;
+        private readonly LevelRailSceneObj _railObj;
+
+        private LevelRailPointSceneObj? _pointObj;
+        private LevelRailPointSceneObj? _pointNeighborObj;
+    }
+
+    file class PointMoveTool : IViewportTool
+    {
+        public PointMoveTool(LevelRail.Point point, SubLevelSceneContext sceneContext, (IRevertable revertable, bool revertOnCancel)? insertUndo)
+        {
+            _point = point;
+            _sceneContext = sceneContext;
+            _insertUndo = insertUndo;
+            _initialPosition = point.Translate;
+        }
+
+        public void Cancel()
+        {
+            _point.Translate = _initialPosition;
+        }
+
+        public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked,
+            SubLevelViewport.KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
+        {
+            Vector3 hitPoint = viewport.HitPointOnPlane(_initialPosition, viewport.GetCameraForwardDirection())!.Value;
+
+            _point.Translate = hitPoint;
+
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
             {
-                public string Name => "Moved rail point";
-
-                public IRevertable Revert()
+                Cancel();
+                if (_insertUndo.HasValue)
                 {
-                    var pos = point.Translate;
-                    point.Translate = previousPos;
-
-                    return new RevertableMove(point, pos);
+                    if (_insertUndo.Value.revertOnCancel)
+                        _ = _insertUndo.Value.revertable.Revert();
+                    else
+                        _sceneContext.Commit(_insertUndo.Value.revertable);
                 }
+
+                _sceneContext.InvalidateScene();
+                activeTool = null;
+            }
+
+            if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                _sceneContext.Select(_point);
+
+                var revertableMove = new RevertableMove(_point, _initialPosition);
+
+                if (_insertUndo == null)
+                    _sceneContext.Commit(revertableMove);
+                else
+                    _sceneContext.BatchAction(() =>
+                    {
+                        _sceneContext.Commit(_insertUndo.Value.revertable);
+                        _sceneContext.Commit(revertableMove);
+                        return _insertUndo.Value.revertable.Name;
+                    });
+
+                activeTool = null;
+            }
+        }
+
+        private readonly LevelRail.Point _point;
+        private readonly SubLevelSceneContext _sceneContext;
+        private readonly (IRevertable revertable, bool revertOnCancel)? _insertUndo;
+        private readonly Vector3 _initialPosition;
+
+        private class RevertableMove(LevelRail.Point point, Vector3 previousPos) : IRevertable
+        {
+            public string Name => "Moved rail point";
+
+            public IRevertable Revert()
+            {
+                var pos = point.Translate;
+                point.Translate = previousPos;
+
+                return new RevertableMove(point, pos);
             }
         }
     }
