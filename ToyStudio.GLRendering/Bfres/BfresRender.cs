@@ -84,7 +84,7 @@ namespace ToyStudio.GLRendering.Bfres
                     Meshes.Add(mesh);
             }
 
-            internal void Render(GL gl, BfresRender render, Matrix4x4 transform, Camera camera)
+            public void Render(GL gl, BfresRender render, Matrix4x4 transform, Camera camera)
             {
                 foreach (var mesh in Meshes)
                 {

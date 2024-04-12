@@ -47,7 +47,10 @@ namespace ToyStudio.GUI.SceneRendering
 
             scene.ForEach<LevelActorSceneObj>(actorObj =>
             {
-                var bfresRender = actorObj.GetBfresRender(glScheduler);
+                var (bfresRender, modelName) = actorObj.GetModelBfresRender(glScheduler);
+
+                if (bfresRender is null)
+                    return;
 
                 var transform = actorObj.GetTransform();
 
@@ -56,7 +59,7 @@ namespace ToyStudio.GUI.SceneRendering
                     Matrix4x4.CreateFromQuaternion(transform.Orientation) *
                     Matrix4x4.CreateTranslation(transform.Position);
 
-                bfresRender?.Render(gl, mtx, camera);
+                bfresRender.Models[modelName].Render(gl, bfresRender, mtx, camera);
             });
 
             //Reset back to defaults

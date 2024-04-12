@@ -15,6 +15,7 @@ using ToyStudio.Core.Level.Objects;
 using ToyStudio.Core.PropertyCapture;
 using ToyStudio.GLRendering.Bfres;
 using EditorToolkit.OpenGL;
+using ToyStudio.Core.Component.ModelInfo;
 
 namespace ToyStudio.GUI.LevelEditing.SceneObjects
 {
@@ -138,14 +139,17 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects
             Face(-Vector3.UnitZ, -Vector3.UnitX, ref hitPoint);
         }
 
-        public BfresRender? GetBfresRender(GLTaskScheduler glScheduler)
+        public (BfresRender? bfres, string modelName) GetModelBfresRender(GLTaskScheduler glScheduler)
         {
-            //temporary
-            var task = _sceneContext.BfresCache.LoadAsync(glScheduler, _actor.Gyaml!);
-            if (!task.IsCompleted)
-                return null;
+            if (!_actorPack.TryGetModelInfo(out ModelInfo? modelInfo))
+                return (null, null!);
 
-            return task.Result;
+            //temporary
+            var task = _sceneContext.BfresCache.LoadAsync(glScheduler, modelInfo.ModelProjectName!);
+            if (!task.IsCompleted)
+                return (null, null!);
+
+            return (task.Result, modelInfo.FmdbName!);
         }
 
         public ITransformable.Transform GetTransform() => _transformComponent.GetTransform();
