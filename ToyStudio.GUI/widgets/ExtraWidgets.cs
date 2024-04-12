@@ -2,10 +2,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace ToyStudio.GUI.widgets
+namespace ToyStudio.GUI.Widgets
 {
     internal class ExtraWidgets
     {

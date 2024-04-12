@@ -1,15 +1,10 @@
 ﻿using ImGuiNET;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using ToyStudio.Core;
-using ToyStudio.GUI.util;
+using ToyStudio.GUI.Util;
 
-namespace ToyStudio.GUI.windows.panels
+namespace ToyStudio.GUI.Windows.Panels
 {
     internal class ActorPaletteWindow(string name, RomFS romfs)
     {

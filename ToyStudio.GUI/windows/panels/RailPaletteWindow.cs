@@ -1,15 +1,7 @@
 ﻿using ImGuiNET;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using ToyStudio.GUI.widgets;
 
-namespace ToyStudio.GUI.windows.panels
+namespace ToyStudio.GUI.Windows.Panels
 {
     internal class RailPaletteWindow
     {

@@ -1,4 +1,4 @@
-﻿namespace ToyStudio.Core.common
+﻿namespace ToyStudio.Core.Common
 {
     public sealed class BgymlTypeInfo
     {

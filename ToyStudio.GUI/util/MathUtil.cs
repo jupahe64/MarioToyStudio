@@ -1,19 +1,9 @@
-﻿using Silk.NET.Maths;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.Linq;
-using System.Numerics;
-using System.Reflection.Metadata;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using YamlDotNet.Core;
 
-namespace ToyStudio.GUI.util
+namespace EditorToolkit
 {
-    internal static class MathUtil
+    public static class MathUtil
     {
         public const float Deg2Rad = MathF.PI / 180.0f;
         public const float Rad2Deg = 180.0f / MathF.PI;
@@ -282,7 +272,7 @@ namespace ToyStudio.GUI.util
         }
     }
 
-    struct BoundingBox2D(Vector2 min, Vector2 max)
+    public struct BoundingBox2D(Vector2 min, Vector2 max)
     {
         public readonly Vector2 Min => _min;
         public readonly Vector2 Max => _max;
@@ -311,7 +301,7 @@ namespace ToyStudio.GUI.util
         private Vector2 _min = min, _max = max;
     }
 
-    struct BoundingBox3D(Vector3 min, Vector3 max)
+    public struct BoundingBox3D(Vector3 min, Vector3 max)
     {
         public readonly Vector3 Min => _min;
         public readonly Vector3 Max => _max;

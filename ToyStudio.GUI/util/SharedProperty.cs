@@ -1,6 +1,4 @@
-﻿using ToyStudio.GUI.widgets;
-
-namespace ToyStudio.GUI.util
+﻿namespace ToyStudio.GUI.Util
 {
     internal record struct SharedProperty<TValue>(IEnumerable<TValue> Values,
                     Action<ValueUpdateFunc<TValue>> UpdateAll);

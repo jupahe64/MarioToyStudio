@@ -4,10 +4,7 @@ using RstbLibrary.Helpers;
 using SarcLibrary;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using ToyStudio.Core.util;
+using ToyStudio.Core.Util;
 using ZstdSharp;
 
 namespace ToyStudio.Core

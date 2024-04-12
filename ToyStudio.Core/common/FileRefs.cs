@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ToyStudio.Core.common
+﻿namespace ToyStudio.Core.Common
 {
     internal interface IFileRef<T>
         where T : IFileRef<T>

@@ -1,27 +1,20 @@
-﻿using ImGuiNET;
+﻿using EditorToolkit;
+using EditorToolkit.Core;
+using EditorToolkit.Core.Transform;
+using EditorToolkit.Core.Transform.Actions;
+using EditorToolkit.OpenGL;
+using EditorToolkit.ImGui;
+using ImGuiNET;
 using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using ToyStudio.Core.level;
-using ToyStudio.GUI.gl;
-using ToyStudio.GUI.level_editing;
-using ToyStudio.GUI.scene;
-using ToyStudio.GUI.scene.objs;
-using ToyStudio.GUI.util;
-using ToyStudio.GUI.util.edit;
-using ToyStudio.GUI.util.edit.transform;
-using ToyStudio.GUI.util.edit.transform.actions;
-using ToyStudio.GUI.util.gl;
-using static ToyStudio.GUI.util.HotkeyHelper.Modifiers;
+using ToyStudio.GUI.OpenGL;
+using ToyStudio.GUI.LevelEditing;
+using ToyStudio.GUI.Util;
+using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
 
-namespace ToyStudio.GUI.widgets
+namespace ToyStudio.GUI.Widgets
 {
     interface IViewportDrawable
     {
@@ -67,8 +60,8 @@ namespace ToyStudio.GUI.widgets
 
     interface IViewportTool
     {
-        void Draw(SubLevelViewport viewport, ImDrawListPtr dl, 
-            bool isLeftClicked, SubLevelViewport.KeyboardModifiers keyboardModifiers, 
+        void Draw(SubLevelViewport viewport, ImDrawListPtr dl,
+            bool isLeftClicked, SubLevelViewport.KeyboardModifiers keyboardModifiers,
             ref IViewportTool? activeTool);
         void Cancel();
     }
@@ -95,7 +88,7 @@ namespace ToyStudio.GUI.widgets
 
         public IViewportTool? ActiveTool
         {
-            get => _activeTool; 
+            get => _activeTool;
             set
             {
                 if (_activeTool == value)
@@ -179,7 +172,7 @@ namespace ToyStudio.GUI.widgets
             return promise.Task;
         }
 
-        public Task<(Vector3 picked, bool canceled, KeyboardModifiers modifiers)> PickPosition(string tooltipMessage, 
+        public Task<(Vector3 picked, bool canceled, KeyboardModifiers modifiers)> PickPosition(string tooltipMessage,
             (Vector3 origin, Vector3 normal)? hitPlane = null)
         {
             var promise = new TaskCompletionSource<(Vector3 picked, bool canceled, KeyboardModifiers modifiers)>();
@@ -191,7 +184,7 @@ namespace ToyStudio.GUI.widgets
         {
             void SetGizmoType(TransformType gizmoType)
             {
-                if (_activeGizmoType == gizmoType) 
+                if (_activeGizmoType == gizmoType)
                     _activeGizmoType = TransformType.None;
                 else
                     _activeGizmoType = gizmoType;
@@ -281,7 +274,7 @@ namespace ToyStudio.GUI.widgets
 
                     var center = (min + max) / 2;
 
-                    Span<Vector2> points = stackalloc Vector2[16+1];
+                    Span<Vector2> points = stackalloc Vector2[16 + 1];
                     for (int i = 0; i <= 16; i++)
                     {
                         float angle = i / 16f * MathF.PI;
@@ -319,7 +312,7 @@ namespace ToyStudio.GUI.widgets
                     dl.AddCircleFilled(tipB, s * 0.05f, color);
 
                     dl.AddCircleFilled(center, s * 0.05f, color);
-                    dl.AddTriangle(center, 
+                    dl.AddTriangle(center,
                         center + s * new Vector2(+0.15f, 0),
                         center + s * new Vector2(0, -0.15f),
                         color, s * 0.02f);
@@ -337,7 +330,7 @@ namespace ToyStudio.GUI.widgets
             //draw mouse coords
             {
                 var mouseCoords = HitPointOnPlane(Vector3.Zero, Vector3.UnitZ);
-                var text = isViewportHovered && mouseCoords.HasValue ? 
+                var text = isViewportHovered && mouseCoords.HasValue ?
                     $"x: {mouseCoords?.X:F3}\ny: {mouseCoords?.Y:F3}" : "x:\ny: ";
                 ImGui.GetWindowDrawList().AddText(ImGui.GetCursorScreenPos() + ImGui.GetStyle().FramePadding,
                     ImGui.GetColorU32(ImGuiCol.Text), text);
@@ -439,7 +432,7 @@ namespace ToyStudio.GUI.widgets
 
                 HandleTransformAction(isViewportActive);
             }
-            
+
 
             if (hasFocus && isViewportHovered)
             {
@@ -509,7 +502,7 @@ namespace ToyStudio.GUI.widgets
                         _camera.Rotation =
                         Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateWorld(Vector3.Zero, -facingDirection, Vector3.UnitY));
                     }
-                    
+
                     _camera.UpdateMatrices();
                 }
             }
@@ -576,7 +569,7 @@ namespace ToyStudio.GUI.widgets
                     break;
             }
 
-            if (hoveredGizmoPart == GizmoPart.NONE || !_canStartNewTransformAction || 
+            if (hoveredGizmoPart == GizmoPart.NONE || !_canStartNewTransformAction ||
                 _activeTool is not null || !isViewportHovered || !ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 return;
 
@@ -597,7 +590,7 @@ namespace ToyStudio.GUI.widgets
                 var planeOrigin = _camera.Target;
                 var planeNormal = -GetCameraForwardDirection();
                 var prevMousePos = ImGui.GetMousePos() - ImGui.GetIO().MouseDelta;
-                _camera.Target += 
+                _camera.Target +=
                     HitPointOnPlane(planeOrigin, planeNormal, prevMousePos) -
                     HitPointOnPlane(planeOrigin, planeNormal) ?? Vector3.One;
             }
@@ -831,13 +824,13 @@ namespace ToyStudio.GUI.widgets
 
         private class TransformTool : IViewportTool
         {
-            public static TransformTool CreateFreeMove(SubLevelViewport viewport, 
+            public static TransformTool CreateFreeMove(SubLevelViewport viewport,
                 Vector3 pivot, IEnumerable<ITransformable> transformables)
             {
                 return new TransformTool(new MoveAction(viewport.GetSceneViewState(), transformables, Quaternion.Identity, pivot));
             }
 
-            public static TransformTool CreateFromHoveredGizmoPart(SubLevelViewport viewport, 
+            public static TransformTool CreateFromHoveredGizmoPart(SubLevelViewport viewport,
                 TransformType gizmoType, GizmoPart gizmoPart,
                 Quaternion orientation, Vector3 pivot, IEnumerable<ITransformable> transformables)
             {
@@ -854,7 +847,7 @@ namespace ToyStudio.GUI.widgets
                         GizmoPart.YZ_PLANE => AxisRestriction.PlaneYZ,
                         _ => AxisRestriction.None
                     }),
-                    TransformType.Rotate when gizmoPart == GizmoPart.TRACKBALL 
+                    TransformType.Rotate when gizmoPart == GizmoPart.TRACKBALL
                         => new RotateTrackballAction(sceneView, transformables, orientation, pivot),
                     TransformType.Rotate => new RotateAction(sceneView, transformables, orientation, pivot, gizmoPart switch
                     {
@@ -882,7 +875,7 @@ namespace ToyStudio.GUI.widgets
                 return new TransformTool(action);
             }
 
-            public void Cancel() =>_action.Cancel();
+            public void Cancel() => _action.Cancel();
 
             public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, bool isLeftClicked, KeyboardModifiers keyboardModifiers, ref IViewportTool? activeTool)
             {

@@ -1,14 +1,9 @@
 ﻿using ImGuiNET;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Numerics;
 
-namespace ToyStudio.GUI.windows.panels
+namespace ToyStudio.GUI.Windows.Panels
 {
 
     internal record RailShape(IReadOnlyList<Vector3> Points, bool IsClosed);

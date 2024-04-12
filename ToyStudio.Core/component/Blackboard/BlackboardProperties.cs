@@ -2,7 +2,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
-namespace ToyStudio.Core.component.Blackboard
+namespace ToyStudio.Core.Component.Blackboard
 {
     public class BlackboardProperties(IDictionary<string, (object initialValue, string tableName)> dict)
         : IReadOnlyDictionary<string, (object initialValue, string tableName)>

@@ -1,5 +1,4 @@
 ﻿using BymlLibrary;
-using System.IO;
 using ZstdSharp;
 
 namespace ToyStudio.Core

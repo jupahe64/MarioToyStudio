@@ -1,4 +1,4 @@
-﻿namespace ToyStudio.GUI.util
+﻿namespace ToyStudio.GUI.Util
 {
     internal static class DictionaryExtensions
     {

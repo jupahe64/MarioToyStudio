@@ -1,18 +1,14 @@
 ﻿using ImGuiNET;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using ToyStudio.Core;
-using ToyStudio.Core.level;
-using ToyStudio.GUI.level_editing;
-using ToyStudio.GUI.util.edit.undo_redo;
-using ToyStudio.GUI.widgets;
+using ToyStudio.Core.Level;
+using ToyStudio.GUI.LevelEditing;
+using EditorToolkit.Core.UndoRedo;
+using ToyStudio.GUI.Widgets;
+using ToyStudio.Core.Level.Objects;
 
-namespace ToyStudio.GUI.windows.panels
+namespace ToyStudio.GUI.Windows.Panels
 {
     internal class AiGroupsWindow(string name, RomFS romfs)
     {

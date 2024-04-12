@@ -1,24 +1,11 @@
 ﻿using ImGuiNET;
-using Newtonsoft.Json.Bson;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using ToyStudio.Core.level;
-using ToyStudio.GUI.level_editing;
-using ToyStudio.GUI.nodes;
-using ToyStudio.GUI.util;
-using ToyStudio.GUI.util.edit;
-using ToyStudio.GUI.widgets;
+using ToyStudio.GUI.Util;
+using ToyStudio.GUI.Widgets;
 
-namespace ToyStudio.GUI.windows.panels
+namespace ToyStudio.GUI.Windows.Panels
 {
-    interface IObjectTreeViewNode 
+    interface IObjectTreeViewNode
     {
         bool IsExpanded { get; set; }
         bool IsVisible { get; set; }
@@ -51,8 +38,8 @@ namespace ToyStudio.GUI.windows.panels
 
             int maxVisibleRows = (int)MathF.Ceiling(size.Y / ImGui.GetFrameHeight());
 
-            ImGuiTableFlags tableFlags = 
-                ImGuiTableFlags.RowBg | 
+            ImGuiTableFlags tableFlags =
+                ImGuiTableFlags.RowBg |
                 ImGuiTableFlags.BordersInnerV;
 
             if (ImGui.BeginTable("ObjectTree", 2, tableFlags, size))
@@ -69,7 +56,7 @@ namespace ToyStudio.GUI.windows.panels
 
                 for (int i = 0; i < _nodes.Count; i++)
                 {
-                    var(node, depth, flags) = _nodes[i];
+                    var (node, depth, flags) = _nodes[i];
                     int popCount = Math.Max(previousDepth - depth, 0);
 
                     for (int j = 0; j < popCount; j++)
@@ -142,7 +129,7 @@ namespace ToyStudio.GUI.windows.panels
             if (clicked)
             {
                 _selectionRequest = (node, ImGui.GetIO().KeyCtrl, ImGui.GetIO().KeyShift);
-                if (!ImGui.GetIO().KeyShift || !_nodes.Any(x=>x.node == _lastClickedNode))
+                if (!ImGui.GetIO().KeyShift || !_nodes.Any(x => x.node == _lastClickedNode))
                     _lastClickedNode = node;
             }
 
@@ -166,7 +153,7 @@ namespace ToyStudio.GUI.windows.panels
             if (ImGui.IsItemActivated() && _dragVisibility == null)
                 _dragVisibility = !isVisible;
 
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem) && 
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem) &&
                 _dragVisibility.HasValue && _dragVisibility.Value != isVisible)
             {
                 node.IsVisible = _dragVisibility.Value;
@@ -206,11 +193,11 @@ namespace ToyStudio.GUI.windows.panels
 
                 _nodes.Add((node, depth, flags));
 
-                if ((flags & NodeFlags.IsExpanded) > 0 && 
+                if ((flags & NodeFlags.IsExpanded) > 0 &&
                     (flags & NodeFlags.HasChildren) > 0)
                 {
                     depth++;
-                    foreach (var child in node.ChildNodes) 
+                    foreach (var child in node.ChildNodes)
                         Visit(child, isParentVisible);
                     depth--;
                 }
@@ -252,7 +239,7 @@ namespace ToyStudio.GUI.windows.panels
                     return;
                 }
             }
-            
+
             if (request.isMulti)
             {
                 request.node.IsSelected = !request.node.IsSelected;

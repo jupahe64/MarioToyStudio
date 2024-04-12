@@ -1,15 +1,12 @@
 ﻿using ImGuiNET;
-using Silk.NET.Core.Native;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using System.Windows.Markup;
-using System.Xml.Linq;
-using ToyStudio.Core.util.capture;
-using ToyStudio.GUI.util;
+using ToyStudio.Core.PropertyCapture;
+using ToyStudio.GUI.Util;
 
-namespace ToyStudio.GUI.windows.panels
+namespace ToyStudio.GUI.Windows.Panels
 {
     internal interface IInspectable
     {

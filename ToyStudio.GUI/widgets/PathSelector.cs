@@ -2,7 +2,7 @@
 using NativeFileDialogSharp;
 using System.Numerics;
 
-namespace ToyStudio.GUI.widgets
+namespace ToyStudio.GUI.Widgets
 {
     /// <summary>
     /// A widget for displaying and editing a given directory path with a button to select one. 

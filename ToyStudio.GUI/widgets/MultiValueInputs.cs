@@ -1,20 +1,10 @@
-﻿using FuzzySharp.Edits;
-using ImGuiNET;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using ImGuiNET;
 using System.Globalization;
-using System.Linq;
 using System.Numerics;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using ToyStudio.GUI.util;
+using ToyStudio.GUI.Util;
 
-namespace ToyStudio.GUI.widgets
+namespace ToyStudio.GUI.Widgets
 {
     internal static class MultiValueInputs
     {

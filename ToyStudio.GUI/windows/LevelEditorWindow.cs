@@ -1,19 +1,20 @@
+using EditorToolkit.OpenGL;
+using EditorToolkit.ImGui;
+using EditorToolkit.ImGui.Modal;
+using EditorToolkit.Windowing;
 using ImGuiNET;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using ToyStudio.GUI.modals;
-using NativeFileDialogSharp;
 using ToyStudio.Core;
-using ToyStudio.GUI.util;
-using ToyStudio.GUI.util.gl;
-using ToyStudio.GUI.util.modal;
-using ToyStudio.GUI.util.windowing;
-using static ToyStudio.GUI.util.HotkeyHelper.Modifiers;
+using ToyStudio.Core.Level;
+using ToyStudio.GUI.Util;
+using ToyStudio.GUI.Windows.Modals;
+using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
 
-namespace ToyStudio.GUI.windows
+namespace ToyStudio.GUI.Windows
 {
     public class LevelEditorWindow : IPopupModalHost
     {
@@ -56,9 +57,9 @@ namespace ToyStudio.GUI.windows
                                 Path.Combine("res", "Font.ttf"),
                                 size, nativeConfig, io.Fonts.GetGlyphRangesDefault());
 
-                             io.Fonts.AddFontFromFileTTF(
-                                Path.Combine("res", "NotoSansCJKjp-Medium.otf"),
-                                    size, nativeConfigJP, io.Fonts.GetGlyphRangesJapanese());
+                            io.Fonts.AddFontFromFileTTF(
+                               Path.Combine("res", "NotoSansCJKjp-Medium.otf"),
+                                   size, nativeConfigJP, io.Fonts.GetGlyphRangesJapanese());
 
                             //other fonts go here and follow the same schema
                             GCHandle rangeHandle = GCHandle.Alloc(new ushort[] { IconUtil.MIN_GLYPH_RANGE, IconUtil.MAX_GLYPH_RANGE, 0 }, GCHandleType.Pinned);
@@ -116,20 +117,19 @@ namespace ToyStudio.GUI.windows
             return true;
         }
 
-        bool mSkipCloseTest = false;
         public void Close()
         {
             //prevent infinite loop
-            if (mSkipCloseTest)
+            if (_skipCloseTest)
                 return;
 
             _window.IsClosing = false;
 
             Task.Run(async () =>
             {
-                if(await TryCloseWorkspace())
+                if (await TryCloseWorkspace())
                 {
-                    mSkipCloseTest = true;
+                    _skipCloseTest = true;
                     await ImageTextureLoader.DisposeAll(_glTaskScheduler);
                     _window.Close();
                 }
@@ -160,7 +160,7 @@ namespace ToyStudio.GUI.windows
             {
                 //wait for other pending dialogs to close
                 await _modalHost.WaitTick();
-                    
+
                 await LoadLevelWithProgressBar(latestCourse);
             }
 
@@ -184,7 +184,7 @@ namespace ToyStudio.GUI.windows
 
                             _activeLevelWorkSpace?.PreventFurtherRendering();
                             var actorPackCache = new ActorPackCache(_romfs!);
-                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course, 
+                            _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course,
                                 _romfs!, _glTaskScheduler, actorPackCache, _modalHost, p);
                             _currentCourseName = name;
                             return true;
@@ -253,7 +253,7 @@ namespace ToyStudio.GUI.windows
                                 });
                             }
                         }
-                        catch(Exception e)
+                        catch (Exception e)
                         {
                             _ = ErrorDialog.ShowSavingError(_modalHost, _currentCourseName!, e);
                         }
@@ -280,13 +280,13 @@ namespace ToyStudio.GUI.windows
                     //    _ = LoadParamDBWithProgressBar(this);
                     //}
 
-                    if (ImGui.MenuItem("Undo", GetShortCutString(sHotkeyUndo), false, 
+                    if (ImGui.MenuItem("Undo", GetShortCutString(s_hotkeyUndo), false,
                         _activeLevelWorkSpace?.CanUndo() ?? false))
-                        sHotkeyUndo.ExecuteAction(this);
+                        s_hotkeyUndo.ExecuteAction(this);
 
-                    if (ImGui.MenuItem("Redo", GetShortCutString(sHotkeyRedo), false,
+                    if (ImGui.MenuItem("Redo", GetShortCutString(s_hotkeyRedo), false,
                         _activeLevelWorkSpace?.CanRedo() ?? false))
-                        sHotkeyRedo.ExecuteAction(this);
+                        s_hotkeyRedo.ExecuteAction(this);
 
                     /* end Edit menu */
                     ImGui.EndMenu();
@@ -320,7 +320,7 @@ namespace ToyStudio.GUI.windows
 
             DrawMainMenu();
 
-            
+
             _activeLevelWorkSpace?.DrawUI(gl, delta);
 
             if (_isShowPreferenceWindow)
@@ -372,7 +372,7 @@ namespace ToyStudio.GUI.windows
             bool modChanged = modDirectory != _lastUpdatedRomFSPaths.mod;
 
             if (!baseGameChanged &&
-                !modChanged && 
+                !modChanged &&
                 onlyUpdateWhenChanged)
                 return;
 
@@ -408,6 +408,7 @@ namespace ToyStudio.GUI.windows
         private string? _currentCourseName;
         private LevelEditorWorkSpace? _activeLevelWorkSpace;
         private bool _isShowPreferenceWindow = false;
+        private bool _skipCloseTest = false;
 
         private readonly GLTaskScheduler _glTaskScheduler = new();
         private readonly PopupModalHost _modalHost = new();
@@ -421,7 +422,7 @@ namespace ToyStudio.GUI.windows
 
         private static readonly List<Hotkey> s_registeredHotkeys = [];
 
-        private record Hotkey(HotkeyHelper.Modifiers Modifiers, ImGuiKey Key, 
+        private record Hotkey(HotkeyHelper.Modifiers Modifiers, ImGuiKey Key,
             Action<LevelEditorWindow> Action)
         {
             public void ExecuteAction(LevelEditorWindow w) => Action.Invoke(w);
@@ -440,16 +441,16 @@ namespace ToyStudio.GUI.windows
         private static bool IsHotkeyPressed(Hotkey hotKey)
             => HotkeyHelper.IsHotkeyPressed(hotKey.Modifiers, hotKey.Key);
 
-        private static readonly Hotkey sHotkeyUndo = RegisterHotkey(CtrlCmd, Z, w => w._activeLevelWorkSpace?.Undo());
-        private static readonly Hotkey sHotkeyRedo = RegisterHotkey(CtrlCmd, Y, w => w._activeLevelWorkSpace?.Redo());
-        private static readonly Hotkey sHotkeyRedoAlt =
-            RegisterHotkey(CtrlCmd|Shift, Z, w => w._activeLevelWorkSpace?.Redo());
+        private static readonly Hotkey s_hotkeyUndo = RegisterHotkey(CtrlCmd, Z, w => w._activeLevelWorkSpace?.Undo());
+        private static readonly Hotkey s_hotkeyRedo = RegisterHotkey(CtrlCmd, Y, w => w._activeLevelWorkSpace?.Redo());
+        private static readonly Hotkey s_hotkeyRedoAlt =
+            RegisterHotkey(CtrlCmd | Shift, Z, w => w._activeLevelWorkSpace?.Redo());
 
 
 
         class WelcomeMessage : OkDialog
         {
-            public static Task ShowDialog(IPopupModalHost modalHost) => 
+            public static Task ShowDialog(IPopupModalHost modalHost) =>
                 ShowDialog(modalHost, new WelcomeMessage());
 
             protected override string Title => "Welcome";

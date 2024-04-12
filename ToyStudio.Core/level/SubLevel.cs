@@ -1,12 +1,8 @@
 ﻿using BymlLibrary;
 using BymlLibrary.Nodes.Containers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using ToyStudio.Core.Level.Objects;
 
-namespace ToyStudio.Core.level
+namespace ToyStudio.Core.Level
 {
     public class SubLevel(Level level, string bcettName, string levelParamName, string lightingParamName)
     {

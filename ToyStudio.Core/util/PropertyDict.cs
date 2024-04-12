@@ -1,7 +1,7 @@
 ﻿using System.Collections;
-using static ToyStudio.Core.util.PropertyDict;
+using static ToyStudio.Core.Util.PropertyDict;
 
-namespace ToyStudio.Core.util
+namespace ToyStudio.Core.Util
 {
     /// <summary>
     /// A sorted list of entries similar to a dictionary, with 0 memory overhead, that prevents it's key set from ever changing

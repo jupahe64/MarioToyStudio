@@ -1,10 +1,9 @@
 ﻿using ImGuiNET;
-using Silk.NET.OpenGL;
 using System.Numerics;
 using ToyStudio.Core;
-using ToyStudio.GUI.widgets;
+using ToyStudio.GUI.Widgets;
 
-namespace ToyStudio.GUI.windows
+namespace ToyStudio.GUI.Windows
 {
     class PreferencesWindow
     {

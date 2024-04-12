@@ -1,8 +1,8 @@
 ﻿using BymlLibrary;
-using ToyStudio.Core.common;
-using ToyStudio.Core.util.byml_serialization;
+using ToyStudio.Core.Common;
+using ToyStudio.Core.Util.BymlSerialization;
 
-namespace ToyStudio.Core.component.Blackboard
+namespace ToyStudio.Core.Component.Blackboard
 {
     public class BlackboardInfo : BymlObject<BlackboardInfo>
     {

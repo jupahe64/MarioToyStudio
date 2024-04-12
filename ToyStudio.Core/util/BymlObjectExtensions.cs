@@ -1,17 +1,10 @@
 ﻿using BymlLibrary;
 using BymlLibrary.Nodes.Containers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using ToyStudio.Core.common;
-using ToyStudio.Core.util.byml_serialization;
-using YamlDotNet.Core.Tokens;
+using ToyStudio.Core.Common;
+using ToyStudio.Core.Util.BymlSerialization;
 
-namespace ToyStudio.Core.util
+namespace ToyStudio.Core.Util
 {
     /// <summary>
     /// Parse, Serialize and Set functions specifically for module system games

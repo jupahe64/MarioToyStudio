@@ -1,7 +1,6 @@
-﻿using Silk.NET.Windowing;
-using ToyStudio.GUI;
-using ToyStudio.GUI.util.windowing;
-using ToyStudio.GUI.windows;
+﻿using ToyStudio.GUI;
+using EditorToolkit.Windowing;
+using ToyStudio.GUI.Windows;
 
 Console.WriteLine("Loading user settings...");
 UserSettings.LoadSettings();

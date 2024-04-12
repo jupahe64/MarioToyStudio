@@ -1,28 +1,23 @@
-﻿using ImGuiNET;
+﻿using EditorToolkit.Core;
+using EditorToolkit.Core.UndoRedo;
+using EditorToolkit.OpenGL;
+using EditorToolkit.ImGui.Modal;
+using EditorToolkit.Misc;
+using ImGuiNET;
 using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using ToyStudio.Core;
-using ToyStudio.Core.level;
-using ToyStudio.Core.util;
-using ToyStudio.Core.util.capture;
-using ToyStudio.GUI.level_editing;
-using ToyStudio.GUI.nodes;
-using ToyStudio.GUI.scene;
-using ToyStudio.GUI.util;
-using ToyStudio.GUI.util.edit;
-using ToyStudio.GUI.util.edit.undo_redo;
-using ToyStudio.GUI.util.gl;
-using ToyStudio.GUI.util.modal;
-using ToyStudio.GUI.widgets;
-using ToyStudio.GUI.windows.panels;
+using ToyStudio.Core.Level;
+using ToyStudio.Core.Level.Objects;
+using ToyStudio.Core.PropertyCapture;
+using ToyStudio.Core.Util;
+using ToyStudio.GUI.LevelEditing;
+using ToyStudio.GUI.LevelEditing.ObjectNodes;
+using ToyStudio.GUI.Widgets;
+using ToyStudio.GUI.Windows.Panels;
 
-namespace ToyStudio.GUI.windows
+namespace ToyStudio.GUI.Windows
 {
     internal class LevelEditorWorkSpace
     {
@@ -45,7 +40,7 @@ namespace ToyStudio.GUI.windows
             return ws;
         }
 
-        public void RequestActiveSubLevel(SubLevel subLevel) => 
+        public void RequestActiveSubLevel(SubLevel subLevel) =>
             _requestedActiveSubLevel = subLevel;
 
         //for now
@@ -173,7 +168,7 @@ namespace ToyStudio.GUI.windows
                 });
             }
 
-            var message = 
+            var message =
                 $"Changed {string.Join(", ", changedNames.Order())} " +
                 $"for {sources.Count} objects";
 
@@ -217,7 +212,7 @@ namespace ToyStudio.GUI.windows
             IReadOnlyCollection<IInspectable> selectedInspectables)
         {
             _inspectorEditContext = editContext;
-            var mainInspectable = selectedInspectables.Where(x=>x.IsMainInspectable()).FirstOrDefault();
+            var mainInspectable = selectedInspectables.Where(x => x.IsMainInspectable()).FirstOrDefault();
 
             if (mainInspectable is not null)
                 _inspector.Setup(selectedInspectables, mainInspectable);
@@ -251,7 +246,7 @@ namespace ToyStudio.GUI.windows
                 do
                 {
                     (obj, canceled, modifiers) = await _viewports[_activeSubLevel].PickObject(
-                        $"Pick an actor to add to {groupType}\nHold shift to pick multiple", 
+                        $"Pick an actor to add to {groupType}\nHold shift to pick multiple",
                         x => x is LevelActor);
 
                     if (canceled)
@@ -376,7 +371,7 @@ namespace ToyStudio.GUI.windows
         private class LevelObjectTree
         {
             public event Action<LevelObjectTree>? Updated;
-            public LevelObjectTree(SubLevel subLevel, Scene<SubLevelSceneContext> scene, 
+            public LevelObjectTree(SubLevel subLevel, Scene<SubLevelSceneContext> scene,
                 SubLevelEditContext editContext)
             {
                 var nodeContext = new LevelNodeContext(editContext);
@@ -412,8 +407,8 @@ namespace ToyStudio.GUI.windows
 
             public void Cancel() { }
 
-            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl, 
-                bool isLeftClicked, SubLevelViewport.KeyboardModifiers keyboardModifiers, 
+            public void Draw(SubLevelViewport viewport, ImDrawListPtr dl,
+                bool isLeftClicked, SubLevelViewport.KeyboardModifiers keyboardModifiers,
                 ref IViewportTool? activeTool)
             {
                 var hitCoords = viewport.HitPointOnPlane(Vector3.Zero, Vector3.UnitZ) ?? Vector3.Zero;
@@ -440,7 +435,7 @@ namespace ToyStudio.GUI.windows
                         {
                             Hash = editContext.GenerateUniqueRailHash(),
                             IsClosed = shape.IsClosed,
-                            Points = shape.Points.Select((pos, i)=>new LevelRail.Point
+                            Points = shape.Points.Select((pos, i) => new LevelRail.Point
                             {
                                 Hash = hashes[i],
                                 Translate = pos
