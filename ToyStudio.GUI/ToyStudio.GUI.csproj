@@ -27,14 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Page Include="OpenGL\README.md">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\EditorToolkit\EditorToolkit.csproj" />
     <ProjectReference Include="..\ToyStudio.Core\ToyStudio.Core.csproj" />
+    <ProjectReference Include="..\ToyStudio.GLRendering\ToyStudio.GLRendering.csproj" />
   </ItemGroup>
 	<ItemGroup>
 	<None Update="res\bfres\CubemapHDR.dds">

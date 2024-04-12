@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
 
-namespace ToyStudio.GUI.OpenGL.Culling
+namespace ToyStudio.GLRendering.Culling
 {
-    public class BoundingBox
+    internal class BoundingBox
     {
         public Matrix4x4 TranformMatrix { get; set; } = Matrix4x4.Identity;
 

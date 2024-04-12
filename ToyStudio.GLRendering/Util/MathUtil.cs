@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace ToyStudio.GUI
+namespace ToyStudio.GLRendering.Util
 {
     public static class MathUtil
     {

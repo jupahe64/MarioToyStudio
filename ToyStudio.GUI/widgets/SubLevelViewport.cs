@@ -8,11 +8,11 @@ using ImGuiNET;
 using Silk.NET.OpenGL;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using ToyStudio.GUI.OpenGL;
 using ToyStudio.GUI.LevelEditing;
 using ToyStudio.GUI.Util;
 using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
+using ToyStudio.GLRendering;
 
 namespace ToyStudio.GUI.Widgets
 {

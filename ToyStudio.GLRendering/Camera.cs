@@ -1,8 +1,8 @@
-﻿using EditorToolkit;
-using System.Numerics;
-using ToyStudio.GUI.OpenGL.Culling;
+﻿using System.Numerics;
+using ToyStudio.GLRendering.Culling;
+using ToyStudio.GLRendering.Util;
 
-namespace ToyStudio.GUI.OpenGL
+namespace ToyStudio.GLRendering
 {
     public class Camera
     {
@@ -26,9 +26,9 @@ namespace ToyStudio.GUI.OpenGL
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrixInverse { get; private set; }
 
-        public CameraFrustum CameraFrustum = new CameraFrustum();
+        internal CameraFrustum CameraFrustum = new CameraFrustum();
 
-        public bool InFrustum(BoundingBox box, float radius = 1f)
+        internal bool InFrustum(BoundingBox box, float radius = 1f)
         {
             return CameraFrustum.CheckIntersection(this, box, radius);
         }
