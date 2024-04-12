@@ -16,6 +16,7 @@ using ToyStudio.GUI.LevelEditing;
 using ToyStudio.GUI.LevelEditing.ObjectNodes;
 using ToyStudio.GUI.Widgets;
 using ToyStudio.GUI.Windows.Panels;
+using ToyStudio.GUI.SceneRendering;
 
 namespace ToyStudio.GUI.Windows
 {
@@ -26,11 +27,12 @@ namespace ToyStudio.GUI.Windows
         public static async Task<LevelEditorWorkSpace> Create(Level level,
             RomFS romfs,
             GLTaskScheduler glScheduler,
+            SceneRendering.BfresCache bfresCache,
             ActorPackCache actorPackCache,
             IPopupModalHost popupModalHost,
             IProgress<(string operationName, float? progress)> progress)
         {
-            var ws = new LevelEditorWorkSpace(level, romfs, glScheduler, actorPackCache, popupModalHost);
+            var ws = new LevelEditorWorkSpace(level, romfs, glScheduler, bfresCache, actorPackCache, popupModalHost);
 
             foreach (var subLevel in level.SubLevels)
                 await ws.AddSubLevel(subLevel);
@@ -183,7 +185,7 @@ namespace ToyStudio.GUI.Windows
         {
             var editContext = new SubLevelEditContext(subLevel, _popupModalHost);
             var scene = new Scene<SubLevelSceneContext>(
-                new SubLevelSceneContext(editContext, _popupModalHost, _actorPackCache),
+                new SubLevelSceneContext(editContext, _popupModalHost, _actorPackCache, _bfresCache),
                 new SubLevelSceneRoot(subLevel)
             );
             scene.Context.SetScene(scene);
@@ -341,6 +343,7 @@ namespace ToyStudio.GUI.Windows
         private readonly Level _level;
         private readonly RomFS _romfs;
         private readonly GLTaskScheduler _glScheduler;
+        private readonly BfresCache _bfresCache;
         private readonly IPopupModalHost _popupModalHost;
         private readonly ObjectInspectorWindow _inspector;
         private readonly ActorPaletteWindow _actorPalette;
@@ -350,11 +353,13 @@ namespace ToyStudio.GUI.Windows
         private SubLevelEditContext? _inspectorEditContext;
         private ActorPackCache _actorPackCache;
 
-        private LevelEditorWorkSpace(Level level, RomFS romfs, GLTaskScheduler glScheduler, ActorPackCache actorPackCache, IPopupModalHost popupModalHost)
+        private LevelEditorWorkSpace(Level level, RomFS romfs, GLTaskScheduler glScheduler, 
+            BfresCache bfresCache, ActorPackCache actorPackCache, IPopupModalHost popupModalHost)
         {
             _level = level;
             _romfs = romfs;
             _glScheduler = glScheduler;
+            _bfresCache = bfresCache;
             _actorPackCache = actorPackCache;
             _popupModalHost = popupModalHost;
 

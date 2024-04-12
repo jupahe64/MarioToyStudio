@@ -13,6 +13,7 @@ using ToyStudio.GUI.Util;
 using ToyStudio.GUI.Windows.Modals;
 using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
+using ToyStudio.GUI.SceneRendering;
 
 namespace ToyStudio.GUI.Windows
 {
@@ -185,7 +186,7 @@ namespace ToyStudio.GUI.Windows
                             _activeLevelWorkSpace?.PreventFurtherRendering();
                             var actorPackCache = new ActorPackCache(_romfs!);
                             _activeLevelWorkSpace = await LevelEditorWorkSpace.Create(course,
-                                _romfs!, _glTaskScheduler, actorPackCache, _modalHost, p);
+                                _romfs!, _glTaskScheduler, _bfresCache!, actorPackCache, _modalHost, p);
                             _currentCourseName = name;
                             return true;
                         }
@@ -389,7 +390,10 @@ namespace ToyStudio.GUI.Windows
                     }
 
                     else
+                    {
                         _romfs = RomFS.Load(new DirectoryInfo(baseGameDirecory));
+                        _bfresCache = new BfresCache(_romfs);
+                    }
                 }
 
                 if (string.IsNullOrEmpty(modDirectory))
@@ -417,6 +421,7 @@ namespace ToyStudio.GUI.Windows
         private readonly ImFontPtr _iconFont;
 
         private RomFS? _romfs;
+        private BfresCache? _bfresCache;
         private (string baseGame, string mod) _lastUpdatedRomFSPaths = ("", "");
         private bool _shouldCheckForRomFSPathChanges = false;
 

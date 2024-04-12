@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EditorToolkit", "EditorTool
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToyStudio.GLRendering", "ToyStudio.GLRendering\ToyStudio.GLRendering.csproj", "{C589B1E5-9DDE-4E85-B7BE-D31EE1CD21F1}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fushigi.Bfres", "Fushigi.Bfres\Fushigi.Bfres.csproj", "{D3CE0611-869D-481B-8E7A-F71D6AAD105D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{C589B1E5-9DDE-4E85-B7BE-D31EE1CD21F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C589B1E5-9DDE-4E85-B7BE-D31EE1CD21F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C589B1E5-9DDE-4E85-B7BE-D31EE1CD21F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3CE0611-869D-481B-8E7A-F71D6AAD105D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3CE0611-869D-481B-8E7A-F71D6AAD105D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3CE0611-869D-481B-8E7A-F71D6AAD105D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3CE0611-869D-481B-8E7A-F71D6AAD105D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

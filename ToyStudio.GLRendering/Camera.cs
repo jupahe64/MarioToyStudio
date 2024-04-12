@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using ToyStudio.GLRendering.Culling;
 using ToyStudio.GLRendering.Util;
 
 namespace ToyStudio.GLRendering
@@ -12,7 +11,7 @@ namespace ToyStudio.GLRendering
         public Vector3 Target = Vector3.Zero;
         public float Distance = 10;
 
-        public float Fov = MathUtil.Deg2Rad * 70;
+        public float Fov = 70 * MathF.PI / 180.0f;
 
         public float Width;
         public float Height;

@@ -5,11 +5,13 @@ using EditorToolkit.Core;
 using EditorToolkit.Core.UndoRedo;
 using EditorToolkit.ImGui.Modal;
 using ToyStudio.Core.Level.Objects;
+using ToyStudio.GUI.SceneRendering;
+using ToyStudio.GLRendering.Bfres;
 
 namespace ToyStudio.GUI.LevelEditing
 {
     internal class SubLevelSceneContext(SubLevelEditContext editContext,
-        IPopupModalHost popupModalHost, ActorPackCache actorPackCache)
+        IPopupModalHost popupModalHost, ActorPackCache actorPackCache, BfresCache bfresCache)
     {
         public void SetScene(Scene<SubLevelSceneContext> scene)
         {
@@ -18,6 +20,8 @@ namespace ToyStudio.GUI.LevelEditing
         }
 
         public IPopupModalHost ModalHost { get; private set; } = popupModalHost;
+
+        public BfresCache BfresCache => bfresCache;
 
         public ActorPack LoadActorPack(string gyaml)
         {

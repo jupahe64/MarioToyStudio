@@ -13,6 +13,7 @@ using ToyStudio.GUI.Util;
 using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
 using ToyStudio.GLRendering;
+using ToyStudio.GUI.SceneRendering;
 
 namespace ToyStudio.GUI.Widgets
 {
@@ -394,6 +395,10 @@ namespace ToyStudio.GUI.Widgets
 
             (IViewportDrawable obj, Vector3 hitPoint)? newHoveredObject = null;
 
+            _sceneRenderer.Render(gl, _size, _camera);
+
+            dl.AddImage((IntPtr)_sceneRenderer.OutputTexure.ID, _topLeft, _topLeft + _size);
+
             _subLevelScene.ForEach<IViewportDrawable>(obj =>
             {
                 Vector3? newHitPoint = null;
@@ -688,6 +693,7 @@ namespace ToyStudio.GUI.Widgets
         private readonly Scene<SubLevelSceneContext> _subLevelScene;
         private readonly SubLevelEditContext _editContext;
         private readonly GLTaskScheduler _glScheduler;
+        private readonly SubLevelSceneRenderer _sceneRenderer;
         private readonly Camera _camera;
         private bool _canStartNewTransformAction = true;
         public (IViewportDrawable obj, Vector3 hitPoint)? _draggedObject = null;
@@ -732,6 +738,7 @@ namespace ToyStudio.GUI.Widgets
             _subLevelScene = subLevelScene;
             _editContext = editContext;
             _glScheduler = glScheduler;
+            _sceneRenderer = new SubLevelSceneRenderer(glScheduler, subLevelScene);
             _camera = new Camera { Distance = 10, IsOrthographic = true };
 
             _subLevelScene.AfterRebuild += () =>

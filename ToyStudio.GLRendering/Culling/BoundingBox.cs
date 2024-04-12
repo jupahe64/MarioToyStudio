@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
 
-namespace ToyStudio.GLRendering.Culling
+namespace ToyStudio.GLRendering
 {
-    internal class BoundingBox
+    public class BoundingBox
     {
         public Matrix4x4 TranformMatrix { get; set; } = Matrix4x4.Identity;
 
@@ -55,18 +55,18 @@ namespace ToyStudio.GLRendering.Culling
 
         public BoundingBox(Vector3 min, Vector3 max)
         {
-            Min = min;
-            Max = max;
+            this.Min = min;
+            this.Max = max;
         }
 
         public void Include(BoundingBox box)
         {
-            min.X = MathF.Min(Min.X, box.Min.X);
-            min.Y = MathF.Min(Min.Y, box.Min.Y);
-            min.Z = MathF.Min(Min.Z, box.Min.Z);
-            max.X = MathF.Max(Max.X, box.Max.X);
-            max.Y = MathF.Max(Max.Y, box.Max.Y);
-            max.Z = MathF.Max(Max.Z, box.Max.Z);
+            this.min.X = MathF.Min(Min.X, box.Min.X);
+            this.min.Y = MathF.Min(Min.Y, box.Min.Y);
+            this.min.Z = MathF.Min(Min.Z, box.Min.Z);
+            this.max.X = MathF.Max(Max.X, box.Max.X);
+            this.max.Y = MathF.Max(Max.Y, box.Max.Y);
+            this.max.Z = MathF.Max(Max.Z, box.Max.Z);
         }
 
         public void Transform(Matrix4x4 matrix)

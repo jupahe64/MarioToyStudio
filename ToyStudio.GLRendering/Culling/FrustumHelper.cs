@@ -1,9 +1,9 @@
 ﻿using System.Numerics;
 using ToyStudio.GLRendering.Util;
 
-namespace ToyStudio.GLRendering.Culling
+namespace ToyStudio.GLRendering
 {
-    internal class FrustumHelper
+    public class FrustumHelper
     {
         public static Vector4[] ExtractFrustum(Matrix4x4 viewProjection, bool normalize = true)
         {

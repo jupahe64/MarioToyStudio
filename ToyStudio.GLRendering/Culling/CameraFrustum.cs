@@ -1,13 +1,13 @@
 ﻿using System.Numerics;
 
-namespace ToyStudio.GLRendering.Culling
+namespace ToyStudio.GLRendering
 {
     // https://www.flipcode.com/archives/Frustum_Culling.shtml
 
     /// <summary>
     /// Detects if objects are within the given camera's Frustum
     /// </summary>
-    internal class CameraFrustum
+    public class CameraFrustum
     {
         Vector4[] Planes;
         BoundingBox AABB = new BoundingBox();
@@ -17,13 +17,11 @@ namespace ToyStudio.GLRendering.Culling
         /// This must be called each time the camera is updated.
         /// </summary>
         /// <param name="camera"></param>
-        public void UpdateCamera(Camera camera)
-        {
+        public void UpdateCamera(Camera camera) {
             Planes = CreateCameraFrustum(camera.ViewMatrix * camera.ProjectionMatrix);
         }
 
-        public Vector4[] CreateCameraFrustum(Matrix4x4 m, bool normalize = true)
-        {
+        public Vector4[] CreateCameraFrustum(Matrix4x4 m, bool normalize = true) {
             Vector4[] planes = FrustumHelper.ExtractFrustum(m, normalize);
             AABB.Set(planes);
             return planes;

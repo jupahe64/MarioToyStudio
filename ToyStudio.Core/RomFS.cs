@@ -206,7 +206,7 @@ namespace ToyStudio.Core
         {
             bool TryLoadFrom(DirectoryInfo root, [NotNullWhen(true)] out Sarc? pack)
             {
-                var fileInfo = root.GetRelativeFileInfo("Pack", "Actor", packName+".pack.zs");
+                var fileInfo = root.GetRelativeFileInfo("Pack", "Actor", packName + ".pack.zs");
                 if (!fileInfo.Exists)
                 {
                     pack = null;
@@ -218,14 +218,31 @@ namespace ToyStudio.Core
                 ));
                 return true;
             }
-            
-            if (searchInModpath && ModDirectory is not null && 
+
+            if (searchInModpath && ModDirectory is not null &&
                 TryLoadFrom(ModDirectory, out pack))
                 return true;
             if (TryLoadFrom(BaseGameDirectory, out pack))
                 return true;
 
             pack = null;
+            return false;
+        }
+
+        public bool TryGetFileInfo(string[] filePath, [NotNullWhen(true)] out FileInfo? fileInfo)
+        {
+            if (ModDirectory is not null)
+            {
+                fileInfo = ResloveFilePath(ModDirectory, filePath);
+                if (fileInfo.Exists)
+                    return true;
+            }
+            
+            fileInfo = ResloveFilePath(BaseGameDirectory, filePath);
+            if (fileInfo.Exists)
+                return true;
+
+            fileInfo = null;
             return false;
         }
 
@@ -257,7 +274,18 @@ namespace ToyStudio.Core
                 .Select(x=>x[.. ^".pack.zs".Length]).ToList();
         }
 
-        public static Span<byte> Decompress(byte[] data) => s_zsDecompressor.Unwrap(data);
+        public static Span<byte> DecompressAsSpan(byte[] data) => s_zsDecompressor.Unwrap(data);
+        public static MemoryStream DecompressAsStream(Stream input)
+        {
+            var output = new MemoryStream();
+
+            using var decompressionStream = new DecompressionStream(input);
+            {
+                decompressionStream.CopyTo(output);
+                output.Position = 0;
+            }
+            return output;
+        }
 
         public void BatchSave(Action batchSaveAction)
         {
