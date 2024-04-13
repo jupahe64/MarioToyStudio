@@ -18,7 +18,9 @@ namespace ToyStudio.GLRendering.Bfres
             if (File.Exists(path))
             {
                 byte[] surface = File.ReadAllBytes(path);
-                var format = tex.IsSrgb ? SurfaceFormat.BC7_SRGB : SurfaceFormat.BC7_UNORM;
+                var format = tex.IsSrgb ? 
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.SRGB) : 
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.Unorm);
 
                 tex.Bind();
                 var internalFormat = GLFormatHelper.ConvertCompressedFormat(format, true);

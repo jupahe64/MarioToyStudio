@@ -12,8 +12,9 @@ namespace Fushigi.Bfres.Texture
 
         public static void SaveAstc(string filePath, SurfaceFormat format, uint width, uint height, byte[] data)
         {
-            byte blockDimX = (byte)TegraX1Swizzle.GetBlockWidth(format);
-            byte blockDimY = (byte)TegraX1Swizzle.GetBlockHeight(format);
+            var formatInfo = TegraX1Swizzle.GetFormatInfo(format);
+            byte blockDimX = (byte)formatInfo.BlockWidth;
+            byte blockDimY = (byte)formatInfo.BlockHeight;
 
             SaveAstc(filePath, blockDimX, blockDimY, width, height, data);
         }

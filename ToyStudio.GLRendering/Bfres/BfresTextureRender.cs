@@ -59,7 +59,7 @@ namespace ToyStudio.GLRendering.Bfres
 
             void PushImageData(byte[] surface, int mipLevel, int depthLevel)
             {
-                if (texture.IsBCNCompressed())
+                if (texture.IsBCN)
                 {
                     var internalFormat = GLFormatHelper.ConvertCompressedFormat(texture.Format, true);
                     GLTextureDataLoader.LoadCompressedImage(_gl, this.Target, Width, Height, (uint)depthLevel, internalFormat, surface, mipLevel);
@@ -188,14 +188,18 @@ namespace ToyStudio.GLRendering.Bfres
 
                 if (BfresTextureCache.Enable) //cache uses BC7
                 {
-                    var format = useSrgb && IsSrgb ? SurfaceFormat.BC7_SRGB : SurfaceFormat.BC7_UNORM;
+                    var format = useSrgb && IsSrgb ? 
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.SRGB) : 
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.Unorm);
                     var formatInfo = GLFormatHelper.ConvertCompressedFormat(format, true);
                     GLTextureDataLoader.LoadCompressedImage(_gl, this.Target, Width, Height, ArrayCount, formatInfo, Decoder.Result, 0);
                     this.InternalFormat = formatInfo;
                 }
                 else
                 {
-                    var format = useSrgb && IsSrgb ? SurfaceFormat.R8_G8_B8_A8_SRGB : SurfaceFormat.R8_G8_B8_A8_UNORM;
+                    var format = useSrgb && IsSrgb ? 
+                        new SurfaceFormat(GfxChannelFormat.R8G8B8A8, GfxTypeFormat.SRGB) : 
+                        new SurfaceFormat(GfxChannelFormat.R8G8B8A8, GfxTypeFormat.Unorm);
 
                     var formatInfo = GLFormatHelper.ConvertPixelFormat(format);
                     GLTextureDataLoader.LoadImage(_gl, this.Target, Width, Height, ArrayCount, formatInfo, Decoder.Result, 0);

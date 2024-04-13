@@ -3,11 +3,33 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Fushigi.Bfres
 {
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public readonly struct SurfaceFormat
+    {
+        public readonly GfxTypeFormat Type;
+        public readonly GfxChannelFormat ChannelFormat;
+
+        public SurfaceFormat(GfxChannelFormat channelFormat, GfxTypeFormat type)
+        {
+            ChannelFormat = channelFormat;
+            Type = type;
+        }
+
+        public bool IsAstc => IsBetween(ChannelFormat, GfxChannelFormat.ASTC_4x4, GfxChannelFormat.ASTC_12x12);
+        public bool IsBCN => IsBetween(ChannelFormat, GfxChannelFormat.BC1, GfxChannelFormat.BC7U);
+        public bool IsSRGB => Type == GfxTypeFormat.SRGB;
+
+        private static bool IsBetween(GfxChannelFormat value, GfxChannelFormat lower, GfxChannelFormat upper) 
+            => lower <= value && value <= upper;
+    }
+
     public class BntxTexture : IResData
     {
         /// <summary>
@@ -118,7 +140,7 @@ namespace Fushigi.Bfres
         /// <summary>
         /// 
         /// </summary>
-        public ulong[] MipOffsets { get; set; } = new ulong[0];
+        public ulong[] MipOffsets { get; set; } = [];
 
         /// <summary>
         /// 
@@ -140,11 +162,11 @@ namespace Fushigi.Bfres
         /// </summary>
         public ChannelType ChannelAlpha { get; set; }
 
-        public bool IsAstc => this.Format.ToString().ToLower().Contains("astc");
+        public bool IsAstc => this.Format.IsAstc;
 
-        public bool IsSrgb => this.Format.ToString().ToLower().Contains("srgb");
+        public bool IsSrgb => this.Format.IsAstc;
 
-        public bool IsBCNCompressed() => this.Format.ToString().StartsWith("BC");
+        public bool IsBCN => this.Format.IsBCN;
 
         TextureHeader Header;
 
@@ -180,9 +202,9 @@ namespace Fushigi.Bfres
             return TegraX1Swizzle.GetSurface(this, surface_level, mip_level);
         }
 
-        public uint GetBlockWidth() => TegraX1Swizzle.GetBlockWidth(this.Format);
-        public uint GetBlockHeight() => TegraX1Swizzle.GetBlockHeight(this.Format);
-        public uint GetBytesPerPixel() => TegraX1Swizzle.GetBytesPerPixel(this.Format);
+        public uint GetBlockWidth() => TegraX1Swizzle.GetFormatInfo(this.Format).BlockWidth;
+        public uint GetBlockHeight() => TegraX1Swizzle.GetFormatInfo(this.Format).BlockHeight;
+        public uint GetBytesPerPixel() => TegraX1Swizzle.GetFormatInfo(this.Format).BytesPerPixel;
 
         public Span<byte> DecodeAstc(int array_level = 0, int mip_level = 0)
         {

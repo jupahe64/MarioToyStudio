@@ -1,5 +1,7 @@
 ﻿using Fushigi.Bfres;
 using Silk.NET.OpenGL;
+using static Fushigi.Bfres.GfxChannelFormat;
+using static Fushigi.Bfres.GfxTypeFormat;
 
 namespace ToyStudio.GLRendering.Bfres
 {
@@ -7,10 +9,10 @@ namespace ToyStudio.GLRendering.Bfres
     {
         public static PixelFormatInfo ConvertPixelFormat(SurfaceFormat format)
         {
-            if (!PixelFormatList.ContainsKey(format))
-                return PixelFormatList[SurfaceFormat.R8_G8_B8_A8_UNORM];
+            if (!PixelFormatList.TryGetValue(format, out PixelFormatInfo? value))
+                return PixelFormatList[new SurfaceFormat(R8G8B8A8, Unorm)];
 
-            return PixelFormatList[format];
+            return value;
         }
 
         public static InternalFormat ConvertCompressedFormat(SurfaceFormat format, bool useSRGB)
@@ -31,36 +33,36 @@ namespace ToyStudio.GLRendering.Bfres
 
         static readonly Dictionary<SurfaceFormat, PixelFormatInfo> PixelFormatList = new Dictionary<SurfaceFormat, PixelFormatInfo>
         {
-            { SurfaceFormat.R11_G11_B10_UNORM, new PixelFormatInfo(InternalFormat.R11fG11fB10fExt, PixelFormat.Rgb, PixelType.UnsignedInt10f11f11fRev) },
-            { SurfaceFormat.R16_G16_B16_A16_UNORM, new PixelFormatInfo(InternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat) },
+            { new SurfaceFormat(R11G11B10F, Unorm), new PixelFormatInfo(InternalFormat.R11fG11fB10fExt, PixelFormat.Rgb, PixelType.UnsignedInt10f11f11fRev) },
+            { new SurfaceFormat(R16G16B16A16, Unorm), new PixelFormatInfo(InternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat) },
 
-            { SurfaceFormat.R8_G8_B8_A8_UNORM, new PixelFormatInfo(InternalFormat.Rgba, PixelFormat.Rgba, PixelType.UnsignedByte) },
-            { SurfaceFormat.R8_G8_B8_A8_SRGB, new PixelFormatInfo(InternalFormat.SrgbAlpha, PixelFormat.Rgba, PixelType.UnsignedByte) },
-            { SurfaceFormat.R32_G32_B32_A32_UNORM, new PixelFormatInfo(InternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float) },
-            { SurfaceFormat.R8_UNORM, new PixelFormatInfo(InternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte) },
-            { SurfaceFormat.R8_G8_UNORM, new PixelFormatInfo(InternalFormat.RG8, PixelFormat.RG, PixelType.UnsignedByte) },
-            { SurfaceFormat.R8_G8_SNORM, new PixelFormatInfo(InternalFormat.RG8SNorm, PixelFormat.RG, PixelType.Byte) },
-            { SurfaceFormat.R16_UNORM, new PixelFormatInfo(InternalFormat.RG16f, PixelFormat.RG, PixelType.HalfFloat) },
-            { SurfaceFormat.B5_G6_R5_UNORM, new PixelFormatInfo( InternalFormat.Rgb565, PixelFormat.Rgb, PixelType.UnsignedShort565Rev) },
-            { SurfaceFormat.R9_G9_B9_E5_UNORM, new PixelFormatInfo( InternalFormat.Rgb9E5, PixelFormat.Rgb, PixelType.UnsignedInt5999Rev) },
+            { new SurfaceFormat(R8G8B8A8, Unorm), new PixelFormatInfo(InternalFormat.Rgba, PixelFormat.Rgba, PixelType.UnsignedByte) },
+            { new SurfaceFormat(R8G8B8A8, SRGB), new PixelFormatInfo(InternalFormat.SrgbAlpha, PixelFormat.Rgba, PixelType.UnsignedByte) },
+            { new SurfaceFormat(R32G32B32A32, Unorm), new PixelFormatInfo(InternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float) },
+            { new SurfaceFormat(R8, Unorm), new PixelFormatInfo(InternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte) },
+            { new SurfaceFormat(R8G8, Unorm), new PixelFormatInfo(InternalFormat.RG8, PixelFormat.RG, PixelType.UnsignedByte) },
+            { new SurfaceFormat(R8G8, Snorm), new PixelFormatInfo(InternalFormat.RG8SNorm, PixelFormat.RG, PixelType.Byte) },
+            { new SurfaceFormat(R16, Unorm), new PixelFormatInfo(InternalFormat.RG16f, PixelFormat.RG, PixelType.HalfFloat) },
+            { new SurfaceFormat(B5G6R5, Unorm), new PixelFormatInfo( InternalFormat.Rgb565, PixelFormat.Rgb, PixelType.UnsignedShort565Rev) },
+            { new SurfaceFormat(R9G9B9E5F, Unorm), new PixelFormatInfo( InternalFormat.Rgb9E5, PixelFormat.Rgb, PixelType.UnsignedInt5999Rev) },
         };
 
         static readonly Dictionary<SurfaceFormat, InternalFormat> InternalFormatList = new Dictionary<SurfaceFormat, InternalFormat>
         {
-            { SurfaceFormat.BC1_UNORM, InternalFormat.CompressedRgbaS3TCDxt1Ext },
-            { SurfaceFormat.BC1_SRGB, InternalFormat.CompressedSrgbAlphaS3TCDxt1Ext },
-            { SurfaceFormat.BC2_UNORM, InternalFormat.CompressedRgbaS3TCDxt3Ext },
-            { SurfaceFormat.BC2_SRGB, InternalFormat.CompressedSrgbAlphaS3TCDxt3Ext },
-            { SurfaceFormat.BC3_UNORM, InternalFormat.CompressedRgbaS3TCDxt5Ext },
-            { SurfaceFormat.BC3_SRGB, InternalFormat.CompressedSrgbAlphaS3TCDxt5Ext },
-            { SurfaceFormat.BC4_UNORM, InternalFormat.CompressedRedRgtc1 },
-            { SurfaceFormat.BC4_SNORM, InternalFormat.CompressedSignedRedRgtc1 },
-            { SurfaceFormat.BC5_UNORM, InternalFormat.CompressedRGRgtc2 },
-            { SurfaceFormat.BC5_SNORM, InternalFormat.CompressedSignedRGRgtc2 },
-            { SurfaceFormat.BC6_UFLOAT, InternalFormat.CompressedRgbBptcUnsignedFloat },
-            { SurfaceFormat.BC6_FLOAT, InternalFormat.CompressedRgbBptcSignedFloat },
-            { SurfaceFormat.BC7_UNORM, InternalFormat.CompressedRgbaBptcUnorm },
-            { SurfaceFormat.BC7_SRGB, InternalFormat.CompressedSrgbAlphaBptcUnorm },
+            { new SurfaceFormat(BC1, Unorm), InternalFormat.CompressedRgbaS3TCDxt1Ext },
+            { new SurfaceFormat(BC1, SRGB), InternalFormat.CompressedSrgbAlphaS3TCDxt1Ext },
+            { new SurfaceFormat(BC2, Unorm), InternalFormat.CompressedRgbaS3TCDxt3Ext },
+            { new SurfaceFormat(BC2, SRGB), InternalFormat.CompressedSrgbAlphaS3TCDxt3Ext },
+            { new SurfaceFormat(BC3, Unorm), InternalFormat.CompressedRgbaS3TCDxt5Ext },
+            { new SurfaceFormat(BC3, SRGB), InternalFormat.CompressedSrgbAlphaS3TCDxt5Ext },
+            { new SurfaceFormat(BC4, Unorm), InternalFormat.CompressedRedRgtc1 },
+            { new SurfaceFormat(BC4, Snorm), InternalFormat.CompressedSignedRedRgtc1 },
+            { new SurfaceFormat(BC5, Unorm), InternalFormat.CompressedRGRgtc2 },
+            { new SurfaceFormat(BC5, Snorm), InternalFormat.CompressedSignedRGRgtc2 },
+            { new SurfaceFormat(BC6H, UFloat), InternalFormat.CompressedRgbBptcUnsignedFloat },
+            { new SurfaceFormat(BC6H, Float), InternalFormat.CompressedRgbBptcSignedFloat },
+            { new SurfaceFormat(BC7U, Unorm), InternalFormat.CompressedRgbaBptcUnorm },
+            { new SurfaceFormat(BC7U, SRGB), InternalFormat.CompressedSrgbAlphaBptcUnorm },
         };
 
         static readonly Dictionary<InternalFormat, int> blockSizeByFormat = new Dictionary<InternalFormat, int>
