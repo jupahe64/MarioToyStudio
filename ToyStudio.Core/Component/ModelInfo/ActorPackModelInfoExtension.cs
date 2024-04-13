@@ -28,7 +28,7 @@ namespace ToyStudio.Core.Component.ModelInfo
                 return true;
             }
 
-            var name = actorPack.GetActorInfoValue(x => x.Components?.BlackboardRefName);
+            var name = actorPack.GetActorInfoValue(x => x.Components?.ModelInfoRefName);
             if (name == null)
                 return false;
 
