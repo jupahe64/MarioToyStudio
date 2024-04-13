@@ -48,6 +48,7 @@ namespace ToyStudio.GUI.SceneRendering
             scene.ForEach<LevelActorSceneObj>(actorObj =>
             {
                 var (bfresRender, modelName) = actorObj.GetModelBfresRender(glScheduler);
+                var textureArc = actorObj.GetTextureArcRender(glScheduler);
 
                 if (bfresRender is null)
                     return;
@@ -59,7 +60,17 @@ namespace ToyStudio.GUI.SceneRendering
                     Matrix4x4.CreateFromQuaternion(transform.Orientation) *
                     Matrix4x4.CreateTranslation(transform.Position);
 
-                bfresRender.Models[modelName].Render(gl, bfresRender, mtx, camera);
+                //TODO find a better solution
+                if (textureArc is not null)
+                    bfresRender.Textures = textureArc.Textures;
+
+                var mdl = bfresRender.Models[modelName];
+
+                mdl.Meshes.RemoveAll(mesh => 
+                    mesh.MaterialRender.Name.EndsWith("Depth") || 
+                    mesh.MaterialRender.Name.EndsWith("Shadow") || 
+                    mesh.MaterialRender.Name.EndsWith("AO"));
+                mdl.Render(gl, bfresRender, mtx, camera);
             });
 
             //Reset back to defaults
