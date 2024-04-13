@@ -232,12 +232,11 @@ namespace ToyStudio.GLRendering.Bfres
                         position = Vector3.Transform(position, model.Skeleton.Bones[bone_index].WorldMatrix);
                     }
 
-                    //TODO figure out why this is crashing
-                    //if (shape.SkinCount == 1 && bone_indices.Length > 0)
-                    //{
-                    //    var bone_index = (int)model.Skeleton.MatrixToBoneList[(int)bone_indices[index].X];
-                    //    position = Vector3.Transform(position, model.Skeleton.Bones[bone_index].WorldMatrix);
-                    //}
+                    if (shape.SkinCount == 1 && bone_indices.Length > 0)
+                    {
+                        var bone_index = (int)model.Skeleton.MatrixToBoneList[(int)bone_indices[index].X];
+                        position = Vector3.Transform(position, model.Skeleton.Bones[bone_index].WorldMatrix);
+                    }
 
                     min.X = MathF.Min(min.X, position.X);
                     min.Y = MathF.Min(min.Y, position.Y);
