@@ -58,6 +58,7 @@ namespace ToyStudio.GLRendering.Bfres
             Shader.Use();
             Shader.SetUniform("mtxCam", camera.ViewProjectionMatrix);
             Shader.SetUniform("mtxMdl", transform);
+            Shader.SetUniform("difLightDirection", Vector3.Transform(Vector3.UnitZ, camera.Rotation));
             Shader.SetUniform("hasAlbedoMap", 0);
             Shader.SetUniform("hasNormalMap", 0);
             Shader.SetUniform("hasEmissionMap", 0);
@@ -94,8 +95,8 @@ namespace ToyStudio.GLRendering.Bfres
                 var texName = this.Material.Textures[texIndex];
                 Debug.Assert(this.Material.Samplers.GetKey(texIndex) == matSampler);
 
-                    if (!renderer.TryGetTexture(texName, out GLTexture? tex))
-                        tex = GLImageCache.GetDefaultTexture(gl);
+                if (!renderer.TryGetTexture(texName, out GLTexture? tex))
+                    tex = GLImageCache.GetDefaultTexture(gl);
 
 
                 //if (tex.Target == TextureTarget.Texture2DArray)
@@ -105,10 +106,10 @@ namespace ToyStudio.GLRendering.Bfres
                 //}
 
                 Shader.SetUniform(samplerUsage, 1);
-                        Shader.SetTexture(uniform, tex, unit_slot);
-                        unit_slot++;
+                Shader.SetTexture(uniform, tex, unit_slot);
+                unit_slot++;
                 return true;
-                    }
+            }
 
             if (!TrySetSampler("_ao0", "albedo_texture", "hasAlbedoMap"))
                 TrySetSampler("_a0", "albedo_texture", "hasAlbedoMap");
