@@ -86,7 +86,7 @@ namespace ToyStudio.GLRendering.Bfres
             }
 
             int unit_slot = 2;
-            bool TrySetSampler(string fragSampler, string uniform, string samplerUsage)
+            bool TrySetSampler(string fragSampler, string uniform, string samplerUsage, bool isNonColor = false)
             {
                 if (!this.Material.ShaderAssign.SamplerAssign.TryGetValue(fragSampler, out var matSampler))
                     return false;
@@ -96,7 +96,12 @@ namespace ToyStudio.GLRendering.Bfres
                 Debug.Assert(this.Material.Samplers.GetKey(texIndex) == matSampler);
 
                 if (!renderer.TryGetTexture(texName, out GLTexture? tex))
+                {
+                    if (isNonColor)
+                        return false;
+
                     tex = GLImageCache.GetDefaultTexture(gl);
+                }
 
 
                 //if (tex.Target == TextureTarget.Texture2DArray)
@@ -114,7 +119,7 @@ namespace ToyStudio.GLRendering.Bfres
             if (!TrySetSampler("_ao0", "albedo_texture", "hasAlbedoMap"))
                 TrySetSampler("_a0", "albedo_texture", "hasAlbedoMap");
 
-            TrySetSampler("_n0", "normal_texture", "hasNormalMap");
+            TrySetSampler("_n0", "normal_texture", "hasNormalMap", isNonColor: true);
 
             gl.ActiveTexture(TextureUnit.Texture0);
             gl.BindTexture(TextureTarget.Texture2D, 0);
