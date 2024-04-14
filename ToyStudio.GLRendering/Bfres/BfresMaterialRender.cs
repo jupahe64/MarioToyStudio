@@ -106,7 +106,9 @@ namespace ToyStudio.GLRendering.Bfres
 
                 if (!string.IsNullOrEmpty(uniform))
                 {
-                    var tex = TryBindTexture(gl, renderer, texName);
+                    if (!renderer.TryGetTexture(texName, out GLTexture? tex))
+                        tex = GLImageCache.GetDefaultTexture(gl);
+
                     if (tex != null)
                     {
                     /*    if (tex.Target == TextureTarget.Texture2DArray)
@@ -124,25 +126,6 @@ namespace ToyStudio.GLRendering.Bfres
             gl.ActiveTexture(TextureUnit.Texture0);
             gl.BindTexture(TextureTarget.Texture2D, 0);
             gl.BindTexture(TextureTarget.Texture2DArray, 0);
-        }
-
-        private GLTexture TryBindTexture(GL gl, BfresRender renderer, string texName)
-        {
-            if (renderer.Textures.ContainsKey(texName))
-            {
-                var texture = renderer.Textures[texName];
-
-                if (!(texture is BfresTextureRender))
-                    return texture; //GL texture generated at runtime
-
-                ((BfresTextureRender)texture).CheckState();
-                if (((BfresTextureRender)texture).TextureState == BfresTextureRender.State.Finished)
-                {
-                    return texture;
-                }
-
-            }
-            return GLImageCache.GetDefaultTexture(gl);
         }
     }
 }

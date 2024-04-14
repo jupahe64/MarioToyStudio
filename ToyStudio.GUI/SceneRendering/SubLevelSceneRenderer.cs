@@ -60,12 +60,12 @@ namespace ToyStudio.GUI.SceneRendering
                     Matrix4x4.CreateFromQuaternion(transform.Orientation) *
                     Matrix4x4.CreateTranslation(transform.Position);
 
-                //TODO find a better solution
                 if (textureArc is not null)
-                    bfresRender.Textures = textureArc.Textures;
+                    bfresRender.TextureArc = textureArc;
 
                 var mdl = bfresRender.Models[modelName];
 
+                //TODO find a better solution
                 mdl.Meshes.RemoveAll(mesh => 
                     mesh.MaterialRender.Name.EndsWith("Depth") || 
                     mesh.MaterialRender.Name.EndsWith("Shadow") || 

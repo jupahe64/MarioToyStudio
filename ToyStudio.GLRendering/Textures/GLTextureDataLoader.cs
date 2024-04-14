@@ -72,7 +72,7 @@ namespace ToyStudio.GLRendering
 
         static unsafe void LoadCompressedImage2D(GL gl, int mipLevel, uint width, uint height, InternalFormat format, byte[] data)
         {
-            uint imageSize = GLFormatHelper.CalculateImageSize(width, height, format);
+            uint imageSize = GLFormatHelper.CalculateImageSize(width, height, format, mipLevel);
 
             fixed (byte* ptr = data)
             {
@@ -83,7 +83,7 @@ namespace ToyStudio.GLRendering
 
         static unsafe void LoadCompressedImageCubemap2D(GL gl, int mipLevel, uint array, uint width, uint height, InternalFormat format, byte[] data)
         {
-            uint imageSize = GLFormatHelper.CalculateImageSize(width, height, format);
+            uint imageSize = GLFormatHelper.CalculateImageSize(width, height, format,  mipLevel);
 
             fixed (byte* ptr = data)
             {
@@ -94,7 +94,7 @@ namespace ToyStudio.GLRendering
         
         static unsafe void LoadCompressedImage3D(GL gl, TextureTarget target, int mipLevel, uint depth, uint width, uint height, InternalFormat format, byte[] data)
         {
-            uint imageSize = GLFormatHelper.CalculateImageSize(width, height, format);
+            uint imageSize = GLFormatHelper.CalculateImageSize(width, height, format, mipLevel);
 
             fixed (byte* ptr = data)
             {

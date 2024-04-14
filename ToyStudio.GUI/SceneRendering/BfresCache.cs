@@ -36,7 +36,7 @@ namespace ToyStudio.GUI.SceneRendering
             using var fileStream = fileInfo.OpenRead();
             using var stream = await Task.Run<Stream>(() => RomFS.DecompressAsStream(fileStream));
 
-            BfresRender render = await glScheduler.Schedule(gl => new BfresRender(gl, stream));
+            BfresRender render = await BfresRender.Create(glScheduler, stream);
             return render;
         }
     }

@@ -1,4 +1,0 @@
-﻿namespace ToyStudio.GLRendering.Bfres
-{
-
-}

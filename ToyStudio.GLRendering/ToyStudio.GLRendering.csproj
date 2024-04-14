@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\EditorToolkit\EditorToolkit.csproj" />
     <ProjectReference Include="..\Fushigi.Bfres\Fushigi.Bfres.csproj" />
   </ItemGroup>
 

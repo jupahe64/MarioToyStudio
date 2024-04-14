@@ -1,5 +1,9 @@
-﻿using Fushigi.Bfres;
+﻿using EditorToolkit.OpenGL;
+using Fushigi.Bfres;
 using Silk.NET.OpenGL;
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Numerics;
 using ToyStudio.GLRendering.Util;
 
@@ -7,17 +11,23 @@ namespace ToyStudio.GLRendering.Bfres
 {
     public class BfresRender
     {
-        public Dictionary<string, GLTexture> Textures = new Dictionary<string, GLTexture>();
-        public Dictionary<string, BfresModel> Models = new Dictionary<string, BfresModel>();
+        public BfresRender? TextureArc;
 
-        public BfresRender(GL gl, string filePath)
+        public Dictionary<string, GLTexture> AdditionalTextures = [];
+        public Dictionary<string, BfresModel> Models = [];
+
+        private readonly ConcurrentDictionary<string, BfresTextureRender> _textures = [];
+
+        public static async Task<BfresRender> Create(GLTaskScheduler glScheduler, Stream stream)
         {
-            Init(gl, File.OpenRead(filePath));
+            var bfresRender = new BfresRender();
+            await bfresRender.Load(glScheduler, stream);
+            return bfresRender;
         }
 
-        public BfresRender(GL gl, Stream stream)
+        private BfresRender()
         {
-            Init(gl, stream);
+            
         }
 
         //Cached
@@ -25,17 +35,46 @@ namespace ToyStudio.GLRendering.Bfres
         {
             foreach (var model in render.Models)
                 Models.Add(model.Key, new BfresModel(model.Value));
-            foreach (var texture in render.Textures)
-                Textures.Add(texture.Key, texture.Value);
+
+            _textures = new ConcurrentDictionary<string, BfresTextureRender>((render._textures));
         }
 
-        private void Init(GL gl, Stream stream)
+        private async Task Load(GLTaskScheduler glScheduler, Stream stream)
         {
-            BfresFile file = new BfresFile(stream);
+            var file = await Task.Run(() => new BfresFile(stream));
+
             foreach (var model in file.Models.Values)
-                Models.Add(model.Name, new BfresModel(gl, model));
+                Models.Add(model.Name, await glScheduler.Schedule(gl => new BfresModel(gl, model)));
             foreach (var texture in file.TryGetTextureBinary().Textures)
-                Textures.Add(texture.Key, new BfresTextureRender(gl, texture.Value));
+            {
+                //load textures in the background
+                _ = Task.Run(async () =>
+                {
+                    var textureRender = await BfresTextureRender.Create(glScheduler, texture.Value);
+                    _textures[texture.Key] = textureRender;
+                });
+            }
+        }
+
+        public bool TryGetTexture(string name, 
+            [NotNullWhen(true)] out GLTexture? texture)
+        {
+            if (TextureArc is not null && TextureArc.TryGetTexture(name, out texture))
+                return true;
+
+            if (AdditionalTextures.TryGetValue(name, out var glTexture))
+            {
+                texture = glTexture;
+                return true;
+            }
+            if (_textures.TryGetValue(name, out var bfresTexture))
+            {
+                texture = bfresTexture;
+                return true;
+            }
+
+            texture = null;
+            return false;
         }
 
         public void Render(GL gl, Matrix4x4 transform, Camera camera)
@@ -49,7 +88,10 @@ namespace ToyStudio.GLRendering.Bfres
             foreach (var model in Models.Values)
                 model.Dispose();
 
-            foreach (var tex in Textures.Values)
+            foreach (var tex in _textures.Values)
+                tex.Dispose();
+
+            foreach(var tex in AdditionalTextures.Values)
                 tex.Dispose();
         }
 

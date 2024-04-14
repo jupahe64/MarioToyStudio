@@ -1,5 +1,6 @@
 ﻿using Fushigi.Bfres;
 using Silk.NET.OpenGL;
+using System.Diagnostics;
 using static Fushigi.Bfres.GfxChannelFormat;
 using static Fushigi.Bfres.GfxTypeFormat;
 
@@ -15,13 +16,17 @@ namespace ToyStudio.GLRendering.Bfres
             return value;
         }
 
-        public static InternalFormat ConvertCompressedFormat(SurfaceFormat format, bool useSRGB)
+        public static InternalFormat ConvertCompressedFormat(SurfaceFormat format)
         {
             return InternalFormatList[format];
         }
 
-        public static uint CalculateImageSize(uint width, uint height, InternalFormat format)
+        public static uint CalculateImageSize(uint width, uint height, InternalFormat format, int mipLevel)
         {
+            Debug.Assert(mipLevel >= 0);
+            width = Math.Max(0, width >> mipLevel);
+            height = Math.Max(0, height >> mipLevel);
+
             if (format == InternalFormat.Rgba8)
                 return width * height * 4;
 

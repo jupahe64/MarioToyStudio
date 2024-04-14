@@ -1,35 +1,93 @@
-﻿using Fushigi.Bfres;
+﻿using EditorToolkit.OpenGL;
+using Fushigi.Bfres;
 using Fushigi.Bfres.Texture;
 using Silk.NET.OpenGL;
+using Silk.NET.SDL;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ToyStudio.GLRendering.Bfres
 {
     public class BfresTextureRender : GLTexture
     {
-        public State TextureState = State.Loading;
+        public string Name { get; }
 
-        public string Name;
+        public bool IsSrgb { get; }
+        public bool IsBCN { get; }
+        public uint ArrayCount { get; }
+        public ushort MipCount { get; }
 
-        private Task<byte[]> Decoder;
-
-        public bool IsSrgb = false;
-
-        private uint ArrayCount = 1;
-
-        public BfresTextureRender(GL gl, BntxTexture texture) : base(gl)
+        public static async Task<BfresTextureRender> Create(GLTaskScheduler glScheduler,
+            BntxTexture texture)
         {
-            Load(texture);
+            SurfaceFormat dataFormat;
+            byte[][] deswizzledMipLevels;
+
+            if (texture.IsAstc)
+            {
+                var data = new byte[texture.TextureData.Sum(x => x.Length)];
+                var ptr = 0;
+                foreach (var mem in texture.TextureData)
+                {
+                    mem.CopyTo(data.AsMemory(ptr));
+                    ptr += mem.Length;
+                }
+
+                var cached = await AstcTextureCache.TryLoadData(data);
+
+                if (cached is not null)
+                {
+                    deswizzledMipLevels = [cached];
+                    dataFormat = texture.IsSrgb ?
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.SRGB) : 
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.Unorm);
+                }
+                else if (AstcTextureCache.IsEnabled)
+                {
+                    var reEncodedData = await Task.Run(() => DeswizzleAndDecodeAstc(texture, reEncodeAsBC7: true));
+                    await AstcTextureCache.SaveData(data, reEncodedData);
+                    deswizzledMipLevels = [reEncodedData];
+                    dataFormat = texture.IsSrgb ?
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.SRGB) :
+                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.Unorm);
+                }
+                else
+                {
+                    var decodedData = await Task.Run(() => DeswizzleAndDecodeAstc(texture));
+                    deswizzledMipLevels = [decodedData];
+                    dataFormat = texture.IsSrgb ?
+                        new SurfaceFormat(GfxChannelFormat.R8G8B8A8, GfxTypeFormat.SRGB) :
+                        new SurfaceFormat(GfxChannelFormat.R8G8B8A8, GfxTypeFormat.Unorm);
+                }
+            }
+            else
+            {
+                dataFormat = texture.Format;
+
+                deswizzledMipLevels = Enumerable.Range(0, texture.MipCount)
+                    .Select(x => GetDeswizzledTextureBuffer(texture, x))
+                    .ToArray();
+            }
+
+            return await glScheduler.Schedule(gl =>
+            {
+                var render = new BfresTextureRender(gl, texture);
+                Span<int> channelSwizzles =
+                [
+                        GetSwizzle(texture.ChannelRed),
+                        GetSwizzle(texture.ChannelGreen),
+                        GetSwizzle(texture.ChannelBlue),
+                        GetSwizzle(texture.ChannelAlpha),
+                ];
+                render.Upload(gl, deswizzledMipLevels, dataFormat, channelSwizzles);
+                return render;
+            });
         }
 
-
-        public BfresTextureRender(GL gl) : base(gl)
-        {
-        }
-
-        public void Load(BntxTexture texture)
+        private BfresTextureRender(GL gl, BntxTexture texture) : base(gl)
         {
             this.Target = TextureTarget.Texture2D;
             this.IsSrgb = texture.IsSrgb;
+            this.IsBCN = texture.IsBCN;
             this.Name = texture.Name;
 
             if (texture.SurfaceDim == SurfaceDim.Dim2DArray)
@@ -38,7 +96,7 @@ namespace ToyStudio.GLRendering.Bfres
             this.Width = texture.Width;
             this.Height = texture.Height;
             this.ArrayCount = texture.ArrayCount;
-            this.Bind();
+            this.MipCount = texture.MipCount;
 
             //Default to linear min/mag filters
             this.MagFilter = TextureMagFilter.Linear;
@@ -46,107 +104,69 @@ namespace ToyStudio.GLRendering.Bfres
             //Repeat by default
             this.WrapT = TextureWrapMode.Repeat;
             this.WrapR = TextureWrapMode.Repeat;
+        }
+
+        private void Upload(GL gl, byte[][] deswizzledMips, SurfaceFormat dataFormat, 
+            ReadOnlySpan<int> channelSwizzles)
+        {
+            
+            this.Bind();
+
             this.UpdateParameters();
+            gl.TexParameter(Target, TextureParameterName.TextureSwizzleRgba, channelSwizzles);
 
-            int[] mask = new int[4]
+            for (int mipLevel = 0; mipLevel < deswizzledMips.Length; mipLevel++)
             {
-                    GetSwizzle(texture.ChannelRed),
-                    GetSwizzle(texture.ChannelGreen),
-                    GetSwizzle(texture.ChannelBlue),
-                    GetSwizzle(texture.ChannelAlpha),
-            };
-            _gl.TexParameter(Target, TextureParameterName.TextureSwizzleRgba, mask);
-
-            void PushImageData(byte[] surface, int mipLevel, int depthLevel)
-            {
-                if (texture.IsBCN)
+                var surface = deswizzledMips[mipLevel];
+                if (dataFormat.IsBCN)
                 {
-                    var internalFormat = GLFormatHelper.ConvertCompressedFormat(texture.Format, true);
-                    GLTextureDataLoader.LoadCompressedImage(_gl, this.Target, Width, Height, (uint)depthLevel, internalFormat, surface, mipLevel);
+                    var internalFormat = GLFormatHelper.ConvertCompressedFormat(dataFormat);
+                    GLTextureDataLoader.LoadCompressedImage(gl, Target, Width, Height, ArrayCount, internalFormat, surface, mipLevel);
 
                     this.InternalFormat = internalFormat;
                 }
                 else
                 {
-                    var formatInfo = GLFormatHelper.ConvertPixelFormat(texture.Format);
-                    GLTextureDataLoader.LoadImage(_gl, this.Target, Width, Height, (uint)depthLevel, formatInfo, surface, mipLevel);
+                    var formatInfo = GLFormatHelper.ConvertPixelFormat(dataFormat);
+                    GLTextureDataLoader.LoadImage(gl, Target, Width, Height, ArrayCount, formatInfo, surface, mipLevel);
 
                     this.InternalFormat = formatInfo.InternalFormat;
                     this.PixelType = formatInfo.Type;
                     this.PixelFormat = formatInfo.Format;
                 }
-
-                TextureState = State.Finished;
             }
 
-            int numMips = 1;
-            for (int mipLevel = 0; mipLevel < numMips; mipLevel++)
-            {
-                if (this.Target == TextureTarget.TextureCubeMap)
-                {
-                    for (int j = 0; j < texture.ArrayCount; j++)
-                    {
-                        var data = texture.DeswizzleSurface(j, mipLevel);
-                        PushImageData(data, mipLevel, j);
-                    }
-                }
-                else
-                {
-                    if (texture.IsAstc)
-                    {
-                        //Full data to hash check cache
-                        var data = texture.TextureData.SelectMany(x => 
-                                    x.ToArray()
-                                    ).ToArray();
+            if (MipCount > deswizzledMips.Length)
+                gl.GenerateMipmap(this.Target);
 
-                        if (!BfresTextureCache.LoadCache(this, data, ArrayCount, 0))
-                        {
-                            Decoder = Task.Run(() =>
-                            {
-                                List<byte> levels = new List<byte>();
-                                for (int j = 0; j < texture.ArrayCount; j++)
-                                {
-                                    var surface = texture.DeswizzleSurface(j, 0);
-                                    var dec = texture.DecodeAstc(surface);
-
-                                    //BC7 re encode for texture cache
-                                    if (BfresTextureCache.Enable)
-                                        dec = BCEncoder.Encode(dec.ToArray(), (int)this.Width, (int)this.Height);
-
-                                    levels.AddRange(dec);
-                                }
-                                var decodedBuffer = levels.ToArray();
-
-                                if (BfresTextureCache.Enable)
-                                    BfresTextureCache.SaveCache(this, data, decodedBuffer);
-
-                                TextureState = State.Decoded;
-
-                                //This clears any resources.
-                                GC.Collect();
-                                GC.WaitForPendingFinalizers();
-                                GC.Collect();
-
-                                return decodedBuffer;
-                            });
-                        }
-                    }
-                    else
-                    {
-                        var surface = GetTextureBuffer(texture, mipLevel);
-                        PushImageData(surface, mipLevel, (int)texture.ArrayCount);
-                    }
-                }
-            }
-
-            if (texture.MipCount > 1)
-            {
-                _gl.GenerateMipmap(this.Target);
-            }
             this.Unbind();
         }
 
-        private byte[] GetTextureBuffer(BntxTexture tex, int mipLevel)
+        private static byte[] DeswizzleAndDecodeAstc(BntxTexture texture, bool reEncodeAsBC7 = false)
+        {
+            List<byte> levels = [];
+            for (int j = 0; j < texture.ArrayCount; j++)
+            {
+                var surface = texture.DeswizzleSurface(j, 0);
+                var dec = texture.DecodeAstc(surface);
+
+                //necessary for texture cache
+                if (reEncodeAsBC7)
+                    dec = BCEncoder.Encode(dec.ToArray(), (int)texture.Width, (int)texture.Height);
+
+                levels.AddRange(dec);
+            }
+            var decodedBuffer = levels.ToArray();
+
+            //This clears any resources.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            return decodedBuffer;
+        }
+
+        private static byte[] GetDeswizzledTextureBuffer(BntxTexture tex, int mipLevel)
         {
             //Combine all array levels into one single buffer
             if (tex.ArrayCount > 1)
@@ -157,69 +177,22 @@ namespace ToyStudio.GLRendering.Bfres
                     var data = tex.DeswizzleSurface(j, mipLevel);
                     levels.AddRange(data);
                 }
-                return levels.ToArray();
+                return [.. levels];
             }
             else
                 return tex.DeswizzleSurface(0, mipLevel);
         }
 
-        static int GetSwizzle(ChannelType channel)
+        static int GetSwizzle(ChannelType channel) => 
+            channel switch
         {
-            switch (channel)
-            {
-                case ChannelType.Red: return (int)GLEnum.Red;
-                case ChannelType.Green: return (int)GLEnum.Green;
-                case ChannelType.Blue: return (int)GLEnum.Blue;
-                case ChannelType.Alpha: return (int)GLEnum.Alpha;
-                case ChannelType.One: return (int)GLEnum.One;
-                case ChannelType.Zero: return (int)GLEnum.Zero;
-                default: return 0;
-            }
-        }
-
-        public void CheckState(bool useSrgb = true)
-        {
-            if (TextureState == State.Decoded && Decoder.IsCompleted && !this.IsDisposed)
-            {
-                Bind();
-
-                // TODO - useSrgb argument is a temporary solution for the CourseSelect thumbnails
-                //        should find a more permanent solution for this
-
-                if (BfresTextureCache.Enable) //cache uses BC7
-                {
-                    var format = useSrgb && IsSrgb ? 
-                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.SRGB) : 
-                        new SurfaceFormat(GfxChannelFormat.BC7U, GfxTypeFormat.Unorm);
-                    var formatInfo = GLFormatHelper.ConvertCompressedFormat(format, true);
-                    GLTextureDataLoader.LoadCompressedImage(_gl, this.Target, Width, Height, ArrayCount, formatInfo, Decoder.Result, 0);
-                    this.InternalFormat = formatInfo;
-                }
-                else
-                {
-                    var format = useSrgb && IsSrgb ? 
-                        new SurfaceFormat(GfxChannelFormat.R8G8B8A8, GfxTypeFormat.SRGB) : 
-                        new SurfaceFormat(GfxChannelFormat.R8G8B8A8, GfxTypeFormat.Unorm);
-
-                    var formatInfo = GLFormatHelper.ConvertPixelFormat(format);
-                    GLTextureDataLoader.LoadImage(_gl, this.Target, Width, Height, ArrayCount, formatInfo, Decoder.Result, 0);
-
-                    this.InternalFormat = formatInfo.InternalFormat;
-                    this.PixelType = formatInfo.Type;
-                    this.PixelFormat = formatInfo.Format;
-                }
-
-                Unbind();
-
-                TextureState = State.Finished;
-            }
-        }
-
-        public enum State
-        {
-            Loading,
-            Decoded,
-            Finished,
-        }
+            ChannelType.Red => (int)GLEnum.Red,
+            ChannelType.Green => (int)GLEnum.Green,
+            ChannelType.Blue => (int)GLEnum.Blue,
+            ChannelType.Alpha => (int)GLEnum.Alpha,
+            ChannelType.One => (int)GLEnum.One,
+            ChannelType.Zero => (int)GLEnum.Zero,
+            _ => 0,
+        };
     }
 }
