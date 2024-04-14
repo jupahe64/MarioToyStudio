@@ -2,6 +2,7 @@
 using ToyStudio.GLRendering.Shaders;
 using Silk.NET.OpenGL;
 using System.Numerics;
+using System.Diagnostics;
 
 namespace ToyStudio.GLRendering.Bfres
 {
@@ -9,13 +10,14 @@ namespace ToyStudio.GLRendering.Bfres
     {
         public GLShader Shader;
 
-        public string Name {  get; set; }
+        public string Name { get; set; }
 
         public GsysRenderState GsysRenderState = new GsysRenderState();
 
         private Material Material;
 
-        public void Init(GL gl, BfresRender.BfresModel modelRender, BfresRender.BfresMesh meshRender, Shape shape, Material material) {
+        public void Init(GL gl, BfresRender.BfresModel modelRender, BfresRender.BfresMesh meshRender, Shape shape, Material material)
+        {
             Material = material;
             Name = material.Name;
 
@@ -83,46 +85,36 @@ namespace ToyStudio.GLRendering.Bfres
             }
 
             int unit_slot = 2;
-
-            for (int i = 0; i < this.Material.Samplers.Count; i++)
+            bool TrySetSampler(string fragSampler, string uniform, string samplerUsage)
             {
-                var sampler = this.Material.Samplers.GetKey(i);
-                var texName = this.Material.Textures[i];
+                if (!this.Material.ShaderAssign.SamplerAssign.TryGetValue(fragSampler, out var matSampler))
+                    return false;
 
-                string sampler_usage = "";
-                string uniform = "";
+                var texIndex = this.Material.Samplers.IndexOfKey(matSampler);
+                var texName = this.Material.Textures[texIndex];
+                Debug.Assert(this.Material.Samplers.GetKey(texIndex) == matSampler);
 
-                switch (sampler)
-                {
-                    case "_a0":
-                        sampler_usage = "hasAlbedoMap";
-                        uniform = "albedo_texture";
-                        break;
-                    case "_n0":
-                        sampler_usage = "hasNormalMap";
-                        uniform = "normal_texture";
-                        break;
-                }
-
-                if (!string.IsNullOrEmpty(uniform))
-                {
                     if (!renderer.TryGetTexture(texName, out GLTexture? tex))
                         tex = GLImageCache.GetDefaultTexture(gl);
 
-                    if (tex != null)
-                    {
-                    /*    if (tex.Target == TextureTarget.Texture2DArray)
-                        {
-                            sampler_usage += "Array"; //add array suffix used in shader
-                            uniform += "_array";
-                        }*/
 
-                        Shader.SetUniform(sampler_usage, 1);
+                //if (tex.Target == TextureTarget.Texture2DArray)
+                //{
+                //    samplerUsage += "Array"; //add array suffix used in shader
+                //    uniform += "_array";
+                //}
+
+                Shader.SetUniform(samplerUsage, 1);
                         Shader.SetTexture(uniform, tex, unit_slot);
                         unit_slot++;
+                return true;
                     }
-                }
-            }
+
+            if (!TrySetSampler("_ao0", "albedo_texture", "hasAlbedoMap"))
+                TrySetSampler("_a0", "albedo_texture", "hasAlbedoMap");
+
+            TrySetSampler("_n0", "normal_texture", "hasNormalMap");
+
             gl.ActiveTexture(TextureUnit.Texture0);
             gl.BindTexture(TextureTarget.Texture2D, 0);
             gl.BindTexture(TextureTarget.Texture2DArray, 0);

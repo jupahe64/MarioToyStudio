@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ using System.Xml.Linq;
 
 namespace Fushigi.Bfres.Common
 {
-    public class ResDict<T> :  Dictionary<string, T>, IResData where T : IResData, new()
+    public class ResDict<T> : Dictionary<string, T>, IResData where T : IResData, new()
     {
         public ResDict() { }
 
@@ -17,12 +18,10 @@ namespace Fushigi.Bfres.Common
         {
             get
             {
-                for (int i = 0; i < this.Count; i++)
-                {
-                    if (i ==  index)
-                        return this[GetKey(i)];
-                }
-                return new T();
+                if (index < 0 || index >= this.Count)
+                    return new T();
+
+                return this[GetKey(index)];
             }
         }
 
@@ -33,6 +32,8 @@ namespace Fushigi.Bfres.Common
 
             return null;
         }
+
+        public int IndexOfKey(string key) => Keys.Select((k, i) => (k, i)).First(tup => tup.k == key).i;
 
         public void Read(BinaryReader reader)
         {
@@ -56,6 +57,9 @@ namespace Fushigi.Bfres.Common
 
             for (int j = 1; j < nodes.Count; j++)
                 this.Add(nodes[j].Key, new T());
+
+            //a lot of code depends on the Dictionary not reordering itself
+            Debug.Assert(Keys.Select((key, i) => nodes[i+1].Key == key).All(x=>x));
         }
 
         protected class Node
