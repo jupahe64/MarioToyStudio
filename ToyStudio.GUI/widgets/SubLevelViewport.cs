@@ -395,9 +395,19 @@ namespace ToyStudio.GUI.Widgets
 
             (IViewportDrawable obj, Vector3 hitPoint)? newHoveredObject = null;
 
-            _sceneRenderer.Render(gl, _size, _camera);
+            _sceneRenderer.Render(gl, _size, ImGui.GetMousePos() - _topLeft, 
+                HoveredObject as ISceneObject<SubLevelSceneContext>, _camera);
 
             dl.AddImage((IntPtr)_sceneRenderer.OutputTexure.ID, _topLeft, _topLeft + _size);
+
+            if (_sceneRenderer.HoveredObject.HasValue && 
+                _sceneRenderer.HoveredObject.Value.obj is IViewportDrawable drawableObj)
+            {
+                var hitPoint = ScreenToWorld(ImGui.GetMousePos(), 
+                    _sceneRenderer.HoveredObject.Value.hitNDCDepth);
+
+                newHoveredObject = (drawableObj, hitPoint);
+            }
 
             _subLevelScene.ForEach<IViewportDrawable>(obj =>
             {

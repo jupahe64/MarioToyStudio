@@ -11,13 +11,15 @@ using ToyStudio.GUI.Widgets;
 using VdPixelFormat = EditorToolkit.OpenGL.PixelFormat;
 using GlPixelFormat = Silk.NET.OpenGL.PixelFormat;
 using System.Xml.Linq;
+using System.Diagnostics;
 
 namespace ToyStudio.GUI.SceneRendering
 {
     enum Pass
     {
         Color,
-        PickingHighlight
+        SelectionHighlight,
+        ScenePicking
     }
 
     internal class SubLevelSceneRenderer(GLTaskScheduler glScheduler, Scene<SubLevelSceneContext> scene)
@@ -28,8 +30,10 @@ namespace ToyStudio.GUI.SceneRendering
         public OutlineDrawer OutlineDrawer { get; private set; } = new OutlineDrawer();
         public GLFramebuffer? SceneOutputFB {  get; private set; }
         public GLFramebuffer? PickingHighlightFB {  get; private set; }
+        public (ISceneObject<SubLevelSceneContext> obj, float hitNDCDepth)? HoveredObject { get; private set; }
 
-        public void Render(GL gl, Vector2 viewportSize, Camera camera)
+        public void Render(GL gl, Vector2 viewportSize, Vector2 mousePos, 
+            ISceneObject<SubLevelSceneContext>? hoveredObject, Camera camera)
         {
             SceneOutputFB ??= CreateFramebuffer(gl,
                 "SceneOutput",
@@ -61,8 +65,8 @@ namespace ToyStudio.GUI.SceneRendering
 
             RenderStats.Reset();
 
-            RenderPass(gl, viewportSize, camera, Pass.Color);
-            RenderPass(gl, viewportSize, camera, Pass.PickingHighlight);
+            RenderPass(gl, viewportSize, mousePos, hoveredObject, camera, Pass.Color);
+            RenderPass(gl, viewportSize, mousePos, hoveredObject, camera, Pass.SelectionHighlight);
 
             PickingHighlightFB!.Bind();
             PickingHighlightFB.SetDrawBuffers(
@@ -87,12 +91,15 @@ namespace ToyStudio.GUI.SceneRendering
                 (GLTexture2D)PickingHighlightFB.Attachments[^1],
                 (GLTexture2D)SceneOutputFB.Attachments[^1]);
 
+            RenderPass(gl, viewportSize, mousePos, hoveredObject, camera, Pass.ScenePicking);
+
             gl.DepthMask(true);
 
             GLFramebuffer.Unbind(gl);
         }
 
-        public void RenderPass(GL gl, Vector2 viewportSize, Camera camera, Pass pass)
+        public void RenderPass(GL gl, Vector2 viewportSize, Vector2 mousePos,
+            ISceneObject<SubLevelSceneContext>? hoveredObject, Camera camera, Pass pass)
         {
             if (pass == Pass.Color)
             {
@@ -118,12 +125,37 @@ namespace ToyStudio.GUI.SceneRendering
             //Start drawing the scene. Bfres draw upside down so flip the viewport clip
             gl.ClipControl(ClipControlOrigin.UpperLeft, ClipControlDepth.ZeroToOne);
 
+            uint id = 0;
             scene.ForEach<LevelActorSceneObj>(actorObj =>
             {
+                id++;
                 if (!actorObj.IsVisible)
                     return;
 
-                if (pass == Pass.PickingHighlight && !((IViewportSelectable)actorObj).IsSelected())
+                static Vector4 AlphaBlend(Vector4 colA, Vector4 colB)
+                {
+                    var premulA = (colA * colA.W) with { W = colA.W };
+                    var premulB = (colB * colB.W) with { W = colB.W };
+
+                    var res = new Vector4(
+                        MathUtil.Lerp(colA.X, colB.X, colB.W),
+                        MathUtil.Lerp(colA.Y, colB.Y, colB.W),
+                        MathUtil.Lerp(colA.Z, colB.Z, colB.W),
+                        MathUtil.Lerp(colA.W, 1, colB.W)
+                    );
+
+                    return (res / res.W) with { W = res.W };
+                }
+
+                Vector4 highlightColor = default;
+
+                if (((IViewportSelectable)actorObj).IsSelected())
+                    highlightColor = new Vector4(1.0f, .65f, .4f, 0.5f);
+
+                if (actorObj == hoveredObject)
+                    highlightColor = AlphaBlend(highlightColor, Vector4.One with { W = 0.2f });
+
+                if (pass == Pass.SelectionHighlight && highlightColor == default)
                     return;
 
                 var (bfresRender, modelName) = actorObj.GetModelBfresRender(glScheduler);
@@ -146,8 +178,8 @@ namespace ToyStudio.GUI.SceneRendering
 
                 (uint, Vector4)? highlightPicking = null;
 
-                if (pass == Pass.PickingHighlight)
-                    highlightPicking = (1, Vector4.One with { W = 0.5f });
+                if (pass != Pass.Color)
+                    highlightPicking = (id, highlightColor);
 
                 //TODO find a better solution
                 mdl.Meshes.RemoveAll(mesh =>
@@ -160,6 +192,30 @@ namespace ToyStudio.GUI.SceneRendering
 
             //Reset back to defaults
             gl.ClipControl(ClipControlOrigin.LowerLeft, ClipControlDepth.ZeroToOne);
+
+            if (pass == Pass.ScenePicking &&
+                0 <= mousePos.X && mousePos.X < viewportSize.X &&
+                0 <= mousePos.Y && mousePos.Y < viewportSize.Y)
+            {
+                gl.ReadPixels((int)mousePos.X, (int)mousePos.Y, 1, 1,
+                    GlPixelFormat.RedInteger, PixelType.UnsignedInt, out uint pickedId);
+
+                gl.ReadPixels((int)mousePos.X, (int)mousePos.Y, 1, 1,
+                    GlPixelFormat.DepthComponent, PixelType.Float, out float ndcDepth);
+
+                Debug.WriteLine(pickedId);
+
+                if (pickedId == 0)
+                    HoveredObject = null;
+                else
+                {
+                    var pickedObj =
+                    scene.GetObjects<LevelActorSceneObj>().Skip((int)(pickedId - 1)).FirstOrDefault();
+
+                    if (pickedObj != null)
+                        HoveredObject = (pickedObj!, ndcDepth);
+                }
+            }
 
             GLFramebuffer.Unbind(gl);
         }
