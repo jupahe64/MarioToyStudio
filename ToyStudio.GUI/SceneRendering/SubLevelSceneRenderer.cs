@@ -120,6 +120,9 @@ namespace ToyStudio.GUI.SceneRendering
 
             scene.ForEach<LevelActorSceneObj>(actorObj =>
             {
+                if (!actorObj.IsVisible)
+                    return;
+
                 if (pass == Pass.PickingHighlight && !((IViewportSelectable)actorObj).IsSelected())
                     return;
 
