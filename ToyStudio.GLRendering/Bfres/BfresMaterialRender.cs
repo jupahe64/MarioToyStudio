@@ -9,6 +9,7 @@ namespace ToyStudio.GLRendering.Bfres
     public class BfresMaterialRender
     {
         public GLShader Shader;
+        public GLShader PickingHighlightShader;
 
         public string Name { get; set; }
 
@@ -24,6 +25,10 @@ namespace ToyStudio.GLRendering.Bfres
             Shader = GLShaderCache.GetShader(gl, "Bfres",
                Path.Combine("res", "shaders", "Bfres.vert"),
                Path.Combine("res", "shaders", "Bfres.frag"));
+
+            PickingHighlightShader = GLShaderCache.GetShader(gl, "Bfres_PickingHighlight",
+               Path.Combine("res", "shaders", "Bfres.vert"),
+               Path.Combine("res", "shaders", "Bfres_PickingHighlight.frag"));
 
             GsysRenderState.Init(material);
         }
@@ -51,38 +56,49 @@ namespace ToyStudio.GLRendering.Bfres
                 Material.Textures[index] = name;
         }
 
-        public void Render(GL gl, BfresRender renderer, BfresRender.BfresModel model, System.Numerics.Matrix4x4 transform, Camera camera)
+        public void Render(GL gl, BfresRender renderer, BfresRender.BfresModel model, 
+            Matrix4x4 transform, Camera camera, (uint objID, Vector4 highlight)? pickingHighlight)
         {
             GsysRenderState.Render(gl);
 
-            Shader.Use();
-            Shader.SetUniform("mtxCam", camera.ViewProjectionMatrix);
-            Shader.SetUniform("mtxMdl", transform);
-            Shader.SetUniform("difLightDirection", Vector3.Transform(Vector3.UnitZ, camera.Rotation));
-            Shader.SetUniform("hasAlbedoMap", 0);
-            Shader.SetUniform("hasNormalMap", 0);
-            Shader.SetUniform("hasEmissionMap", 0);
-            Shader.SetUniform("const_color0", Vector4.One);
-            Shader.SetUniform("const_color1", Vector4.Zero);
+            var shader = pickingHighlight.HasValue ? PickingHighlightShader : Shader;
 
-            Shader.SetUniform("tile_id", 0);
+            shader.Use();
 
-            Shader.SetUniform("alpha_test", this.GsysRenderState.State.AlphaTest ? 1 : 0);
-            Shader.SetUniform("alpha_ref", this.GsysRenderState.State.AlphaValue);
-            Shader.SetUniform("alpha_test_func", (int)this.GsysRenderState.State.AlphaFunction);
+            if (pickingHighlight.HasValue)
+            {
+                gl.Disable(EnableCap.Blend);
+                shader.SetUniform("objId", pickingHighlight.Value.objID);
+                shader.SetUniform("highlight", pickingHighlight.Value.highlight);
+            }
+
+            shader.SetUniform("mtxCam", camera.ViewProjectionMatrix);
+            shader.SetUniform("mtxMdl", transform);
+            shader.SetUniform("difLightDirection", Vector3.Transform(Vector3.UnitZ, camera.Rotation));
+            shader.SetUniform("hasAlbedoMap", 0);
+            shader.SetUniform("hasNormalMap", 0);
+            shader.SetUniform("hasEmissionMap", 0);
+            shader.SetUniform("const_color0", Vector4.One);
+            shader.SetUniform("const_color1", Vector4.Zero);
+
+            shader.SetUniform("tile_id", 0);
+
+            shader.SetUniform("alpha_test", this.GsysRenderState.State.AlphaTest ? 1 : 0);
+            shader.SetUniform("alpha_ref", this.GsysRenderState.State.AlphaValue);
+            shader.SetUniform("alpha_test_func", (int)this.GsysRenderState.State.AlphaFunction);
 
             Vector3 dir = Vector3.Normalize(Vector3.TransformNormal(new Vector3(0f, 0f, -1f), camera.ViewProjectionMatrixInverse));
-            Shader.SetUniform("const_color0", dir);
+            shader.SetUniform("const_color0", dir);
 
             if (this.Material.ShaderParams.ContainsKey("const_color0"))
             {
                 var color = (float[])this.Material.ShaderParams["const_color0"].DataValue;
-                Shader.SetUniform("const_color0", new Vector4(color[0], color[1], color[2], color[3]));
+                shader.SetUniform("const_color0", new Vector4(color[0], color[1], color[2], color[3]));
             }
             if (this.Material.ShaderParams.ContainsKey("const_color1"))
             {
                 var color = (float[])this.Material.ShaderParams["const_color1"].DataValue;
-                Shader.SetUniform("const_color1", new Vector4(color[0], color[1], color[2], color[3]));
+                shader.SetUniform("const_color1", new Vector4(color[0], color[1], color[2], color[3]));
             }
 
             int unit_slot = 2;
@@ -110,8 +126,8 @@ namespace ToyStudio.GLRendering.Bfres
                 //    uniform += "_array";
                 //}
 
-                Shader.SetUniform(samplerUsage, 1);
-                Shader.SetTexture(uniform, tex, unit_slot);
+                shader.SetUniform(samplerUsage, 1);
+                shader.SetTexture(uniform, tex, unit_slot);
                 unit_slot++;
                 return true;
             }

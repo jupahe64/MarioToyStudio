@@ -66,6 +66,11 @@ namespace ToyStudio.GLRendering
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
 
+        public static void Unbind(GL gl)
+        {
+            gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
+
         public void Dispose() {
             _gl.DeleteFramebuffer(ID);
         }

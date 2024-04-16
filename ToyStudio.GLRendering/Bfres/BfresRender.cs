@@ -77,10 +77,10 @@ namespace ToyStudio.GLRendering.Bfres
             return false;
         }
 
-        public void Render(GL gl, Matrix4x4 transform, Camera camera)
+        public void Render(GL gl, Matrix4x4 transform, Camera camera, (uint objID, Vector4 highlight)? pickingHighlight)
         {
             foreach (var model in Models.Values)
-                model.Render(gl, this, transform, camera);
+                model.Render(gl, this, transform, camera, pickingHighlight);
         }
 
         public void Dispose()
@@ -126,7 +126,8 @@ namespace ToyStudio.GLRendering.Bfres
                     Meshes.Add(mesh);
             }
 
-            public void Render(GL gl, BfresRender render, Matrix4x4 transform, Camera camera)
+            public void Render(GL gl, BfresRender render, 
+                Matrix4x4 transform, Camera camera, (uint objID, Vector4 highlight)? pickingHighlight)
             {
                 foreach (var mesh in Meshes)
                 {
@@ -154,7 +155,7 @@ namespace ToyStudio.GLRendering.Bfres
                     if (this.Skeleton.Bones[mesh.BoneIndex].Name == "Bonecap_Model")
                         continue;
 
-                    mesh.Render(gl, render, this, transform, camera);
+                    mesh.Render(gl, render, this, transform, camera, pickingHighlight);
                 }
             }
 
@@ -336,11 +337,13 @@ namespace ToyStudio.GLRendering.Bfres
                 }
             }
 
-            public void Render(GL gl, BfresRender renderer, BfresModel modelRender, Matrix4x4 transform, Camera camera)
+            public void Render(GL gl, BfresRender renderer, BfresModel modelRender, 
+                Matrix4x4 transform, Camera camera, (uint objID, Vector4 highlight)? pickingHighlight)
             {
                 var worldTransform = modelRender.Skeleton.Bones[this.BoneIndex].WorldMatrix * transform;
 
-                MaterialRender.Render(gl, renderer, modelRender, worldTransform, camera);
+                MaterialRender.Render(gl, renderer, modelRender, worldTransform, camera, pickingHighlight);
+
 
                 vbo.Enable(MaterialRender.Shader);
                 vbo.Use();

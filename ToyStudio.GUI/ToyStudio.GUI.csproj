@@ -71,11 +71,17 @@
 	<None Update="res\OrientationCubeTex.png">
 	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</None>
+	<None Update="res\shaders\Bfres_PickingHighlight.frag">
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
 	<None Update="res\shaders\Lightmap.frag">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</None>
 	<None Update="res\shaders\Lightmap.vert">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+	<None Update="res\shaders\OutlineDrawer_screen.frag">
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</None>
 	<None Update="res\shaders\screen.frag">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

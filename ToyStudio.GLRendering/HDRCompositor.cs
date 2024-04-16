@@ -3,7 +3,7 @@ using Silk.NET.OpenGL;
 
 namespace ToyStudio.GLRendering
 {
-    public class HDRScreenBuffer
+    public class HDRCompositor
     {
         public GLTexture2D GetOutput() => (GLTexture2D)Framebuffer.Attachments[0];
 
@@ -11,7 +11,9 @@ namespace ToyStudio.GLRendering
 
         private ScreenQuad ScreenQuad;
 
-        public void Render(GL gl, int width, int height, GLTexture2D input)
+        public void Render(GL gl, int width, int height, 
+            GLTexture2D sceneColorTexture, GLTexture2D highlightColorTexture, GLTexture2D outlineTexture,
+            GLTexture2D highlightDepthTexture, GLTexture2D sceneDepthTexture)
         {
             if (Framebuffer == null)
                 Framebuffer = new GLFramebuffer(gl, FramebufferTarget.Framebuffer, (uint)width, (uint)height, InternalFormat.Rgba);
@@ -31,7 +33,11 @@ namespace ToyStudio.GLRendering
                 Path.Combine("res", "shaders", "screen.frag"));
 
             shader.Use();
-            shader.SetTexture("screenTexture", input, 1);
+            shader.SetTexture("uSceneColor", sceneColorTexture, 1);
+            shader.SetTexture("uHighlight", highlightColorTexture, 2);
+            shader.SetTexture("uOutline", outlineTexture, 3);
+            shader.SetTexture("uHighlightDepth", highlightDepthTexture, 4);
+            shader.SetTexture("uSceneDepth", sceneDepthTexture, 5);
 
             if (ScreenQuad == null) ScreenQuad = new ScreenQuad(gl, 1f);
 

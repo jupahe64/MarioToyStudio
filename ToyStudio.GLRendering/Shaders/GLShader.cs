@@ -93,6 +93,16 @@ namespace ToyStudio.GLRendering
             _gl.Uniform1(location, value);
         }
 
+        public void SetUniform(string name, uint value)
+        {
+            int location = _gl.GetUniformLocation(ID, name);
+            if (location == -1)
+            {
+                return;
+            }
+            _gl.Uniform1(location, value);
+        }
+
         public void SetUniform(string name, Vector4 value)
         {
             int location = _gl.GetUniformLocation(ID, name);

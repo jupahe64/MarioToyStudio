@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGL;
+using System.Text;
 
 namespace ToyStudio.GLRendering
 {
@@ -8,6 +9,15 @@ namespace ToyStudio.GLRendering
         {
 
             gl.ObjectLabel(type, id, (uint)text.Length, text);
+        }
+
+        public unsafe static string? GetLabel(GL gl, ObjectIdentifier type, uint id)
+        {
+            int bufSize = gl.GetInteger(GetPName.MaxLabelLength);
+            Span<byte> buffer = stackalloc byte[bufSize];
+
+            gl.GetObjectLabel(type, id, out uint length, buffer);
+            return Encoding.UTF8.GetString(buffer[..(int)length]);
         }
     }
 }
