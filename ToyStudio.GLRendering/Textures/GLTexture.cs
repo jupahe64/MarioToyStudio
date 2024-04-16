@@ -15,11 +15,11 @@ namespace ToyStudio.GLRendering
         public PixelType PixelType { get; internal set; }
 
         //Image parameters
-        public TextureMinFilter MinFilter { get; set; }
-        public TextureMagFilter MagFilter { get; set; }
-        public TextureWrapMode WrapS { get; set; }
-        public TextureWrapMode WrapT { get; set; }
-        public TextureWrapMode WrapR { get; set; }
+        public TextureMinFilter MinFilter { get; set; } = TextureMinFilter.NearestMipmapLinear;
+        public TextureMagFilter MagFilter { get; set; } = TextureMagFilter.Linear;
+        public TextureWrapMode WrapS { get; set; } = TextureWrapMode.Repeat;
+        public TextureWrapMode WrapT { get; set; } = TextureWrapMode.Repeat;
+        public TextureWrapMode WrapR { get; set; } = TextureWrapMode.Repeat;
 
         //
         public List<GLTexture> SubTextures = new List<GLTexture>();

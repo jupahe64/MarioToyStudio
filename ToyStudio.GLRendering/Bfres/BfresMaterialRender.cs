@@ -87,9 +87,6 @@ namespace ToyStudio.GLRendering.Bfres
             shader.SetUniform("alpha_ref", this.GsysRenderState.State.AlphaValue);
             shader.SetUniform("alpha_test_func", (int)this.GsysRenderState.State.AlphaFunction);
 
-            Vector3 dir = Vector3.Normalize(Vector3.TransformNormal(new Vector3(0f, 0f, -1f), camera.ViewProjectionMatrixInverse));
-            shader.SetUniform("const_color0", dir);
-
             if (this.Material.ShaderParams.ContainsKey("const_color0"))
             {
                 var color = (float[])this.Material.ShaderParams["const_color0"].DataValue;

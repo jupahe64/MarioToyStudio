@@ -14,6 +14,7 @@ using ToyStudio.GUI.Windows.Modals;
 using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
 using ToyStudio.GUI.SceneRendering;
+using ToyStudio.GLRendering;
 
 namespace ToyStudio.GUI.Windows
 {
@@ -94,6 +95,8 @@ namespace ToyStudio.GUI.Windows
                 _window.Title = WindowTitle;
             };
             _window.Closing += Close;
+
+            //_ = _glTaskScheduler.Schedule(gl => GLUtil.TryEnableDebugLog(gl));
         }
 
         public async Task<bool> TryCloseWorkspace()

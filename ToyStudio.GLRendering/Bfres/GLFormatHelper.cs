@@ -21,12 +21,8 @@ namespace ToyStudio.GLRendering.Bfres
             return InternalFormatList[format];
         }
 
-        public static uint CalculateImageSize(uint width, uint height, InternalFormat format, int mipLevel)
+        public static uint CalculateImageSize(uint width, uint height, InternalFormat format)
         {
-            Debug.Assert(mipLevel >= 0);
-            width = Math.Max(0, width >> mipLevel);
-            height = Math.Max(0, height >> mipLevel);
-
             if (format == InternalFormat.Rgba8)
                 return width * height * 4;
 

@@ -2,8 +2,6 @@
 using Fushigi.Bfres;
 using Fushigi.Bfres.Texture;
 using Silk.NET.OpenGL;
-using Silk.NET.SDL;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ToyStudio.GLRendering.Bfres
 {
@@ -100,7 +98,12 @@ namespace ToyStudio.GLRendering.Bfres
 
             //Default to linear min/mag filters
             this.MagFilter = TextureMagFilter.Linear;
-            this.MinFilter = TextureMinFilter.Linear;
+
+            if (this.MipCount > 1)
+                this.MinFilter = TextureMinFilter.LinearMipmapLinear;
+            else
+                this.MinFilter = TextureMinFilter.Linear;
+
             //Repeat by default
             this.WrapT = TextureWrapMode.Repeat;
             this.WrapR = TextureWrapMode.Repeat;
@@ -115,7 +118,9 @@ namespace ToyStudio.GLRendering.Bfres
             this.UpdateParameters();
             gl.TexParameter(Target, TextureParameterName.TextureSwizzleRgba, channelSwizzles);
 
-            for (int mipLevel = 0; mipLevel < deswizzledMips.Length; mipLevel++)
+            int mipCount = 1; // = deswizzledMips.Length; (causes a lot of problems)
+
+            for (int mipLevel = 0; mipLevel < mipCount; mipLevel++)
             {
                 var surface = deswizzledMips[mipLevel];
                 if (dataFormat.IsBCN)
@@ -136,7 +141,7 @@ namespace ToyStudio.GLRendering.Bfres
                 }
             }
 
-            if (MipCount > deswizzledMips.Length)
+            if (MipCount > mipCount)
                 gl.GenerateMipmap(this.Target);
 
             this.Unbind();
