@@ -12,6 +12,7 @@ using VdPixelFormat = EditorToolkit.OpenGL.PixelFormat;
 using GlPixelFormat = Silk.NET.OpenGL.PixelFormat;
 using System.Xml.Linq;
 using System.Diagnostics;
+using ToyStudio.GUI.Util;
 
 namespace ToyStudio.GUI.SceneRendering
 {
@@ -132,28 +133,13 @@ namespace ToyStudio.GUI.SceneRendering
                 if (!actorObj.IsVisible)
                     return;
 
-                static Vector4 AlphaBlend(Vector4 colA, Vector4 colB)
-                {
-                    var premulA = (colA * colA.W) with { W = colA.W };
-                    var premulB = (colB * colB.W) with { W = colB.W };
-
-                    var res = new Vector4(
-                        MathUtil.Lerp(colA.X, colB.X, colB.W),
-                        MathUtil.Lerp(colA.Y, colB.Y, colB.W),
-                        MathUtil.Lerp(colA.Z, colB.Z, colB.W),
-                        MathUtil.Lerp(colA.W, 1, colB.W)
-                    );
-
-                    return (res / res.W) with { W = res.W };
-                }
-
                 Vector4 highlightColor = default;
 
                 if (((IViewportSelectable)actorObj).IsSelected())
                     highlightColor = new Vector4(1.0f, .65f, .4f, 0.5f);
 
                 if (actorObj == hoveredObject)
-                    highlightColor = AlphaBlend(highlightColor, Vector4.One with { W = 0.2f });
+                    highlightColor = ColorUtil.AlphaBlend(highlightColor, Vector4.One with { W = 0.2f });
 
                 if (pass == Pass.SelectionHighlight && highlightColor == default)
                     return;
