@@ -35,7 +35,6 @@ namespace EditorToolkit.Core
         public Scene(TSceneContext sceneContext, ISceneRoot<TSceneContext> sceneRoot)
         {
             Context = sceneContext;
-            _updateContext = new UpdateContext(this);
             _sceneRoot = sceneRoot;
             Invalidate();
         }
@@ -55,15 +54,21 @@ namespace EditorToolkit.Core
                 return;
             }
 
-            _isUpdating = true;
-            _orderedSceneObjects.Clear();
+            
+            lock (_mapping)
+            {
+                _isUpdating = true;
+                _mapping.BeginUpdate();
+                var updateContext = new UpdateContext(Context, _mapping);
+                _sceneRoot.Update(updateContext, Context);
+                _mapping.EndUpdate();
 
-            _mapping.BeginUpdate();
-            _sceneRoot.Update(_updateContext, Context);
-            _mapping.EndUpdate();
+                _orderedSceneObjects = updateContext.OrderedSceneObjects.ToArray();
+                updateContext.SetInvalid();
 
-            _isUpdating = false;
-            _needsUpdate = false;
+                _isUpdating = false;
+                _needsUpdate = false;
+            }
 
             AfterRebuild?.Invoke();
         }
@@ -91,7 +96,7 @@ namespace EditorToolkit.Core
 
             _updateBlockers++;
 
-            var span = CollectionsMarshal.AsSpan(_orderedSceneObjects);
+            var span = _orderedSceneObjects.AsSpan();
 
             for (int i = 0; i < span.Length; i++)
             {
@@ -106,10 +111,7 @@ namespace EditorToolkit.Core
         }
 
         /// <summary>
-        /// Provides a convenient way to iterate through all objects of a certain
-        /// type/with a certain interface
-        /// <para>Calling Update directly or indirectly while iterating WILL cause a 
-        /// "Collection was modified" exception</para>
+        /// Provides a convenient way to iterate through the last valid list of objects
         /// </summary>
         /// <returns></returns>
         public IEnumerable<T> GetObjects<T>()
@@ -118,29 +120,28 @@ namespace EditorToolkit.Core
 
         private readonly ObjectMapping<object, ISceneObject<TSceneContext>> _mapping = new();
 
-        private readonly List<ISceneObject<TSceneContext>> _orderedSceneObjects = [];
+        private ISceneObject<TSceneContext>[] _orderedSceneObjects = [];
         private readonly ISceneRoot<TSceneContext> _sceneRoot;
 
-        private readonly UpdateContext _updateContext;
-
-        private class UpdateContext(Scene<TSceneContext> s) : ISceneUpdateContext<TSceneContext>
+        private class UpdateContext(TSceneContext sceneContext, ObjectMapping<object, ISceneObject<TSceneContext>> mapping) 
+            : ISceneUpdateContext<TSceneContext>
         {
             public void AddSceneObject(ISceneObject<TSceneContext> sceneObject)
             {
-                s._orderedSceneObjects.Add(sceneObject);
+                _orderedSceneObjects.Add(sceneObject);
 
                 bool isValid = true;
-                sceneObject.Update(this, s.Context, ref isValid);
+                sceneObject.Update(this, sceneContext, ref isValid);
                 if (!isValid)
                     Debug.Fail("Only Scene objects associated with a dataObject can be invalidated");
             }
 
             public void AddSceneObjectRef(ISceneObject<TSceneContext> sceneObject)
             {
-                if (!s._isUpdating)
-                    throw new InvalidOperationException("Cannot call this function outside of Update");
+                if (!_isValid)
+                    throw new InvalidOperationException($"This {nameof(UpdateContext)} is not valid anymore");
 
-                if (!s._mapping.TryGetMappedObjFor(sceneObject, out var obj, out bool isDirty))
+                if (mapping.TryGetMappedObjFor(sceneObject, out var obj, out bool isDirty))
                 {
                     obj = sceneObject;
                     isDirty = true;
@@ -149,24 +150,24 @@ namespace EditorToolkit.Core
                 if (!isDirty)
                     return;
 
-                s._orderedSceneObjects.Add(obj);
+                _orderedSceneObjects.Add(obj);
 
                 bool isValid = true;
-                obj.Update(this, s.Context, ref isValid);
+                obj.Update(this, sceneContext, ref isValid);
                 if (!isValid)
                     Debug.Fail("Only Scene objects associated with a dataObject can be invalidated");
 
-                s._mapping.SetMappingFor(sceneObject, obj);
+                mapping.SetMappingFor(sceneObject, obj);
             }
 
             /// <returns>The created/updated scene object</returns>
             public ISceneObject<TSceneContext> UpdateOrCreateObjFor(object dataObject, Func<ISceneObject<TSceneContext>> createFunc)
             {
-                if (!s._isUpdating)
-                    throw new InvalidOperationException("Cannot call this function outside of Update");
+                if (!_isValid)
+                    throw new InvalidOperationException($"This {nameof(UpdateContext)} is not valid anymore");
 
                 bool justCreated = false;
-                if (!s._mapping.TryGetMappedObjFor(dataObject, out var obj, out bool isDirty))
+                if (!mapping.TryGetMappedObjFor(dataObject, out var obj, out bool isDirty))
                 {
                     var sceneObject = createFunc.Invoke();
                     obj = sceneObject;
@@ -177,25 +178,32 @@ namespace EditorToolkit.Core
                 if (!isDirty)
                     return obj;
 
-                int countBefore = s._orderedSceneObjects.Count;
-                s._orderedSceneObjects.Add(obj);
+                int countBefore = _orderedSceneObjects.Count;
+                _orderedSceneObjects.Add(obj);
 
                 bool isValid = true;
-                obj.Update(this, s.Context, ref isValid);
+                obj.Update(this, sceneContext, ref isValid);
                 if (!isValid && !justCreated)
                 {
-                    var count = s._orderedSceneObjects.Count;
-                    s._orderedSceneObjects.RemoveRange(countBefore, count - countBefore);
+                    var count = _orderedSceneObjects.Count;
+                    _orderedSceneObjects.RemoveRange(countBefore, count - countBefore);
                     obj = createFunc.Invoke();
-                    s._orderedSceneObjects.Add(obj);
+                    _orderedSceneObjects.Add(obj);
                     isValid = true;
-                    obj.Update(this, s.Context, ref isValid);
+                    obj.Update(this, sceneContext, ref isValid);
                 }
                 Debug.Assert(isValid);
 
-                s._mapping.SetMappingFor(dataObject, obj);
+                mapping.SetMappingFor(dataObject, obj);
                 return obj;
             }
+
+            private readonly List<ISceneObject<TSceneContext>> _orderedSceneObjects = [];
+            private bool _isValid = true;
+
+            internal IReadOnlyList<ISceneObject<TSceneContext>> OrderedSceneObjects => _orderedSceneObjects;
+
+            internal void SetInvalid() => _isValid = false;
         }
     }
 }
