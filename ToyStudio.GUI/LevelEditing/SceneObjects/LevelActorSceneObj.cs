@@ -16,11 +16,17 @@ using ToyStudio.Core.PropertyCapture;
 using ToyStudio.GLRendering.Bfres;
 using EditorToolkit.OpenGL;
 using ToyStudio.Core.Component.ModelInfo;
+using ToyStudio.GUI.SceneRendering;
+using Silk.NET.OpenGL;
+using ToyStudio.GLRendering;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 namespace ToyStudio.GUI.LevelEditing.SceneObjects
 {
     internal class LevelActorSceneObj :
-        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, IViewportTransformable, IInspectable, IViewportPickable
+        ISceneObject<SubLevelSceneContext>, IViewportDrawable, IViewportSelectable, 
+        IViewportTransformable, IInspectable, IViewportPickable, ISceneRenderable
     {
         public LevelActorSceneObj(LevelActor actor, SubLevelSceneContext sceneContext, LevelActorsListSceneObj visibilityParent)
         {
@@ -282,6 +288,87 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects
             return _actor;
         }
 
+        public Task LoadModelResources(GLTaskScheduler scheduler, CancellationToken cancellationToken)
+        {
+            if (!_actorPack.TryGetModelInfo(out ModelInfo? modelInfo, out _))
+                return Task.CompletedTask;
+
+            _modelArcTask = _sceneContext.BfresCache.LoadAsync(scheduler, modelInfo.ModelProjectName!);
+            _modelFmdbName = modelInfo.FmdbName;
+
+            //we can savely cancel waiting on the BfresCache because the bfres (up)loading will
+            //still complete in the background and can still be awaited
+            return _modelArcTask.WaitAsync(cancellationToken);
+        }
+
+        public Task LoadSecondaryResources(GLTaskScheduler scheduler, CancellationToken cancellationToken)
+        {
+            if (!_actorPack.TryGetModelInfo(out _, out string? textureArc))
+                return Task.CompletedTask;
+
+            if (textureArc != null)
+                _textureArcTask = _sceneContext.BfresCache.LoadAsync(scheduler, textureArc!);
+            else
+                _textureArcTask = Task.FromResult<BfresRender?>(null);
+
+            //we can savely cancel waiting on the BfresCache because the bfres(up)loading will
+            //still complete in the background and can still be awaited
+            return _textureArcTask.WaitAsync(cancellationToken);
+        }
+
+        public void Render(uint objID, GL gl, Pass pass, Camera camera, bool isHovered)
+        {
+            if (!IsVisible)
+                return;
+
+            Vector4 highlightColor = default;
+
+            if (_sceneContext.IsSelected(_actor))
+                highlightColor = new Vector4(1.0f, .65f, .4f, 0.5f);
+
+            if (isHovered)
+                highlightColor = ColorUtil.AlphaBlend(highlightColor, Vector4.One with { W = 0.2f });
+
+            if (pass == Pass.SelectionHighlight && highlightColor == default)
+                return;
+
+            BfresRender? bfresRender = null, textureArc = null;
+
+            if (_modelArcTask is not null && _modelArcTask.IsCompletedSuccessfully)
+                bfresRender = _modelArcTask.Result;
+
+            if (_textureArcTask is not null && _textureArcTask.IsCompletedSuccessfully)
+                textureArc = _textureArcTask.Result;
+
+            if (bfresRender is null || _modelFmdbName is null)
+                return;
+
+            var transform = GetTransform();
+
+            var mtx =
+                Matrix4x4.CreateScale(transform.Scale) *
+                Matrix4x4.CreateFromQuaternion(transform.Orientation) *
+                Matrix4x4.CreateTranslation(transform.Position);
+
+            if (textureArc is not null)
+                bfresRender.TextureArc = textureArc;
+
+            var mdl = bfresRender.Models[_modelFmdbName];
+
+            (uint, Vector4)? highlightPicking = null;
+
+            if (pass != Pass.Color)
+                highlightPicking = (objID, highlightColor);
+
+            //TODO find a better solution
+            mdl.Meshes.RemoveAll(mesh =>
+                mesh.MaterialRender.Name.EndsWith("Depth") ||
+                mesh.MaterialRender.Name.EndsWith("Shadow") ||
+                mesh.MaterialRender.Name.EndsWith("AO"));
+
+            mdl.Render(gl, bfresRender, mtx, camera, highlightPicking);
+        }
+
         private readonly LevelActor _actor;
         private readonly SubLevelSceneContext _sceneContext;
         private readonly LevelActorsListSceneObj _visibilityParent;
@@ -289,6 +376,9 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects
         private readonly BlackboardComponent<LevelActor> _blackboardComponent;
         private readonly TransformComponent<LevelActor> _transformComponent;
         private bool _isVisible = true;
+        private Task<BfresRender?>? _modelArcTask;
+        private Task<BfresRender?>? _textureArcTask;
+        private string? _modelFmdbName;
 
         private static readonly TransformPropertySet<LevelActor> s_transformProperties = new(
             LevelActor.TranslateProperty,

@@ -12,26 +12,31 @@ namespace ToyStudio.GUI.SceneRendering
 {
     internal class BfresCache(RomFS romfs)
     {
-        public static Dictionary<string, Task<BfresRender?>> Cache = [];
+        public Dictionary<string, Task<BfresRender?>> Cache = [];
 
         public Task<BfresRender?> LoadAsync(GLTaskScheduler glScheduler, string projectName)
         {
-            if (!Cache.ContainsKey(projectName))
+            Task<BfresRender?> task;
+            lock (Cache)
             {
-                if (romfs.TryGetFileInfo(["Model", projectName + ".bfres.zs"], out FileInfo? fileInfo))
+                if (!Cache.ContainsKey(projectName))
                 {
-                    Cache.Add(projectName, LoadingTask(glScheduler, fileInfo));
+                    if (romfs.TryGetFileInfo(["Model", projectName + ".bfres.zs"], out FileInfo? fileInfo))
+                    {
+                        Cache.Add(projectName, LoadingTask(glScheduler, fileInfo));
+                    }
+                    else //use null renderer to not check the file again
+                    {
+                        Cache.Add(projectName, Task.FromResult<BfresRender?>(null));
+                    }
                 }
-                else //use null renderer to not check the file again
-                {
-                    Cache.Add(projectName, Task.FromResult<BfresRender?>(null));
-                }
+                task = Cache[projectName];
             }
-            var task = Cache[projectName];
+            
             return task;
         }
 
-        private async Task<BfresRender?> LoadingTask(GLTaskScheduler glScheduler, FileInfo fileInfo)
+        private static async Task<BfresRender?> LoadingTask(GLTaskScheduler glScheduler, FileInfo fileInfo)
         {
             using var fileStream = fileInfo.OpenRead();
             using var stream = await Task.Run<Stream>(() => RomFS.DecompressAsStream(fileStream));

@@ -303,7 +303,7 @@ namespace ToyStudio.GUI.Windows
 
         public void Render(GL gl, double delta, ImGuiController controller)
         {
-            _glTaskScheduler.ExecutePending(gl);
+            _glTaskScheduler.ExecutePending(gl, TimeSpan.FromSeconds(1/60.0));
 
             /* keep OpenGLs viewport size in sync with the window's size */
             gl.Viewport(_window.FramebufferSize);

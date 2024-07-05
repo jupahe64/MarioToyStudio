@@ -10,9 +10,10 @@ using ToyStudio.GUI.Widgets;
 
 using VdPixelFormat = EditorToolkit.OpenGL.PixelFormat;
 using GlPixelFormat = Silk.NET.OpenGL.PixelFormat;
-using System.Xml.Linq;
 using System.Diagnostics;
 using ToyStudio.GUI.Util;
+using SCENE_OBJ = EditorToolkit.Core.ISceneObject<ToyStudio.GUI.LevelEditing.SubLevelSceneContext>;
+using System.Runtime.CompilerServices;
 
 namespace ToyStudio.GUI.SceneRendering
 {
@@ -23,19 +24,115 @@ namespace ToyStudio.GUI.SceneRendering
         ScenePicking
     }
 
+    internal interface ISceneRenderable
+    {
+        Task LoadModelResources(GLTaskScheduler scheduler, CancellationToken cancellationToken);
+        Task LoadSecondaryResources(GLTaskScheduler scheduler, CancellationToken cancellationToken);
+        void Render(uint objID, GL gl, Pass pass, Camera camera, bool isHovered);
+    }
+
     internal class SubLevelSceneRenderer(GLTaskScheduler glScheduler, Scene<SubLevelSceneContext> scene)
     {
-        public GLTexture2D OutputTexure => HDRScreenBuffer.GetOutput();
+        public GLTexture2D OutputTexure => HDRCompositor.GetOutput();
 
-        public HDRCompositor HDRScreenBuffer { get; private set; } = new HDRCompositor();
+        public HDRCompositor HDRCompositor { get; private set; } = new HDRCompositor();
         public OutlineDrawer OutlineDrawer { get; private set; } = new OutlineDrawer();
         public GLFramebuffer? SceneOutputFB {  get; private set; }
         public GLFramebuffer? PickingHighlightFB {  get; private set; }
-        public (ISceneObject<SubLevelSceneContext> obj, float hitNDCDepth)? HoveredObject { get; private set; }
+        public (SCENE_OBJ obj, float hitNDCDepth)? HoveredObject { get; private set; }
 
-        public void Render(GL gl, Vector2 viewportSize, Vector2 mousePos, 
-            ISceneObject<SubLevelSceneContext>? hoveredObject, Camera camera)
+        public const DrawBufferMode SceneOutput_Color = DrawBufferMode.ColorAttachment0;
+
+        public const DrawBufferMode PickingHighlight_ObjID = DrawBufferMode.ColorAttachment0;
+        public const DrawBufferMode PickingHighlight_Highlight = DrawBufferMode.ColorAttachment1;
+        public const DrawBufferMode PickingHighlight_Outline = DrawBufferMode.ColorAttachment2;
+
+        public async Task LoadGLResources()
         {
+            Task task;
+            Task? previousTask = null;
+
+            lock (_previousLoadAllResourceTaskLock)
+            {
+                if (_previousLoadAllResourceTask?.IsCompleted == false)
+                {
+                    _previousLoadAllResourceCancel?.Cancel();
+                    previousTask = _previousLoadAllResourceTask;
+                }
+            }  
+
+            if (previousTask != null)
+            {
+                Debug.WriteLine("Cancelling GL Resource load");
+                try
+                {
+                    await previousTask; //the task should complete almost immediatly once it's cancelled
+                }
+                catch (TaskCanceledException)
+                {
+                    Debug.WriteLine("Cancelled GL Resource load");
+                }
+            }
+
+            lock (_previousLoadAllResourceTaskLock)
+            {
+                var cancelSource = new CancellationTokenSource();
+
+                task = LoadGLResourcesCancellable(glScheduler, cancelSource.Token);
+
+                _previousLoadAllResourceCancel = cancelSource;
+                _previousLoadAllResourceTask = task;
+            }
+
+            try
+            {
+                await task;
+            }
+            catch (TaskCanceledException) { }
+        }
+
+        private async Task LoadGLResourcesCancellable(GLTaskScheduler glScheduler, CancellationToken cancellationToken)
+        {
+            
+            {
+                var sceneRenderables = scene.GetObjects<ISceneRenderable>().ToList();
+
+                _ = Interlocked.Exchange(ref _sceneRenderables, sceneRenderables);
+
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
+                var taskList = new Task[sceneRenderables.Count];
+
+                for (int i = 0; i < sceneRenderables.Count; i++)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    taskList[i] = sceneRenderables[i].LoadModelResources(glScheduler, cancellationToken);
+                }
+
+                await Task.WhenAll(taskList);
+
+                for (int i = 0; i < sceneRenderables.Count; i++)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    taskList[i] = sceneRenderables[i].LoadSecondaryResources(glScheduler, cancellationToken);
+                }
+
+                await Task.WhenAll(taskList);
+            }
+        }
+
+        public void Render(GL gl, Vector2 viewportSize, Vector2 mousePos,
+            SCENE_OBJ? hoveredObject, Camera camera)
+        {
+            static Index FBColorIdx(DrawBufferMode attachment)
+                => attachment - DrawBufferMode.ColorAttachment0;
+            static Index FBDepthIdx() => Index.FromEnd(1);
+
             SceneOutputFB ??= CreateFramebuffer(gl,
                 "SceneOutput",
                 [
@@ -71,26 +168,26 @@ namespace ToyStudio.GUI.SceneRendering
 
             PickingHighlightFB!.Bind();
             PickingHighlightFB.SetDrawBuffers(
-                DrawBufferMode.ColorAttachment2);
+                PickingHighlight_Outline);
 
             gl.DepthMask(false);
 
             OutlineDrawer.Render(gl, (int)viewportSize.X, (int)viewportSize.Y,
-                (GLTexture2D)PickingHighlightFB.Attachments[1],
-                (GLTexture2D)PickingHighlightFB.Attachments[0],
-                (GLTexture2D)PickingHighlightFB.Attachments[^1],
-                (GLTexture2D)SceneOutputFB.Attachments[^1]
+                (GLTexture2D)PickingHighlightFB.Attachments[FBColorIdx(PickingHighlight_Highlight)],
+                (GLTexture2D)PickingHighlightFB.Attachments[FBColorIdx(PickingHighlight_Highlight)],
+                (GLTexture2D)PickingHighlightFB.Attachments[FBDepthIdx()],
+                (GLTexture2D)SceneOutputFB.Attachments[FBDepthIdx()]
             );
 
             PickingHighlightFB.Unbind();
 
             //Draw final output in post buffer
-            HDRScreenBuffer.Render(gl, (int)viewportSize.X, (int)viewportSize.Y,
-                (GLTexture2D)SceneOutputFB.Attachments[0],
-                (GLTexture2D)PickingHighlightFB.Attachments[1],
-                (GLTexture2D)PickingHighlightFB.Attachments[2],
-                (GLTexture2D)PickingHighlightFB.Attachments[^1],
-                (GLTexture2D)SceneOutputFB.Attachments[^1]);
+            HDRCompositor.Render(gl, (int)viewportSize.X, (int)viewportSize.Y,
+                (GLTexture2D)SceneOutputFB.Attachments[FBColorIdx(SceneOutput_Color)],
+                (GLTexture2D)PickingHighlightFB.Attachments[FBColorIdx(PickingHighlight_Highlight)],
+                (GLTexture2D)PickingHighlightFB.Attachments[FBColorIdx(PickingHighlight_Outline)],
+                (GLTexture2D)PickingHighlightFB.Attachments[FBDepthIdx()],
+                (GLTexture2D)SceneOutputFB.Attachments[FBDepthIdx()]);
 
             RenderPass(gl, viewportSize, mousePos, hoveredObject, camera, Pass.ScenePicking);
 
@@ -100,21 +197,21 @@ namespace ToyStudio.GUI.SceneRendering
         }
 
         public void RenderPass(GL gl, Vector2 viewportSize, Vector2 mousePos,
-            ISceneObject<SubLevelSceneContext>? hoveredObject, Camera camera, Pass pass)
+            SCENE_OBJ? hoveredObject, Camera camera, Pass pass)
         {
             if (pass == Pass.Color)
             {
                 SceneOutputFB!.Bind();
                 SceneOutputFB.SetDrawBuffers(
-                    DrawBufferMode.ColorAttachment0);
+                    SceneOutput_Color);
             }
             else
             {
                 PickingHighlightFB!.Bind();
 
                 PickingHighlightFB.SetDrawBuffers(
-                    DrawBufferMode.ColorAttachment0,
-                    DrawBufferMode.ColorAttachment1);
+                    PickingHighlight_ObjID,
+                    PickingHighlight_Highlight);
             }
             
             gl.ClearColor(0, 0, 0, 0);
@@ -126,55 +223,14 @@ namespace ToyStudio.GUI.SceneRendering
             //Start drawing the scene. Bfres draw upside down so flip the viewport clip
             gl.ClipControl(ClipControlOrigin.UpperLeft, ClipControlDepth.ZeroToOne);
 
-            uint id = 0;
-            scene.ForEach<LevelActorSceneObj>(actorObj =>
+            uint id = 1;
+
+            foreach (var obj in _sceneRenderables)
             {
+                obj.Render(id, gl, pass, camera, hoveredObject == obj);
+
                 id++;
-                if (!actorObj.IsVisible)
-                    return;
-
-                Vector4 highlightColor = default;
-
-                if (((IViewportSelectable)actorObj).IsSelected())
-                    highlightColor = new Vector4(1.0f, .65f, .4f, 0.5f);
-
-                if (actorObj == hoveredObject)
-                    highlightColor = ColorUtil.AlphaBlend(highlightColor, Vector4.One with { W = 0.2f });
-
-                if (pass == Pass.SelectionHighlight && highlightColor == default)
-                    return;
-
-                var (bfresRender, modelName) = actorObj.GetModelBfresRender(glScheduler);
-                var textureArc = actorObj.GetTextureArcRender(glScheduler);
-
-                if (bfresRender is null)
-                    return;
-
-                var transform = actorObj.GetTransform();
-
-                var mtx =
-                    Matrix4x4.CreateScale(transform.Scale) *
-                    Matrix4x4.CreateFromQuaternion(transform.Orientation) *
-                    Matrix4x4.CreateTranslation(transform.Position);
-
-                if (textureArc is not null)
-                    bfresRender.TextureArc = textureArc;
-
-                var mdl = bfresRender.Models[modelName];
-
-                (uint, Vector4)? highlightPicking = null;
-
-                if (pass != Pass.Color)
-                    highlightPicking = (id, highlightColor);
-
-                //TODO find a better solution
-                mdl.Meshes.RemoveAll(mesh =>
-                    mesh.MaterialRender.Name.EndsWith("Depth") ||
-                    mesh.MaterialRender.Name.EndsWith("Shadow") ||
-                    mesh.MaterialRender.Name.EndsWith("AO"));
-
-                mdl.Render(gl, bfresRender, mtx, camera, highlightPicking);
-            });
+            }
 
             //Reset back to defaults
             gl.ClipControl(ClipControlOrigin.LowerLeft, ClipControlDepth.ZeroToOne);
@@ -188,8 +244,6 @@ namespace ToyStudio.GUI.SceneRendering
 
                 gl.ReadPixels((int)mousePos.X, (int)mousePos.Y, 1, 1,
                     GlPixelFormat.DepthComponent, PixelType.Float, out float ndcDepth);
-
-                Debug.WriteLine(pickedId);
 
                 if (pickedId == 0)
                     HoveredObject = null;
@@ -253,6 +307,12 @@ namespace ToyStudio.GUI.SceneRendering
 
             return framebuffer;
         }
+
+        private Task? _previousLoadAllResourceTask = null;
+        private CancellationTokenSource? _previousLoadAllResourceCancel = null;
+        private object _previousLoadAllResourceTaskLock = new();
+
+        private List<ISceneRenderable> _sceneRenderables = [];
 
         private static GLTexture2D CreateFBTexture(GL gl, uint width, uint height,
             VdPixelFormat pixelFormat, string label)

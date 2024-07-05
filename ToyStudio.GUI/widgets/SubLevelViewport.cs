@@ -14,6 +14,7 @@ using static EditorToolkit.ImGui.HotkeyHelper.Modifiers;
 using static ImGuiNET.ImGuiKey;
 using ToyStudio.GLRendering;
 using ToyStudio.GUI.SceneRendering;
+using System.Diagnostics;
 
 namespace ToyStudio.GUI.Widgets
 {
@@ -751,9 +752,13 @@ namespace ToyStudio.GUI.Widgets
             _sceneRenderer = new SubLevelSceneRenderer(glScheduler, subLevelScene);
             _camera = new Camera { Distance = 10, IsOrthographic = true };
 
+            Task.Run(_sceneRenderer.LoadGLResources);
+
             _subLevelScene.AfterRebuild += () =>
             {
+                Debug.WriteLine("Scene rebuild");
                 SelectionChanged?.Invoke();
+                Task.Run(_sceneRenderer.LoadGLResources);
             };
         }
 
