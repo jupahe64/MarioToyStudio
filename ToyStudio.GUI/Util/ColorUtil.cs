@@ -32,8 +32,8 @@ namespace ToyStudio.GUI.Util
                   in Vector4 dst,
                   ref Vector4 out_color)
         {
-          float src_A = src.W / 255f,
-                 dst_A = dst.W / 255f;
+          float src_A = src.W,
+                 dst_A = dst.W;
           float out_alpha = src_A + dst_A * (1 - src_A);
           if (out_alpha > 0)
             {
@@ -43,7 +43,7 @@ namespace ToyStudio.GUI.Util
               out_color.Y = npd_blend_band (src.Y, dst.Y, src_A, dst_A, out_alpha_recip);
               out_color.Z = npd_blend_band (src.Z, dst.Z, src_A, dst_A, out_alpha_recip);
             }
-          out_color.W = out_alpha * 255;
+          out_color.W = out_alpha;
         }
 
     }
