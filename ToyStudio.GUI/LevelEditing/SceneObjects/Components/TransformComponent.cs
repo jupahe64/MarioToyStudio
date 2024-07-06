@@ -46,12 +46,12 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects.Components
         private Property<TObject, Vector3>? RotationProperty => transformProperties.RotationProperty;
         private Property<TObject, Vector3>? ScaleProperty => transformProperties.ScaleProperty;
 
-        private Quaternion? _immediateQuat = null;
+        private Quaternion? _intermediateQuat = null;
 
-        public bool TryGetImmediateQuat(out Quaternion rotation)
+        public bool TryGetIntermediateQuat(out Quaternion rotation)
         {
-            rotation = _immediateQuat.GetValueOrDefault();
-            return _immediateQuat.HasValue;
+            rotation = _intermediateQuat.GetValueOrDefault();
+            return _intermediateQuat.HasValue;
         }
 
         public ITransformable.Transform GetTransform()
@@ -79,7 +79,7 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects.Components
             if (newOrientation.HasValue && RotationProperty != null)
             {
                 RotationProperty.SetValue(dataObject, MathUtil.QuatToEulerXYZ(newOrientation.Value));
-                _immediateQuat = newOrientation;
+                _intermediateQuat = newOrientation;
             }
 
             if (newScale.HasValue && ScaleProperty != null)
@@ -88,7 +88,7 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects.Components
 
         public void OnEndTransform(bool isCancel, Action<IRevertable> commit, string actionName = "Transforming Object(s)")
         {
-            _immediateQuat = null;
+            _intermediateQuat = null;
             if (isCancel)
             {
                 transformProperties.SetTransformValue(dataObject, _preTransform);

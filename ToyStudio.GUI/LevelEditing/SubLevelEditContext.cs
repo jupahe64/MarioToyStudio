@@ -7,7 +7,7 @@ using ToyStudio.Core.Level.Objects;
 
 namespace ToyStudio.GUI.LevelEditing
 {
-    internal class SubLevelEditContext(SubLevel subLevel, IPopupModalHost popupModal) : EditContextBase
+    internal class SubLevelEditContext(SubLevel subLevel, IPopupModalHost popupHost) : EditContextBase
     {
         public void SelectAll()
         {

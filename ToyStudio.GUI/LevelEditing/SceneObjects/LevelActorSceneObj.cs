@@ -79,7 +79,7 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects
 
             var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-            if (!_transformComponent.TryGetImmediateQuat(out Quaternion quat))
+            if (!_transformComponent.TryGetIntermediateQuat(out Quaternion quat))
                 quat = MathUtil.QuatFromEulerXYZ(_actor.Rotate);
 
             var mtx =
