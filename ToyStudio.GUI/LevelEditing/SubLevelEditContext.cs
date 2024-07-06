@@ -158,15 +158,5 @@ namespace ToyStudio.GUI.LevelEditing
         }
 
         private readonly Random _rng = new();
-
-        private class DummyAction : IRevertable
-        {
-            public string Name => "DummyAction";
-
-            public IRevertable Revert()
-            {
-                return new DummyAction();
-            }
-        }
     }
 }

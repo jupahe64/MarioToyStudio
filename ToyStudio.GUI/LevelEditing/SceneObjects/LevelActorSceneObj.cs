@@ -145,35 +145,6 @@ namespace ToyStudio.GUI.LevelEditing.SceneObjects
             Face(-Vector3.UnitZ, -Vector3.UnitX, ref hitPoint);
         }
 
-        public (BfresRender? bfres, string modelName) GetModelBfresRender(GLTaskScheduler glScheduler)
-        {
-            if (!_actorPack.TryGetModelInfo(out ModelInfo? modelInfo, out _))
-                return (null, null!);
-
-            //temporary
-            var task = _sceneContext.BfresCache.LoadAsync(glScheduler, modelInfo.ModelProjectName!);
-            if (!task.IsCompleted)
-                return (null, null!);
-
-            return (task.Result, modelInfo.FmdbName!);
-        }
-
-        public BfresRender? GetTextureArcRender(GLTaskScheduler glScheduler)
-        {
-            if (!_actorPack.TryGetModelInfo(out _, out string? textureArc))
-                return null;
-
-            if (textureArc == null)
-                return null;
-
-            //temporary
-            var task = _sceneContext.BfresCache.LoadAsync(glScheduler, textureArc);
-            if (!task.IsCompleted)
-                return null;
-
-            return task.Result;
-        }
-
         public ITransformable.Transform GetTransform() => _transformComponent.GetTransform();
 
         #region ITransformable
