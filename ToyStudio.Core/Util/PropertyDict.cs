@@ -25,7 +25,7 @@ namespace ToyStudio.Core.Util
             }
         }
 
-        public static readonly PropertyDict Empty = new PropertyDict([]);
+        public static readonly PropertyDict Empty = new PropertyDict(Array.Empty<Entry>());
 
         public PropertyDict(IEnumerable<Entry> pairs)
         {

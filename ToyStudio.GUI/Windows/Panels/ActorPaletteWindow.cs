@@ -67,7 +67,8 @@ namespace ToyStudio.GUI.Windows.Panels
                 _detailRows = [];
                 foreach (var name in romfs.GetAllActorPackNames())
                 {
-                    Debug.Assert(romfs.TryLoadActorPack(name, out var sarc));
+                    bool success = romfs.TryLoadActorPack(name, out var sarc);
+                    Debug.Assert(success);
                     var actorPack = new ActorPack(name, sarc);
 
                     _detailRows.Add(new(name, actorPack.Category ?? "N/A"));

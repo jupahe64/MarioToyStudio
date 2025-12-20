@@ -76,7 +76,8 @@ namespace EditorToolkit.Core.Transform.Actions
             if (AxisRestriction == AxisRestriction.None)
                 return -sceneView.CamForwardVector;
 
-            Debug.Assert(AxisRestriction.IsSingleAxis(out int axis));
+            bool isSingleAxis = AxisRestriction.IsSingleAxis(out int axis);
+            Debug.Assert(isSingleAxis);
             return Axes[axis];
         }
 

@@ -75,7 +75,8 @@ namespace EditorToolkit.Core.Transform.Actions
             }
             else
             {
-                Debug.Assert(AxisRestriction.IsSingleAxis(out int axis));
+                bool isSingleAxis = AxisRestriction.IsSingleAxis(out int axis);
+                Debug.Assert(isSingleAxis);
                 comp[axis] = scaleFactor;
             }
             return new Vector3(comp);
